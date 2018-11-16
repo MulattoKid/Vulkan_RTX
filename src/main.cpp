@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 #include <set>
@@ -37,11 +38,11 @@ std::vector<VkImage> vk_swap_chain_images;
 const std::vector<const char*> vk_device_extensions = 
 {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-	"VK_NV_ray_tracing"
+	/*"VK_NV_ray_tracing"*/
 };
 
 #define CHECK_VK_RESULT(res) \
-	if (res != VK_SUCCESS) printf("Vulkan call on line %lu failed\n", __LINE__); \
+	if (res != VK_SUCCESS) printf("Vulkan call on line %i failed\n", __LINE__); \
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -175,7 +176,7 @@ void InitVulkan()
 	VkInstanceCreateInfo instance_info = {};
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_info.pNext = NULL;
-	instance_info.flags = NULL;
+	instance_info.flags = 0;
 	instance_info.pApplicationInfo = &app_info;
 	instance_info.enabledLayerCount = validation_layer_count;
 	instance_info.ppEnabledLayerNames = validation_layers;
@@ -285,7 +286,7 @@ void FindQueues()
 	vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &queue_family_count, queue_families.data());
 
 	bool found_graphics_queue = false;
-	VkBool32 present_queue_support = VK_FALSE;
+	bool found_present_queue = false;
 	for (uint32_t i = 0; i < queue_family_count; i++)
 	{
 		if (queue_families[i].queueCount > 0 && queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
@@ -294,10 +295,12 @@ void FindQueues()
 			found_graphics_queue = true;
 		}
 
+		VkBool32 present_queue_support;
 		vkGetPhysicalDeviceSurfaceSupportKHR(vk_physical_device, i, vk_surface, &present_queue_support);
 		if (queue_families[i].queueCount > 0 && present_queue_support)
 		{
 			vk_present_queue_index = i;
+			found_present_queue = true;
 		}
 	}
 
@@ -306,7 +309,7 @@ void FindQueues()
 		printf("Failed to find graphics queue index\n");
 		exit(1);
 	}
-	if (present_queue_support == VK_FALSE)
+	if (!found_present_queue)
 	{
 		printf("Present queue not supported on device\n");
 		exit(1);
@@ -315,9 +318,11 @@ void FindQueues()
 
 void CreateLogicalDevice()
 {
-	const uint32_t num_queues = 2;
+	uint32_t num_queues = 0;
+	if (vk_graphics_queue_index == vk_present_queue_index) { num_queues = 1; }
+	else { num_queues = 2; }
 	VkDeviceQueueCreateInfo queues[num_queues];
-
+	
 	VkDeviceQueueCreateInfo& graphics_queue_info = queues[0];
 	graphics_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	graphics_queue_info.pNext = NULL;
@@ -327,13 +332,16 @@ void CreateLogicalDevice()
 	float priority = 1.0f;
 	graphics_queue_info.pQueuePriorities = &priority;
 
-	VkDeviceQueueCreateInfo& present_queue_info = queues[1];
-	present_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	present_queue_info.pNext = NULL;
-	present_queue_info.flags = 0;
-	present_queue_info.queueFamilyIndex = vk_present_queue_index;
-	present_queue_info.queueCount = 1;
-	present_queue_info.pQueuePriorities = &priority;
+	if (vk_graphics_queue_index != vk_present_queue_index)
+	{
+		VkDeviceQueueCreateInfo& present_queue_info = queues[1];
+		present_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		present_queue_info.pNext = NULL;
+		present_queue_info.flags = 0;
+		present_queue_info.queueFamilyIndex = vk_present_queue_index;
+		present_queue_info.queueCount = 1;
+		present_queue_info.pQueuePriorities = &priority;
+	}
 
 	VkDeviceCreateInfo device_info = {};
 	device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -432,7 +440,7 @@ void CreateSwapChain()
 	swap_chain_info.imageExtent = vk_surface_extent;
 	swap_chain_info.imageArrayLayers = 1;
 	swap_chain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	if (vk_graphics_queue_index == vk_present_queue_index)
+	if (vk_graphics_queue_index != vk_present_queue_index)
 	{
 		swap_chain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		swap_chain_info.queueFamilyIndexCount = 2;
