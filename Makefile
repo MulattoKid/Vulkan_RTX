@@ -23,6 +23,7 @@ debug : VulkanRTX
 #Links all object files
 VulkanRTX : $(OBJ_FILES)
 	$(CXX) -o ./$(OBJ_DIR)/VulkanRTX $(OBJ_FILES) $(LDFLAGS)
+	./CompileShaders
 
 .PHONY : clean
 clean :

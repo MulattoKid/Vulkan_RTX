@@ -1,0 +1,2 @@
+~/VulkanSDK/1.1.85.0/x86_64/bin/glslangValidator -V src/shaders/shader.vert -o src/shaders/vert.spv
+~/VulkanSDK/1.1.85.0/x86_64/bin/glslangValidator -V src/shaders/shader.frag -o src/shaders/frag.spv
