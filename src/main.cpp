@@ -3,6 +3,7 @@
 #include <fstream>
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
+#include "glm/vec2.hpp"
 #include <set>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +61,22 @@ std::vector<VkSemaphore> vk_image_available_semaphores;
 std::vector<VkSemaphore> vk_render_finished_semaphores;
 std::vector<VkFence> vk_in_flight_fences;
 
+//Geometry data
+const std::vector<glm::vec2> vertices = 
+{
+	glm::vec2(0.0f, -0.5f),
+	glm::vec2(-0.5f, 0.5f),
+	glm::vec2(0.5f, 0.5f)
+};
+const std::vector<uint32_t> indices =
+{
+	0, 1, 2
+};
+VkBuffer vk_vertex_buffer;
+VkBuffer vk_index_buffer;
+VkDeviceMemory vk_vertex_buffer_memory;
+VkDeviceMemory vk_index_buffer_memory;
+
 #define CHECK_VK_RESULT(res) \
 	if (res != VK_SUCCESS) printf("Vulkan call on line %i failed\n", __LINE__); \
 
@@ -111,6 +128,23 @@ std::vector<char> ReadFile(const std::string& file)
 	f.close();
 	
 	return buffer;
+}
+
+uint32_t FindMemoryType(uint32_t type_filter, VkMemoryPropertyFlags properties)
+{
+	VkPhysicalDeviceMemoryProperties mem_prop;
+	vkGetPhysicalDeviceMemoryProperties(vk_physical_device, &mem_prop);
+	
+	for (uint32_t i = 0; i < mem_prop.memoryTypeCount; i++)
+	{
+		if (type_filter & (1 << i) && (mem_prop.memoryTypes[i].propertyFlags & properties) == properties)
+		{
+			return i;
+		}
+	}
+	
+	printf("Failed to find any supported memory type\n");
+	exit(1);
 }
 
 void CreateWindow()
@@ -566,14 +600,25 @@ void CreateGraphicsPipeline()
 	shader_stage_infos[1].pName = "main";
 	shader_stage_infos[1].pSpecializationInfo = NULL;
 	
+	VkVertexInputBindingDescription input_desc = {};
+	input_desc.binding = 0;
+	input_desc.stride = sizeof(glm::vec2);
+	input_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	
+	VkVertexInputAttributeDescription attribute_desc = {};
+	attribute_desc.location = 0;
+	attribute_desc.binding = 0;
+	attribute_desc.format = VK_FORMAT_R32G32_SFLOAT;
+	attribute_desc.offset = 0;
+	
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
 	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertex_input_info.pNext = NULL;
 	vertex_input_info.flags = 0;
-	vertex_input_info.vertexBindingDescriptionCount = 0;
-	vertex_input_info.pVertexBindingDescriptions = NULL;
-	vertex_input_info.vertexAttributeDescriptionCount = 0;
-	vertex_input_info.pVertexAttributeDescriptions = NULL;
+	vertex_input_info.vertexBindingDescriptionCount = 1;
+	vertex_input_info.pVertexBindingDescriptions = &input_desc;
+	vertex_input_info.vertexAttributeDescriptionCount = 1;
+	vertex_input_info.pVertexAttributeDescriptions = &attribute_desc;
 	
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
 	input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -777,6 +822,40 @@ void CreateCommandPool()
 	CHECK_VK_RESULT(vkCreateCommandPool(vk_device, &cmd_pool_info, NULL, &vk_command_pool))
 }
 
+void CreateGeometryBuffers()
+{
+	//Create vertex buffer
+	VkBufferCreateInfo vertex_buffer_info = {};
+	vertex_buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vertex_buffer_info.pNext = NULL;
+	vertex_buffer_info.flags = 0;
+	vertex_buffer_info.size = vertices.size() * sizeof(vertices[0]);
+	vertex_buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	vertex_buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	vertex_buffer_info.queueFamilyIndexCount = 1;
+	vertex_buffer_info.pQueueFamilyIndices = &vk_graphics_queue_index;
+	CHECK_VK_RESULT(vkCreateBuffer(vk_device, &vertex_buffer_info, NULL, &vk_vertex_buffer))
+	
+	//Allocate memory for vertex buffer
+	VkMemoryRequirements vertex_buffer_mem_req;
+	vkGetBufferMemoryRequirements(vk_device, vk_vertex_buffer, &vertex_buffer_mem_req);
+	VkMemoryAllocateInfo vertex_buffer_mem_info = {};
+	vertex_buffer_mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	vertex_buffer_mem_info.pNext = NULL;
+	vertex_buffer_mem_info.allocationSize = vertex_buffer_mem_req.size;
+	vertex_buffer_mem_info.memoryTypeIndex = FindMemoryType(vertex_buffer_mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	CHECK_VK_RESULT(vkAllocateMemory(vk_device, &vertex_buffer_mem_info, NULL, &vk_vertex_buffer_memory))
+	
+	//Connect buffer and memory
+	vkBindBufferMemory(vk_device, vk_vertex_buffer, vk_vertex_buffer_memory, 0);
+	
+	//Copy data to buffer
+	void* data;
+	vkMapMemory(vk_device, vk_vertex_buffer_memory, 0, vertex_buffer_info.size, 0, &data);
+	memcpy(data, (void*)(vertices.data()), vertex_buffer_info.size);
+	vkUnmapMemory(vk_device, vk_vertex_buffer_memory);
+}
+
 void CreateCommandBuffers()
 {
 	//Allocate
@@ -813,7 +892,9 @@ void CreateCommandBuffers()
 		vkCmdBeginRenderPass(vk_command_buffers[i], &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 		
 		vkCmdBindPipeline(vk_command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_graphics_pipeline);
-		vkCmdDraw(vk_command_buffers[i], 3, 1, 0, 0);
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(vk_command_buffers[i], 0, 1, &vk_vertex_buffer, &offset);
+		vkCmdDraw(vk_command_buffers[i], uint32_t(vertices.size()), 1, 0, 0);
 		vkCmdEndRenderPass(vk_command_buffers[i]);
 		
 		CHECK_VK_RESULT(vkEndCommandBuffer(vk_command_buffers[i]))
@@ -890,6 +971,10 @@ void CleanUpVulkan()
 		vkDestroySemaphore(vk_device, vk_render_finished_semaphores[i], NULL);
 		vkDestroyFence(vk_device, vk_in_flight_fences[i], NULL);
 	}
+	vkFreeMemory(vk_device, vk_vertex_buffer_memory, NULL);
+	vkFreeMemory(vk_device, vk_index_buffer_memory, NULL);
+	vkDestroyBuffer(vk_device, vk_vertex_buffer, NULL);
+	vkDestroyBuffer(vk_device, vk_index_buffer, NULL);
 	vkDestroyCommandPool(vk_device, vk_command_pool, NULL); //Also frees all command buffers allocated
 	for (auto& framebuffer : vk_framebuffers)
 	{
@@ -926,6 +1011,7 @@ int main()
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandPool();
+	CreateGeometryBuffers();
 	CreateCommandBuffers();
 	CreateSyncObjects();
 
