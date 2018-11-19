@@ -50,6 +50,16 @@ VkPipelineLayout vk_graphics_pipeline_layout;
 VkRenderPass vk_renderpass;
 VkPipeline vk_graphics_pipeline;
 
+//Rendering
+std::vector<VkFramebuffer> vk_framebuffers;
+VkCommandPool vk_command_pool;
+std::vector<VkCommandBuffer> vk_command_buffers;
+const uint32_t max_frames_in_flight = 2;
+uint32_t current_frame;
+std::vector<VkSemaphore> vk_image_available_semaphores;
+std::vector<VkSemaphore> vk_render_finished_semaphores;
+std::vector<VkFence> vk_in_flight_fences;
+
 #define CHECK_VK_RESULT(res) \
 	if (res != VK_SUCCESS) printf("Vulkan call on line %i failed\n", __LINE__); \
 
@@ -629,22 +639,6 @@ void CreateGraphicsPipeline()
 	multisample_info.alphaToCoverageEnable = VK_FALSE;
 	multisample_info.alphaToOneEnable = VK_FALSE;
 	
-	VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {};
-	depth_stencil_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depth_stencil_info.pNext = NULL;
-	depth_stencil_info.flags = 0;
-	depth_stencil_info.depthTestEnable = VK_FALSE;
-	/* IGNORED
-	depth_stencil_info.depthWriteEnable
-	depth_stencil_info.deothCompareOp*/
-	depth_stencil_info.depthBoundsTestEnable = VK_FALSE;
-	depth_stencil_info.stencilTestEnable = VK_FALSE;
-	/* IGNORED
-	depth_stencil_info.front
-	depth_stencil_info.back
-	depth_stencil_info.minDepthBounds
-	depth_stencil_info.maxDepthBounds*/
-	
 	VkPipelineColorBlendAttachmentState color_blend_attachment = {};
 	color_blend_attachment.blendEnable = VK_FALSE;
 	/* IGNORED
@@ -653,8 +647,8 @@ void CreateGraphicsPipeline()
 	color_blend_attachment.colorBlendOp
 	color_blend_attachment.srcAlphaBlendFactor
 	color_blend_attachment.dstAlphaBlendFactor
-	color_blend_attachment.alphaBlendOp
-	color_blend_attachment.colorWriteMask*/
+	color_blend_attachment.alphaBlendOp*/
+	color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	
 	VkPipelineColorBlendStateCreateInfo color_blend_info = {};
 	color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -707,6 +701,15 @@ void CreateGraphicsPipeline()
 	subpass.preserveAttachmentCount = 0;
 	subpass.pPreserveAttachments = NULL;
 	
+	VkSubpassDependency subpass_dependency = {};
+	subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	subpass_dependency.dstSubpass = 0;
+	subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependency.srcAccessMask = 0;
+	subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependency.dependencyFlags = 0;
+	
 	VkRenderPassCreateInfo renderpass_info = {};
 	renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderpass_info.pNext = NULL;
@@ -715,8 +718,8 @@ void CreateGraphicsPipeline()
 	renderpass_info.pAttachments = &attachment;
 	renderpass_info.subpassCount = 1;
 	renderpass_info.pSubpasses = &subpass;
-	renderpass_info.dependencyCount = 0;
-	renderpass_info.pDependencies = NULL; //Implicit dependency
+	renderpass_info.dependencyCount = 1;
+	renderpass_info.pDependencies = &subpass_dependency;
 	CHECK_VK_RESULT(vkCreateRenderPass(vk_device, &renderpass_info, NULL, &vk_renderpass))
 	
 	VkGraphicsPipelineCreateInfo graphics_pipeline_info = {};
@@ -731,7 +734,7 @@ void CreateGraphicsPipeline()
 	graphics_pipeline_info.pViewportState = &viewport_info;
 	graphics_pipeline_info.pRasterizationState = &rasterization_info;
 	graphics_pipeline_info.pMultisampleState = &multisample_info;
-	graphics_pipeline_info.pDepthStencilState = &depth_stencil_info;
+	graphics_pipeline_info.pDepthStencilState = NULL;
 	graphics_pipeline_info.pColorBlendState = &color_blend_info;
 	graphics_pipeline_info.pDynamicState = NULL;
 	graphics_pipeline_info.layout = vk_graphics_pipeline_layout;
@@ -740,11 +743,158 @@ void CreateGraphicsPipeline()
 	graphics_pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
 	/* IGNORED
 	graphics_pipeline_info.basePipelineIndex*/
+	
 	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vk_device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, NULL, &vk_graphics_pipeline))
+}
+
+void CreateFramebuffers()
+{
+	vk_framebuffers.resize(vk_swap_chain_image_views.size());
+	
+	VkFramebufferCreateInfo framebuffer_info = {};
+	framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_info.pNext = NULL;
+	framebuffer_info.flags = 0;
+	framebuffer_info.renderPass = vk_renderpass;
+	framebuffer_info.attachmentCount = 1;
+	framebuffer_info.width = vk_surface_extent.width;
+	framebuffer_info.height = vk_surface_extent.height;
+	framebuffer_info.layers = 1;
+	for (size_t i = 0; i < vk_framebuffers.size(); i++)
+	{
+		framebuffer_info.pAttachments = &vk_swap_chain_image_views[i];
+		CHECK_VK_RESULT(vkCreateFramebuffer(vk_device, &framebuffer_info, NULL, &vk_framebuffers[i]))
+	}
+}
+
+void CreateCommandPool()
+{
+	VkCommandPoolCreateInfo cmd_pool_info = {};
+	cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	cmd_pool_info.pNext = NULL;
+	cmd_pool_info.flags = 0;
+	cmd_pool_info.queueFamilyIndex = vk_graphics_queue_index;
+	CHECK_VK_RESULT(vkCreateCommandPool(vk_device, &cmd_pool_info, NULL, &vk_command_pool))
+}
+
+void CreateCommandBuffers()
+{
+	//Allocate
+	vk_command_buffers.resize(vk_framebuffers.size());
+	VkCommandBufferAllocateInfo alloc_info = {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.pNext = NULL;
+	alloc_info.commandPool = vk_command_pool;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandBufferCount = uint32_t(vk_command_buffers.size());
+	CHECK_VK_RESULT(vkAllocateCommandBuffers(vk_device, &alloc_info, vk_command_buffers.data()))
+	
+	//Record
+	for (size_t i = 0; i < vk_command_buffers.size(); i++)
+	{
+		VkCommandBufferBeginInfo begin_info = {};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.pNext = NULL;
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		begin_info.pInheritanceInfo = NULL;
+		CHECK_VK_RESULT(vkBeginCommandBuffer(vk_command_buffers[i], &begin_info))
+		
+		VkClearColorValue ccv = { 0.0f, 0.0f, 0.0f, 1.0f };
+		VkClearValue clear_value = { ccv };
+		VkRenderPassBeginInfo renderpass_info = {};
+		renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderpass_info.pNext = NULL;
+		renderpass_info.renderPass = vk_renderpass;
+		renderpass_info.framebuffer = vk_framebuffers[i];
+		renderpass_info.renderArea.offset = { 0, 0 };
+		renderpass_info.renderArea.extent = vk_surface_extent;
+		renderpass_info.clearValueCount = 1;
+		renderpass_info.pClearValues = &clear_value;
+		vkCmdBeginRenderPass(vk_command_buffers[i], &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+		
+		vkCmdBindPipeline(vk_command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_graphics_pipeline);
+		vkCmdDraw(vk_command_buffers[i], 3, 1, 0, 0);
+		vkCmdEndRenderPass(vk_command_buffers[i]);
+		
+		CHECK_VK_RESULT(vkEndCommandBuffer(vk_command_buffers[i]))
+	}
+}
+
+void CreateSyncObjects()
+{
+	vk_image_available_semaphores.resize(max_frames_in_flight);
+	vk_render_finished_semaphores.resize(max_frames_in_flight);
+	vk_in_flight_fences.resize(max_frames_in_flight);
+
+	VkSemaphoreCreateInfo semaphore_info = {};
+	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	semaphore_info.pNext = NULL;
+	semaphore_info.flags = 0;
+	
+	VkFenceCreateInfo fence_info = {};
+	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fence_info.pNext = NULL;
+	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	
+	for (size_t i = 0; i < vk_image_available_semaphores.size(); i++)
+	{
+		CHECK_VK_RESULT(vkCreateSemaphore(vk_device, &semaphore_info, NULL, &vk_image_available_semaphores[i]))
+		CHECK_VK_RESULT(vkCreateSemaphore(vk_device, &semaphore_info, NULL, &vk_render_finished_semaphores[i]))
+		CHECK_VK_RESULT(vkCreateFence(vk_device, &fence_info, NULL, &vk_in_flight_fences[i]))
+	}
+}
+
+void RenderFrame()
+{
+	vkWaitForFences(vk_device, 1, &vk_in_flight_fences[current_frame], VK_TRUE, std::numeric_limits<uint32_t>::max());
+	vkResetFences(vk_device, 1, &vk_in_flight_fences[current_frame]);
+
+	uint32_t image_index;
+	CHECK_VK_RESULT(vkAcquireNextImageKHR(vk_device, vk_swap_chain, std::numeric_limits<uint32_t>::max(), vk_image_available_semaphores[current_frame], VK_NULL_HANDLE, &image_index))
+	
+	VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.pNext = NULL;
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = &vk_image_available_semaphores[current_frame];
+	submit_info.pWaitDstStageMask = &wait_stage;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &vk_command_buffers[image_index];
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &vk_render_finished_semaphores[current_frame];
+	CHECK_VK_RESULT(vkQueueSubmit(vk_graphics_queue, 1, &submit_info, vk_in_flight_fences[current_frame]))
+	
+	VkResult result;
+	VkPresentInfoKHR present_info = {};
+	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	present_info.pNext = NULL;
+	present_info.waitSemaphoreCount = 1;
+	present_info.pWaitSemaphores = &vk_render_finished_semaphores[current_frame];
+	present_info.swapchainCount = 1;
+	present_info.pSwapchains = &vk_swap_chain;
+	present_info.pImageIndices = &image_index;
+	present_info.pResults = &result;
+	vkQueuePresentKHR(vk_graphics_queue, &present_info);
+	CHECK_VK_RESULT(result)
+	
+	current_frame = (current_frame + 1) % max_frames_in_flight;
 }
 
 void CleanUpVulkan()
 {
+	for (size_t i = 0; i < vk_image_available_semaphores.size(); i++)
+	{
+		vkDestroySemaphore(vk_device, vk_image_available_semaphores[i], NULL);
+		vkDestroySemaphore(vk_device, vk_render_finished_semaphores[i], NULL);
+		vkDestroyFence(vk_device, vk_in_flight_fences[i], NULL);
+	}
+	vkDestroyCommandPool(vk_device, vk_command_pool, NULL); //Also frees all command buffers allocated
+	for (auto& framebuffer : vk_framebuffers)
+	{
+		vkDestroyFramebuffer(vk_device, framebuffer, NULL);
+	}
 	vkDestroyPipeline(vk_device, vk_graphics_pipeline, NULL);
 	vkDestroyRenderPass(vk_device, vk_renderpass, NULL);
 	vkDestroyPipelineLayout(vk_device, vk_graphics_pipeline_layout, NULL);
@@ -774,10 +924,16 @@ int main()
 	CreateSwapChain();
 	CreateImageViews();
 	CreateGraphicsPipeline();
+	CreateFramebuffers();
+	CreateCommandPool();
+	CreateCommandBuffers();
+	CreateSyncObjects();
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
+		RenderFrame();
 	}
+	vkDeviceWaitIdle(vk_device);
 
 	CleanUpVulkan();
 	DestroyWindow();
