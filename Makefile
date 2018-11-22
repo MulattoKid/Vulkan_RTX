@@ -10,7 +10,7 @@ VULKAN_SDK_PATH = ~/VulkanSDK/1.1.85.0/x86_64
 
 CXX = g++
 CXXFLAGS = -std=c++11 -fopenmp -I ${GLFW_PATH}/include -I $(VULKAN_SDK_PATH)/include
-LDFLAGS = -fopenmp -lstdc++fs -L ${GLFW_PATH}/src -lglfw3 -lrt -lm -ldl -lX11 -lXrandr -lXinerama -lXcursor -L $(VULKAN_SDK_PATH)/lib -lvulkan
+LDFLAGS = -lstdc++fs -L ${GLFW_PATH}/src -lglfw3 -fopenmp -lrt -lm -ldl -lX11 -lXrandr -lXinerama -lXcursor -L $(VULKAN_SDK_PATH)/lib -lvulkan
 
 #Setup for release
 all : CXXFLAGS += -O2
