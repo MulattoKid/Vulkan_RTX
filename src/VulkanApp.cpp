@@ -717,6 +717,43 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	vkDestroyBuffer(vkDevice, stagingBuffer, NULL);
 }
 
+void VulkanApp::Render(VkCommandBuffer* commandBuffers)
+{
+	vkWaitForFences(vkDevice, 1, &vkInFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint32_t>::max());
+	vkResetFences(vkDevice, 1, &vkInFlightFences[currentFrame]);
+
+	uint32_t imageIndex;
+	CHECK_VK_RESULT(vkAcquireNextImageKHR(vkDevice, vkSwapchain, std::numeric_limits<uint32_t>::max(), vkImageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex))
+	
+	VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pNext = NULL;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = &vkImageAvailableSemaphores[currentFrame];
+	submitInfo.pWaitDstStageMask = &waitStage;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = &vkRenderFinishedSemaphores[currentFrame];
+	CHECK_VK_RESULT(vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, vkInFlightFences[currentFrame]))
+	
+	VkResult result;
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.pNext = NULL;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &vkRenderFinishedSemaphores[currentFrame];
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = &vkSwapchain;
+	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pResults = &result;
+	vkQueuePresentKHR(vkGraphicsQueue, &presentInfo);
+	CHECK_VK_RESULT(result)
+	
+	currentFrame = (currentFrame + 1) % maxFramesInFlight;
+}
 
 
 

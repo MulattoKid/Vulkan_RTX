@@ -26,6 +26,11 @@ int main(int argc, char** argv)
 	vkAppInfo.maxFramesInFlight = 2;
 	VulkanApp vkApp(&vkAppInfo);
 
+	//Shader modules
+	VkShaderModule vertexShader, fragmentShader;
+	vkApp.CreateShaderModule("src/shaders/vert.spv", &vertexShader);
+	vkApp.CreateShaderModule("src/shaders/frag.spv", &fragmentShader);
+
 	//Vertex buffer
 	std::vector<float> vertexData = {
 		0.0f, -1.0f,
@@ -45,11 +50,18 @@ int main(int argc, char** argv)
 	VkDeviceMemory indexBufferMemory;
 	vkApp.CreateDeviceBuffer(indexDataSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer, &indexBufferMemory);
 	
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents();
+		//vkApp.Render();
+	}
+	vkDeviceWaitIdle(vkApp.vkDevice);
 	
 	vkFreeMemory(vkApp.vkDevice, indexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, indexBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, vertexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, vertexBuffer, NULL);
+	vkDestroyShaderModule(vkApp.vkDevice, fragmentShader, NULL);
+	vkDestroyShaderModule(vkApp.vkDevice, vertexShader, NULL);
 
 	return EXIT_SUCCESS;
 }

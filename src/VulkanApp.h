@@ -62,6 +62,7 @@ struct VulkanApp
 	std::vector<VkSemaphore> vkImageAvailableSemaphores;
 	std::vector<VkSemaphore> vkRenderFinishedSemaphores;
 	std::vector<VkFence> vkInFlightFences;
+	uint32_t currentFrame = 0;
 
 	//Functions
 public:
@@ -70,6 +71,7 @@ public:
 	void CreateShaderModule(const char* spirvFile, VkShaderModule* shaderModule);
 	void CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	void Render(VkCommandBuffer* commandBuffers);
 	
 private:
 	void QuerySwapChainSupport(VkPhysicalDevice physicalDevice);
