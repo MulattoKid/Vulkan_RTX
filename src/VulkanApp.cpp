@@ -1,20 +1,11 @@
 #include <fstream>
 #include <limits>
 #include <set>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <vector>
 #include "VulkanApp.h"
-
-#define VK_DEBUG 1
-
-#ifdef VK_DEBUG
-#define CHECK_VK_RESULT(res) if (res != VK_SUCCESS) { printf("Vulkan call on line %i failed with error %i\n", __LINE__, res); exit(EXIT_FAILURE); }
-#else
-#define CHECK_VK_RESULT(res)
-#endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -715,6 +706,66 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	
 	vkFreeMemory(vkDevice, stagingBufferMemory, NULL);
 	vkDestroyBuffer(vkDevice, stagingBuffer, NULL);
+}
+
+VkViewport VulkanApp::GetDefaultViewport()
+{
+	VkViewport viewport;
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = vkSurfaceExtent.width;
+	viewport.height = vkSurfaceExtent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	return viewport;
+}
+
+VkRect2D VulkanApp::GetDefaultScissor()
+{
+	VkRect2D scissor;
+	scissor.offset.x = 0.0f;
+	scissor.offset.y = 0.0f;
+	scissor.extent.width = vkSurfaceExtent.width;
+	scissor.extent.height = vkSurfaceExtent.height;
+	return scissor;
+}
+
+//Renderpass should be the final renderpass, i.e. the one rendering what is to be displayed
+void VulkanApp::CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass)
+{
+	framebuffers.resize(vkSwapchainImageViews.size());
+	
+	VkFramebufferCreateInfo framebufferInfo = {};
+	framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebufferInfo.pNext = NULL;
+	framebufferInfo.flags = 0;
+	framebufferInfo.renderPass = renderPass;
+	framebufferInfo.attachmentCount = 1;
+	framebufferInfo.width = vkSurfaceExtent.width;
+	framebufferInfo.height = vkSurfaceExtent.height;
+	framebufferInfo.layers = 1;
+	for (size_t i = 0; i < framebuffers.size(); i++)
+	{
+		framebufferInfo.pAttachments = &vkSwapchainImageViews[i];
+		CHECK_VK_RESULT(vkCreateFramebuffer(vkDevice, &framebufferInfo, NULL, &framebuffers[i]))
+	}
+}
+
+VkFormat VulkanApp::GetDefaultFramebufferFormat()
+{
+	return vkSurfaceFormat.format;
+}
+
+void VulkanApp::AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers)
+{
+	commandBuffers.resize(vkSwapchainImageViews.size());
+	VkCommandBufferAllocateInfo alloccationInfo = {};
+	alloccationInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloccationInfo.pNext = NULL;
+	alloccationInfo.commandPool = vkGraphicsQueueCommandPool;
+	alloccationInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloccationInfo.commandBufferCount = uint32_t(commandBuffers.size());
+	CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &alloccationInfo, commandBuffers.data()))
 }
 
 void VulkanApp::Render(VkCommandBuffer* commandBuffers)

@@ -3,7 +3,16 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
+#include <stdio.h>
 #include <vulkan/vulkan.h>
+
+#define VK_DEBUG 1
+
+#ifdef VK_DEBUG
+#define CHECK_VK_RESULT(res) if (res != VK_SUCCESS) { printf("Vulkan call on line %i failed with error %i\n", __LINE__, res); exit(EXIT_FAILURE); }
+#else
+#define CHECK_VK_RESULT(res)
+#endif
 
 struct VulkanAppCreateInfo
 {
@@ -71,6 +80,11 @@ public:
 	void CreateShaderModule(const char* spirvFile, VkShaderModule* shaderModule);
 	void CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	VkViewport GetDefaultViewport();
+	VkRect2D GetDefaultScissor();
+	void CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
+	VkFormat GetDefaultFramebufferFormat();
+	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	
 private:
