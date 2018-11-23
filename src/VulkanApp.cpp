@@ -708,6 +708,21 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	vkDestroyBuffer(vkDevice, stagingBuffer, NULL);
 }
 
+void VulkanApp::AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
+{
+	VkCommandBufferAllocateInfo allocationInfo = {};
+    allocationInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocationInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocationInfo.commandPool = vkGraphicsQueueCommandPool;
+    allocationInfo.commandBufferCount = 1;
+    CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &allocationInfo, commandBuffer))
+}
+
+void VulkanApp::FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
+{
+	vkFreeCommandBuffers(vkDevice, vkGraphicsQueueCommandPool, 1, commandBuffer);
+}
+
 VkViewport VulkanApp::GetDefaultViewport()
 {
 	VkViewport viewport;

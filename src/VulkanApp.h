@@ -80,6 +80,8 @@ public:
 	void CreateShaderModule(const char* spirvFile, VkShaderModule* shaderModule);
 	void CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	void AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
+	void FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
 	VkViewport GetDefaultViewport();
 	VkRect2D GetDefaultScissor();
 	void CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
