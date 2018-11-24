@@ -312,7 +312,7 @@ void RaytraceTriangle()
 	};
 	std::vector<const char*> extensionNames = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-		VK_NVX_RAYTRACING_EXTENSION_NAME
+		VK_NV_RAY_TRACING_EXTENSION_NAME
 	};
 
 	VulkanAppCreateInfo vkAppInfo = {};
@@ -328,17 +328,17 @@ void RaytraceTriangle()
 	vkAppInfo.extensionNames = extensionNames.data();
 	vkAppInfo.maxFramesInFlight = 2;
 	VulkanApp vkApp(&vkAppInfo);
-	
-	auto vkCreateAccelerationStructureNVXFunc = (PFN_vkCreateAccelerationStructureNVX)vkGetInstanceProcAddr(vkApp.vkInstance, "vkCreateAccelerationStructureNVX");
-	if (vkCreateAccelerationStructureNVXFunc == NULL)
+
+	auto vkCreateAccelerationStructureNVFunc = (PFN_vkCreateAccelerationStructureNV)vkGetInstanceProcAddr(vkApp.vkInstance, "vkCreateAccelerationStructureNV");
+	if (vkCreateAccelerationStructureNVFunc == NULL)
 	{
-		printf("Failed to find address of function vkCreateAccelerationStructureNVX\n");
+		printf("Failed to find address of function vkCreateAccelerationStructureNV\n");
 		exit(EXIT_FAILURE);
 	}
-	auto vkDestroyAccelerationStructureNVXFunc = (PFN_vkCreateAccelerationStructureNVX)vkGetInstanceProcAddr(vkApp.vkInstance, "vkDestroyAccelerationStructureNVX");
-	if (vkDestroyAccelerationStructureNVXFunc == NULL)
+	auto vkDestroyAccelerationStructureNVFunc = (PFN_vkCreateAccelerationStructureNV)vkGetInstanceProcAddr(vkApp.vkInstance, "vkDestroyAccelerationStructureNV");
+	if (vkDestroyAccelerationStructureNVFunc == NULL)
 	{
-		printf("Failed to find address of function vkDestroyAccelerationStructureNVX\n");
+		printf("Failed to find address of function vkDestroyAccelerationStructureNV\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -368,8 +368,8 @@ void RaytraceTriangle()
 	
 	//Bottom-level acceleration structure
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryTrianglesNV
-	VkGeometryTrianglesNVX triangleInfo = {};
-	triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NVX;
+	VkGeometryTrianglesNV triangleInfo = {};
+	triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
 	triangleInfo.pNext = NULL;
 	triangleInfo.vertexData = vertexBuffer;
 	triangleInfo.vertexOffset = 0;
@@ -384,8 +384,8 @@ void RaytraceTriangle()
 	//triangleInfo.transformOffset IGNORED
 	
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryAABBNV
-	VkGeometryAABBNVX aabbInfo = {};
-	aabbInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NVX;
+	VkGeometryAABBNV aabbInfo = {};
+	aabbInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
 	aabbInfo.pNext = NULL;
 	aabbInfo.aabbData = VK_NULL_HANDLE;
 	/*IGNORED
@@ -394,33 +394,33 @@ void RaytraceTriangle()
 	aabbInfo.offset*/
 	
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryDataNV
-	VkGeometryDataNVX geometryDataInfo = {};
+	VkGeometryDataNV geometryDataInfo = {};
 	geometryDataInfo.triangles = triangleInfo;
 	geometryDataInfo.aabbs = aabbInfo;
 	
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryNV
-	VkGeometryNVX geometryInfo = {};
-	geometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NVX;
+	VkGeometryNV geometryInfo = {};
+	geometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
 	geometryInfo.pNext = NULL;
-	geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NVX;
+	geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
 	geometryInfo.geometry = geometryDataInfo;
 	geometryInfo.flags = 0;
 	
 	//v1.1.85
 	//https://vulkan.lunarg.com/doc/view/1.1.85.0/windows/vkspec.html
-	VkAccelerationStructureCreateInfoNVX accelerationStructureCreateInfo = {};
-	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NVX;
+	/*VkAccelerationStructureCreateInfoNV accelerationStructureCreateInfo = {};
+	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
 	accelerationStructureCreateInfo.pNext = NULL;
-	accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NVX;
-	accelerationStructureCreateInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NVX;
+	accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
+	accelerationStructureCreateInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
 	accelerationStructureCreateInfo.compactedSize = 0;
 	accelerationStructureCreateInfo.instanceCount = 0;
 	accelerationStructureCreateInfo.geometryCount = 1;
-	accelerationStructureCreateInfo.pGeometries = &geometryInfo;
+	accelerationStructureCreateInfo.pGeometries = &geometryInfo;*/
 	
 	//v1.1.93
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureInfoNV
-	/*VkAccelerationStructureInfoNV accelerationStructureInfo = {};
+	VkAccelerationStructureInfoNV accelerationStructureInfo = {};
 	accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
 	accelerationStructureInfo.pNext = NULL;
 	accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
@@ -434,10 +434,10 @@ void RaytraceTriangle()
 	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
 	accelerationStructureCreateInfo.pNext = NULL;
 	accelerationStructureCreateInfo.compactedSize = 0;
-	accelerationStructureCreateInfo.info = accelerationStructureInfo;*/
+	accelerationStructureCreateInfo.info = accelerationStructureInfo;
 	
-	VkAccelerationStructureNVX bottomAccelerationStructure;
-	CHECK_VK_RESULT(vkCreateAccelerationStructureNVXFunc(vkApp.vkDevice, &accelerationStructureCreateInfo, NULL, &bottomAccelerationStructure))
+	VkAccelerationStructureNV bottomAccelerationStructure;
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNVFunc(vkApp.vkDevice, &accelerationStructureCreateInfo, NULL, &bottomAccelerationStructure))
 	
 	/*VkCommandBuffer tmpCommandBuffer;
 	vkApp.AllocateGraphicsQueueCommandBuffer(&tmpCommandBuffer);
@@ -694,7 +694,7 @@ void RaytraceTriangle()
 	vkDestroyPipeline(vkApp.vkDevice, graphicsPipeline, NULL);
 	vkDestroyRenderPass(vkApp.vkDevice, renderPass, NULL);
 	vkDestroyPipelineLayout(vkApp.vkDevice, graphicsPipelineLayout, NULL);
-	vkDestroyAccelerationStructureNVXFunc(vkApp.vkDevice, bottomAccelerationStructure, NULL);
+	vkDestroyAccelerationStructureNVFunc(vkApp.vkDevice, bottomAccelerationStructure, NULL);
 	vkFreeMemory(vkApp.vkDevice, indexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, indexBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, vertexBufferMemory, NULL);

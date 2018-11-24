@@ -4,7 +4,7 @@ SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC_FILES))
 
 GLFW_PATH = ~/glfw-3.2.1
-VULKAN_SDK_PATH = ~/VulkanSDK/1.1.85.0/x86_64
+VULKAN_SDK_PATH = ~/VulkanSDK/1.1.93.0/x86_64
 #export LD_LIBRARY_PATH = $(VULKAN_SDK_PATH)/lib
 #export VK_LAYER_PATH = $(VULKAN_SDK_PATH)/etc/explicit_layer.d
 
