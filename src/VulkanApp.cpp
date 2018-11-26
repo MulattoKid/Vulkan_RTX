@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <fstream>
 #include <limits>
 #include <set>
@@ -253,7 +254,7 @@ void VulkanApp::CreateLogicalDevice(uint32_t extensionCount, const char** extens
 	uint32_t numQueues = 0;
 	if (vkGraphicsQueueIndex == vkPresentQueueIndex) { numQueues = 1; }
 	else { numQueues = 2; }
-	VkDeviceQueueCreateInfo queues[numQueues];
+	std::vector<VkDeviceQueueCreateInfo> queues(numQueues);
 	
 	VkDeviceQueueCreateInfo& graphicsQueueInfo = queues[0];
 	graphicsQueueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -279,8 +280,8 @@ void VulkanApp::CreateLogicalDevice(uint32_t extensionCount, const char** extens
 	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceInfo.pNext = NULL;
 	deviceInfo.flags = 0;
-	deviceInfo.queueCreateInfoCount = numQueues;
-	deviceInfo.pQueueCreateInfos = queues;
+	deviceInfo.queueCreateInfoCount = queues.size();
+	deviceInfo.pQueueCreateInfos = queues.data();
 	//deviceInfo.enabledLayerCount = 0; //Deprecated
 	//deviceInfo.ppEnabledLayerNames = NULL; //Deprecated
 	deviceInfo.enabledExtensionCount = extensionCount;
@@ -479,7 +480,7 @@ void VulkanApp::CreateSyncObjects()
 }
 
 VulkanApp::VulkanApp(const VulkanAppCreateInfo* createInfo)
-{	
+{
 	if (createInfo->graphicsApp != VK_TRUE)
 	{
 		printf("Only graphics application are supported\n");
@@ -493,7 +494,8 @@ VulkanApp::VulkanApp(const VulkanAppCreateInfo* createInfo)
 	windowHeight = createInfo->windowHeight;
 	window = glfwCreateWindow(windowWidth, windowHeight, createInfo->windowName, nullptr, nullptr);
 	printf("Successfully create GLFW window\n");
-
+	
+	CHECK_VK_RESULT(volkInitialize())
 #ifdef VK_DEBUG
 	CheckValidationLayerSupport(createInfo->validationLayerCount, createInfo->validationLayerNames);
 #endif
@@ -523,6 +525,7 @@ VulkanApp::VulkanApp(const VulkanAppCreateInfo* createInfo)
 	instanceInfo.ppEnabledExtensionNames = instanceExtensionNames.data();
 	CHECK_VK_RESULT(vkCreateInstance(&instanceInfo, NULL, &vkInstance))
 	printf("Successfully created Vulkan instance\n");
+	volkLoadInstance(vkInstance);
 
 #ifdef VK_DEBUG
 	SetupDebugCallback(&vkInstance, &vkDebugCallback);
@@ -533,6 +536,7 @@ VulkanApp::VulkanApp(const VulkanAppCreateInfo* createInfo)
 	PickPhysicalDevice(createInfo->extensionCount, createInfo->extensionNames);
 	FindQueueIndices();
 	CreateLogicalDevice(createInfo->extensionCount, createInfo->extensionNames);
+	volkLoadDevice(vkDevice);
 	CreateSwapChain();
 	CreateImageViews();
 	CreateGraphicsQueueCommandPool();

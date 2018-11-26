@@ -335,7 +335,7 @@ void RaytraceTriangle()
 		printf("Failed to find address of function vkCreateAccelerationStructureNV\n");
 		exit(EXIT_FAILURE);
 	}
-	auto vkDestroyAccelerationStructureNVFunc = (PFN_vkCreateAccelerationStructureNV)vkGetInstanceProcAddr(vkApp.vkInstance, "vkDestroyAccelerationStructureNV");
+	auto vkDestroyAccelerationStructureNVFunc = (PFN_vkDestroyAccelerationStructureNV)vkGetInstanceProcAddr(vkApp.vkInstance, "vkDestroyAccelerationStructureNV");
 	if (vkDestroyAccelerationStructureNVFunc == NULL)
 	{
 		printf("Failed to find address of function vkDestroyAccelerationStructureNV\n");

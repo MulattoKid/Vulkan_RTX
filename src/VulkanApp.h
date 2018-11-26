@@ -1,12 +1,12 @@
 #ifndef VULKAN_APP_H
 #define VULKAN_APP_H
 
-#define GLFW_INCLUDE_VULKAN
+#define VK_NO_PROTOTYPES
+#define VK_DEBUG 1
+
+#include "volk/volk.h"
 #include "GLFW/glfw3.h"
 #include <stdio.h>
-#include <vulkan/vulkan.h>
-
-#define VK_DEBUG 1
 
 #ifdef VK_DEBUG
 #define CHECK_VK_RESULT(res) if (res != VK_SUCCESS) { printf("Vulkan call on line %i failed with error %i\n", __LINE__, res); exit(EXIT_FAILURE); }
