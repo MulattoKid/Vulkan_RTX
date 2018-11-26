@@ -329,19 +329,6 @@ void RaytraceTriangle()
 	vkAppInfo.maxFramesInFlight = 2;
 	VulkanApp vkApp(&vkAppInfo);
 
-	auto vkCreateAccelerationStructureNVFunc = (PFN_vkCreateAccelerationStructureNV)vkGetInstanceProcAddr(vkApp.vkInstance, "vkCreateAccelerationStructureNV");
-	if (vkCreateAccelerationStructureNVFunc == NULL)
-	{
-		printf("Failed to find address of function vkCreateAccelerationStructureNV\n");
-		exit(EXIT_FAILURE);
-	}
-	auto vkDestroyAccelerationStructureNVFunc = (PFN_vkDestroyAccelerationStructureNV)vkGetInstanceProcAddr(vkApp.vkInstance, "vkDestroyAccelerationStructureNV");
-	if (vkDestroyAccelerationStructureNVFunc == NULL)
-	{
-		printf("Failed to find address of function vkDestroyAccelerationStructureNV\n");
-		exit(EXIT_FAILURE);
-	}
-
 	//Shader modules
 	VkShaderModule vertexShaderModule, fragmentShaderModule;
 	vkApp.CreateShaderModule("src/shaders/vert.spv", &vertexShaderModule);
@@ -437,7 +424,7 @@ void RaytraceTriangle()
 	accelerationStructureCreateInfo.info = accelerationStructureInfo;
 	
 	VkAccelerationStructureNV bottomAccelerationStructure;
-	CHECK_VK_RESULT(vkCreateAccelerationStructureNVFunc(vkApp.vkDevice, &accelerationStructureCreateInfo, NULL, &bottomAccelerationStructure))
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkApp.vkDevice, &accelerationStructureCreateInfo, NULL, &bottomAccelerationStructure))
 	
 	/*VkCommandBuffer tmpCommandBuffer;
 	vkApp.AllocateGraphicsQueueCommandBuffer(&tmpCommandBuffer);
@@ -694,7 +681,7 @@ void RaytraceTriangle()
 	vkDestroyPipeline(vkApp.vkDevice, graphicsPipeline, NULL);
 	vkDestroyRenderPass(vkApp.vkDevice, renderPass, NULL);
 	vkDestroyPipelineLayout(vkApp.vkDevice, graphicsPipelineLayout, NULL);
-	vkDestroyAccelerationStructureNVFunc(vkApp.vkDevice, bottomAccelerationStructure, NULL);
+	vkDestroyAccelerationStructureNV(vkApp.vkDevice, bottomAccelerationStructure, NULL);
 	vkFreeMemory(vkApp.vkDevice, indexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, indexBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, vertexBufferMemory, NULL);
