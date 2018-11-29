@@ -689,7 +689,10 @@ void VulkanApp::CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, V
 	
 	void* data;
 	CHECK_VK_RESULT(vkMapMemory(vkDevice, *bufferMemory, 0, bufferSize, 0, &data))
-	memcpy(data, bufferData, bufferSize);
+	if (bufferData != NULL)
+	{
+		memcpy(data, bufferData, bufferSize);
+	}
 	vkUnmapMemory(vkDevice, *bufferMemory);
 }
 
@@ -701,7 +704,10 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	
 	void* data;
 	CHECK_VK_RESULT(vkMapMemory(vkDevice, stagingBufferMemory, 0, bufferSize, 0, &data))
-	memcpy(data, bufferData, bufferSize);
+	if (bufferData != NULL)
+	{
+		memcpy(data, bufferData, bufferSize);
+	}
 	vkUnmapMemory(vkDevice, stagingBufferMemory);
 	
 	CreateBuffer(bufferSize, bufferUsageFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bufferMemory);

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <vector>
 #include "VulkanApp.h"
 
@@ -305,6 +306,16 @@ void RasterizeTriangle()
 	vkDestroyShaderModule(vkApp.vkDevice, vertexShaderModule, NULL);
 }
 
+struct VkGeometryInstanceNV
+{
+    float transform[12];
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureHandle;
+};
+
 void RaytraceTriangle()
 {
 	std::vector<const char*> validationLayerNames = {
@@ -352,8 +363,47 @@ void RaytraceTriangle()
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 	vkApp.CreateDeviceBuffer(indexDataSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer, &indexBufferMemory);
+	//Basic transform
+	float basicTransform[12] = { 1.0f, 0.0f, 0.0f, 0.0f,
+							0.0f, 1.0f, 0.0f, 0.0f,
+							0.0f, 0.0f, 1.0f, 0.0f };
 	
-	//Bottom-level acceleration structure
+	/*
+	Acceleration structure steps:
+	1) Create BottomLevel acceleration structure
+		a) Specify geometry data buffers and format
+		b) Specify AABBs
+		c) Link a) to b)
+		d) Specify geometry type and link to c)
+		e) Specify acceleration structure (bottom level) and connect to d)
+		f) Create
+		g) Allocate memory for the acceleration structure
+		h) Bind memory to acceleration structure
+		i) Get uint64_t handle to acceleration structure
+		j) Create an instance of the geometry using the handle from g)
+		k) Create a buffer containing the instance created in j)
+	2) Create TopLevel acceleration structure
+		a) Specify acceleration structure (bottom level) and connect to d)
+		b) Create
+		c) Allocate memory for the acceleration structure
+		d) Bind memory to acceleration structure
+		e) Get uint64_t handle to acceleration structure
+	3) Build acceleration structures
+		a) Create a buffer that will be used as scratch when building
+			- Should have the largest size that will be needed = max(largest_bottom_level, top_level)
+			- Size is of type VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV
+		b) Allocate command buffer
+		c) Begin command buffer
+		d) Build BottomLevel
+		e) Build TopLevel
+		f) End command buffer
+		g) Submit command buffer
+		h) Wait on device to be idle
+		i) Free command buffer
+		j) Destroy scratch buffer and free scratch memory
+	*/
+	
+	//1.a
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryTrianglesNV
 	VkGeometryTrianglesNV triangleInfo = {};
 	triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
@@ -370,6 +420,7 @@ void RaytraceTriangle()
 	triangleInfo.transformData = VK_NULL_HANDLE;
 	//triangleInfo.transformOffset IGNORED
 	
+	//1.b
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryAABBNV
 	VkGeometryAABBNV aabbInfo = {};
 	aabbInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
@@ -380,58 +431,190 @@ void RaytraceTriangle()
 	aabbInfo.stride
 	aabbInfo.offset*/
 	
+	//1.c
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryDataNV
-	VkGeometryDataNV geometryDataInfo = {};
-	geometryDataInfo.triangles = triangleInfo;
-	geometryDataInfo.aabbs = aabbInfo;
-	
+	VkGeometryDataNV triangleGeometryDataInfo = {};
+	triangleGeometryDataInfo.triangles = triangleInfo;
+	triangleGeometryDataInfo.aabbs = aabbInfo;
+
+	//1.d
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryNV
-	VkGeometryNV geometryInfo = {};
-	geometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
-	geometryInfo.pNext = NULL;
-	geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
-	geometryInfo.geometry = geometryDataInfo;
-	geometryInfo.flags = 0;
+	VkGeometryNV triangleGeometryInfo = {};
+	triangleGeometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
+	triangleGeometryInfo.pNext = NULL;
+	triangleGeometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+	triangleGeometryInfo.geometry = triangleGeometryDataInfo;
+	triangleGeometryInfo.flags = 0;
 	
-	//v1.1.85
-	//https://vulkan.lunarg.com/doc/view/1.1.85.0/windows/vkspec.html
-	/*VkAccelerationStructureCreateInfoNV accelerationStructureCreateInfo = {};
-	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
-	accelerationStructureCreateInfo.pNext = NULL;
-	accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-	accelerationStructureCreateInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
-	accelerationStructureCreateInfo.compactedSize = 0;
-	accelerationStructureCreateInfo.instanceCount = 0;
-	accelerationStructureCreateInfo.geometryCount = 1;
-	accelerationStructureCreateInfo.pGeometries = &geometryInfo;*/
-	
-	//v1.1.93
+	//1.e
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureInfoNV
-	VkAccelerationStructureInfoNV accelerationStructureInfo = {};
-	accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-	accelerationStructureInfo.pNext = NULL;
-	accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-	accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
-	accelerationStructureInfo.instanceCount = 1;
-	accelerationStructureInfo.geometryCount = 1;
-	accelerationStructureInfo.pGeometries = &geometryInfo;
+	VkAccelerationStructureInfoNV triangleAccelerationStructureInfo = {};
+	triangleAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+	triangleAccelerationStructureInfo.pNext = NULL;
+	triangleAccelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
+	triangleAccelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
+	triangleAccelerationStructureInfo.instanceCount = 0;
+	triangleAccelerationStructureInfo.geometryCount = 1;
+	triangleAccelerationStructureInfo.pGeometries = &triangleGeometryInfo;
 	
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkCmdBuildAccelerationStructureNV
-	VkAccelerationStructureCreateInfoNV accelerationStructureCreateInfo = {};
-	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
-	accelerationStructureCreateInfo.pNext = NULL;
-	accelerationStructureCreateInfo.compactedSize = 0;
-	accelerationStructureCreateInfo.info = accelerationStructureInfo;
+	//1.f
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureCreateInfoNV
+	VkAccelerationStructureCreateInfoNV triangleAccelerationStructureCreateInfo = {};
+	triangleAccelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
+	triangleAccelerationStructureCreateInfo.pNext = NULL;
+	triangleAccelerationStructureCreateInfo.compactedSize = 0;
+	triangleAccelerationStructureCreateInfo.info = triangleAccelerationStructureInfo;	
+	VkAccelerationStructureNV triangleAccelerationStructure;
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkCreateAccelerationStructureNV
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkApp.vkDevice, &triangleAccelerationStructureCreateInfo, NULL, &triangleAccelerationStructure))
 	
-	VkAccelerationStructureNV bottomAccelerationStructure;
-	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkApp.vkDevice, &accelerationStructureCreateInfo, NULL, &bottomAccelerationStructure))
+	//1.g
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#resources-acceleration-structures
+	VkAccelerationStructureMemoryRequirementsInfoNV triangleAccelerationStructureMemoryRequirementInfo;
+	triangleAccelerationStructureMemoryRequirementInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+	triangleAccelerationStructureMemoryRequirementInfo.pNext = NULL;
+	triangleAccelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
+	triangleAccelerationStructureMemoryRequirementInfo.accelerationStructure = triangleAccelerationStructure;
+	VkMemoryRequirements2 triangleAccelerationStructMemoryRequirements;
+	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &triangleAccelerationStructureMemoryRequirementInfo, &triangleAccelerationStructMemoryRequirements);
 	
-	/*VkCommandBuffer tmpCommandBuffer;
+	VkMemoryAllocateInfo triangleAccelerationStructureMemoryInfo = {};
+	triangleAccelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	triangleAccelerationStructureMemoryInfo.pNext = NULL;
+	triangleAccelerationStructureMemoryInfo.allocationSize = triangleAccelerationStructMemoryRequirements.memoryRequirements.size;
+	triangleAccelerationStructureMemoryInfo.memoryTypeIndex = vkApp.FindMemoryType(triangleAccelerationStructMemoryRequirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory triangleAccelerationStructureMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &triangleAccelerationStructureMemoryInfo, NULL, &triangleAccelerationStructureMemory))
+	
+	//1.h
+	VkBindAccelerationStructureMemoryInfoNV triangleBindInfo = {};
+	triangleBindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
+	triangleBindInfo.pNext = NULL;
+	triangleBindInfo.accelerationStructure = triangleAccelerationStructure;
+	triangleBindInfo.memory = triangleAccelerationStructureMemory;
+	triangleBindInfo.memoryOffset = 0;
+	triangleBindInfo.deviceIndexCount = 0;
+	triangleBindInfo.pDeviceIndices = NULL;
+	CHECK_VK_RESULT(vkBindAccelerationStructureMemoryNV(vkApp.vkDevice, 1, &triangleBindInfo))
+	
+	//1.i
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkGetAccelerationStructureHandleNV
+	uint64_t triangleAccelerationStructureHandle;
+	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkApp.vkDevice, triangleAccelerationStructure, sizeof(uint64_t), &triangleAccelerationStructureHandle))
+	
+	//1.j
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#acceleration-structure-instance
+	VkGeometryInstanceNV triangleGeometryInstance = {};
+	memcpy(triangleGeometryInstance.transform, basicTransform, sizeof(float) * 12);
+	triangleGeometryInstance.instanceCustomIndex = 0;
+	triangleGeometryInstance.mask = 0xff;
+	triangleGeometryInstance.instanceOffset = 0;
+	triangleGeometryInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
+	triangleGeometryInstance.accelerationStructureHandle = triangleAccelerationStructureHandle;
+	
+	//1.k
+	VkBuffer triangleGeometryInstanceBuffer;
+	VkDeviceMemory triangleGeometryInstanceBufferMemory;
+	VkDeviceSize triangleGeometryInstanceBufferSize = sizeof(VkGeometryInstanceNV);
+	vkApp.CreateDeviceBuffer(triangleGeometryInstanceBufferSize, (void*)(&triangleGeometryInstance), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &triangleGeometryInstanceBuffer, &triangleGeometryInstanceBufferMemory);
+	
+	//2.a
+	VkAccelerationStructureInfoNV topAccelerationStructureInfo = {};
+	topAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+	topAccelerationStructureInfo.pNext = NULL;
+	topAccelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+	topAccelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
+	topAccelerationStructureInfo.instanceCount = 1;
+	topAccelerationStructureInfo.geometryCount = 0;
+	topAccelerationStructureInfo.pGeometries = NULL;
+	
+	//2.b
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureCreateInfoNV
+	VkAccelerationStructureCreateInfoNV topAccelerationStructureCreateInfo = {};
+	topAccelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
+	topAccelerationStructureCreateInfo.pNext = NULL;
+	topAccelerationStructureCreateInfo.compactedSize = 0;
+	topAccelerationStructureCreateInfo.info = topAccelerationStructureInfo;	
+	VkAccelerationStructureNV topAccelerationStructure;
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkCreateAccelerationStructureNV
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkApp.vkDevice, &topAccelerationStructureCreateInfo, NULL, &topAccelerationStructure))
+	
+	//2.c
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#resources-acceleration-structures
+	VkAccelerationStructureMemoryRequirementsInfoNV topAccelerationStructureMemoryRequirementInfo;
+	topAccelerationStructureMemoryRequirementInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+	topAccelerationStructureMemoryRequirementInfo.pNext = NULL;
+	topAccelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
+	topAccelerationStructureMemoryRequirementInfo.accelerationStructure = topAccelerationStructure;
+	VkMemoryRequirements2 topAccelerationStructMemoryRequirements;
+	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &topAccelerationStructureMemoryRequirementInfo, &topAccelerationStructMemoryRequirements);
+	
+	VkMemoryAllocateInfo topAccelerationStructureMemoryInfo = {};
+	topAccelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	topAccelerationStructureMemoryInfo.pNext = NULL;
+	topAccelerationStructureMemoryInfo.allocationSize = topAccelerationStructMemoryRequirements.memoryRequirements.size;
+	topAccelerationStructureMemoryInfo.memoryTypeIndex = vkApp.FindMemoryType(topAccelerationStructMemoryRequirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory topAccelerationStructureMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &topAccelerationStructureMemoryInfo, NULL, &topAccelerationStructureMemory))
+	
+	//2.d
+	VkBindAccelerationStructureMemoryInfoNV topBindInfo = {};
+	topBindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
+	topBindInfo.pNext = NULL;
+	topBindInfo.accelerationStructure = topAccelerationStructure;
+	topBindInfo.memory = topAccelerationStructureMemory;
+	topBindInfo.memoryOffset = 0;
+	topBindInfo.deviceIndexCount = 0;
+	topBindInfo.pDeviceIndices = NULL;
+	CHECK_VK_RESULT(vkBindAccelerationStructureMemoryNV(vkApp.vkDevice, 1, &topBindInfo))
+	
+	//2.e
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkGetAccelerationStructureHandleNV
+	uint64_t topAccelerationStructureHandle;
+	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkApp.vkDevice, topAccelerationStructure, sizeof(uint64_t), &topAccelerationStructureHandle))
+	
+	//3.a
+	//BottomLevel
+	VkAccelerationStructureMemoryRequirementsInfoNV triangleAccelerationStructureMemoryRequirementInfoScratch;
+	triangleAccelerationStructureMemoryRequirementInfoScratch.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+	triangleAccelerationStructureMemoryRequirementInfoScratch.pNext = NULL;
+	triangleAccelerationStructureMemoryRequirementInfoScratch.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
+	triangleAccelerationStructureMemoryRequirementInfoScratch.accelerationStructure = triangleAccelerationStructure;
+	VkMemoryRequirements2 triangleAccelerationStructMemoryRequirementsScratch;
+	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &triangleAccelerationStructureMemoryRequirementInfoScratch, &triangleAccelerationStructMemoryRequirementsScratch);
+	//TopLevel
+	VkAccelerationStructureMemoryRequirementsInfoNV topAccelerationStructureMemoryRequirementInfoScratch;
+	topAccelerationStructureMemoryRequirementInfoScratch.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+	topAccelerationStructureMemoryRequirementInfoScratch.pNext = NULL;
+	topAccelerationStructureMemoryRequirementInfoScratch.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
+	topAccelerationStructureMemoryRequirementInfoScratch.accelerationStructure = topAccelerationStructure;
+	VkMemoryRequirements2 topAccelerationStructMemoryRequirementsScratch;
+	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &topAccelerationStructureMemoryRequirementInfoScratch, &topAccelerationStructMemoryRequirementsScratch);
+	//Largest size
+	VkDeviceSize scratchBufferSize = std::max(triangleAccelerationStructMemoryRequirementsScratch.memoryRequirements.size, topAccelerationStructMemoryRequirementsScratch.memoryRequirements.size);
+	VkBuffer scratchBuffer;
+	VkDeviceMemory scratchBufferMemory;
+	vkApp.CreateDeviceBuffer(scratchBufferSize, (void*)(NULL), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &scratchBuffer, &scratchBufferMemory);
+	
+	//3.b
+	VkCommandBuffer tmpCommandBuffer;
 	vkApp.AllocateGraphicsQueueCommandBuffer(&tmpCommandBuffer);
 	
-	vkCmdBuildAccelerationStructureNVX(tmpCommandBuffer, 
+	//3.c
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkCmdBuildAccelerationStructureNV
+	//vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &triangleAccelerationStructureInfo, 
 	
-	vkApp.FreeGraphicsQueueCommandBuffer(&tmpCommandBuffer);*/
+	//3.d
+	//3.e
+	//3.f
+	//3.g
+	//3.h
+	//3.i
+	vkApp.FreeGraphicsQueueCommandBuffer(&tmpCommandBuffer);
+	
+	//3.j
+	vkFreeMemory(vkApp.vkDevice, scratchBufferMemory, NULL);
+	vkDestroyBuffer(vkApp.vkDevice, scratchBuffer, NULL);
 	
 	//Graphics pipeline
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos(2);
@@ -673,6 +856,7 @@ void RaytraceTriangle()
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);
 	
+	
 	//Cleanup
 	for (size_t i = 0; i < defaultFramebuffers.size(); i++)
 	{
@@ -681,7 +865,16 @@ void RaytraceTriangle()
 	vkDestroyPipeline(vkApp.vkDevice, graphicsPipeline, NULL);
 	vkDestroyRenderPass(vkApp.vkDevice, renderPass, NULL);
 	vkDestroyPipelineLayout(vkApp.vkDevice, graphicsPipelineLayout, NULL);
-	vkDestroyAccelerationStructureNV(vkApp.vkDevice, bottomAccelerationStructure, NULL);
+	
+	//TopLevel
+	vkFreeMemory(vkApp.vkDevice, topAccelerationStructureMemory, NULL);
+	vkDestroyAccelerationStructureNV(vkApp.vkDevice, topAccelerationStructure, NULL);
+	//BottomLevel
+	vkFreeMemory(vkApp.vkDevice, triangleGeometryInstanceBufferMemory, NULL);
+	vkDestroyBuffer(vkApp.vkDevice, triangleGeometryInstanceBuffer, NULL);
+	vkFreeMemory(vkApp.vkDevice, triangleAccelerationStructureMemory, NULL);
+	vkDestroyAccelerationStructureNV(vkApp.vkDevice, triangleAccelerationStructure, NULL);
+	//Basic data
 	vkFreeMemory(vkApp.vkDevice, indexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, indexBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, vertexBufferMemory, NULL);
@@ -692,7 +885,7 @@ void RaytraceTriangle()
 
 int main(int argc, char** argv)
 {
-	RasterizeTriangle();
+	//RasterizeTriangle();
 	RaytraceTriangle();
 
 	return EXIT_SUCCESS;
