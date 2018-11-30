@@ -3,7 +3,7 @@ VOLK_DIR = $(SRC_DIR)/volk
 OBJ_DIR = build
 
 GLFW_PATH = ~/glfw-3.2.1
-VULKAN_SDK_PATH = ~/VulkanSDK/1.1.93.0/x86_64
+VULKAN_SDK_PATH = ~/VulkanSDK/1.1.92.1/x86_64
 #export LD_LIBRARY_PATH = $(VULKAN_SDK_PATH)/lib
 #export VK_LAYER_PATH = $(VULKAN_SDK_PATH)/etc/explicit_layer.d
 
