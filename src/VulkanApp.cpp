@@ -383,7 +383,7 @@ void VulkanApp::CreateSwapChain()
 	swapchainInfo.imageColorSpace = vkSurfaceFormat.colorSpace;
 	swapchainInfo.imageExtent = vkSurfaceExtent;
 	swapchainInfo.imageArrayLayers = 1;
-	swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	if (vkGraphicsQueueIndex != vkPresentQueueIndex)
 	{
 		swapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
