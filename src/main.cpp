@@ -397,9 +397,11 @@ void RaytraceTriangle()
 	*/
 	
 	//Basic transform
-	float basicTransform[12] = { 1.0f, 0.0f, 0.0f, 0.0f,
-								 0.0f, 1.0f, 0.0f, 0.0f,
-								 0.0f, 0.0f, 1.0f, 0.0f };
+	float basicTransform[12] = { 
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f
+	};
 	
 	//1.a
 	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryTrianglesNV
@@ -408,8 +410,8 @@ void RaytraceTriangle()
 	triangleInfo.pNext = NULL;
 	triangleInfo.vertexData = vertexBuffer;
 	triangleInfo.vertexOffset = 0;
-	triangleInfo.vertexCount = vertexData.size() / 2;
-	triangleInfo.vertexStride = 2 * sizeof(float);
+	triangleInfo.vertexCount = vertexData.size() / 3;
+	triangleInfo.vertexStride = 3 * sizeof(float);
 	triangleInfo.vertexFormat = VK_FORMAT_R32G32_SFLOAT;
 	triangleInfo.indexData = indexBuffer;
 	triangleInfo.indexOffset = 0;

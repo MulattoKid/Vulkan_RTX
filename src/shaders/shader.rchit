@@ -7,6 +7,7 @@ hitAttributeNV vec2 HitAttribs;
 
 void main()
 {
-    const vec3 barycentrics = vec3(1.0f - HitAttribs.x - HitAttribs.y, HitAttribs.x, HitAttribs.y);
-    ResultColor = vec3(barycentrics);
+    //const vec3 barycentrics = vec3(1.0f - HitAttribs.x - HitAttribs.y, HitAttribs.x, HitAttribs.y);
+    //ResultColor = vec3(barycentrics);
+    ResultColor = vec3(0.0f, 0.0f, 1.0f);
 }

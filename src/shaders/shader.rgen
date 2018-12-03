@@ -10,8 +10,11 @@ void main()
 {
     const vec2 uv = vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy - 1);
 
-    const vec3 origin = vec3(uv.x, 1.0f - uv.y, -1.0f);
-    const vec3 direction = vec3(0.0f, 0.0f, 1.0f);
+    //const vec3 origin = vec3(uv.x, 1.0f - uv.y, 1.0f);
+    //const vec3 direction = vec3(0.0f, 0.0f, -1.0f);
+    
+    const vec3 origin = vec3(uv.x, 1.0f - uv.y, 1.0f);
+    const vec3 direction = vec3(0.0f, 0.0f, -1.0f);
 
     const uint rayFlags = gl_RayFlagsNoneNV;
     const uint cullMask = 0xFF;
@@ -23,16 +26,16 @@ void main()
     const int payloadLocation = 0;
 
     traceNV(Scene,
-             rayFlags,
-             cullMask,
-             sbtRecordOffset,
-             sbtRecordStride,
-             missIndex,
-             origin,
-             tmin,
-             direction,
-             tmax,
-             payloadLocation);
+            rayFlags,
+            cullMask,
+            sbtRecordOffset,
+            sbtRecordStride,
+            missIndex,
+            origin,
+            tmin,
+            direction,
+            tmax,
+            payloadLocation);
 
     imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(ResultColor, 1.0f));
 }
