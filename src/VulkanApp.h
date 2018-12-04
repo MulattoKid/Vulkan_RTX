@@ -29,6 +29,42 @@ struct VulkanAppCreateInfo
 	uint32_t maxFramesInFlight;
 };
 
+struct VulkanAccelerationStructureBottom
+{
+	VkDevice device;
+	VkBuffer vertexBuffer;
+	VkDeviceSize vertexBufferSize;
+	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceSize indexBufferSize;
+	VkDeviceMemory indexBufferMemory;
+	VkGeometryTrianglesNV triangleInfo;
+	VkGeometryAABBNV aabbInfo;
+	VkGeometryDataNV geometryDataInfo;
+	VkGeometryNV geometryInfo;
+	VkAccelerationStructureInfoNV accelerationStructureInfo;
+	VkAccelerationStructureNV accelerationStructure;
+	VkDeviceMemory accelerationStructureMemory;
+	uint64_t accelerationStructureHandle;
+	uint32_t geometryInstanceCustomIndex;
+	VkBuffer geometryInstanceBuffer;
+	VkDeviceSize geometryInstanceBufferSize;
+	VkDeviceMemory geometryInstanceBufferMemory;
+	
+	~VulkanAccelerationStructureBottom();
+};
+
+struct VulkanAccelerationStructureTop
+{
+	VkDevice device;
+	VkAccelerationStructureInfoNV accelerationStructureInfo;
+	VkAccelerationStructureNV accelerationStructure;
+	VkDeviceMemory accelerationStructureMemory;
+	uint64_t accelerationStructureHandle;
+	
+	~VulkanAccelerationStructureTop();
+};
+
 struct VulkanApp
 {
 	//Window
@@ -66,6 +102,9 @@ struct VulkanApp
 	//Command pool and buffers
 	VkCommandPool vkGraphicsQueueCommandPool;
 	
+	//Acceleration structure info
+	uint32_t numAccelerationStructures = 0;
+	
 	//Synchronization objects
 	uint32_t maxFramesInFlight;
 	std::vector<VkSemaphore> vkImageAvailableSemaphores;
@@ -83,6 +122,8 @@ public:
 	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize copySize);
 	void CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	void TransitionImageLayoutSingle(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask);
+	void TransitionImageLayoutInProgress(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask, VkCommandBuffer commandBuffer);
 	void AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
 	void FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
 	VkViewport GetDefaultViewport();
@@ -91,6 +132,8 @@ public:
 	VkFormat GetDefaultFramebufferFormat();
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
+	VulkanAccelerationStructureBottom CreateVulkanAccelerationStructureBottom(const std::vector<float>& vertexData, const std::vector<uint32_t>& indexData);
+	VulkanAccelerationStructureTop CreateVulkanAccelerationStructureTop();
 	
 private:
 	void QuerySwapChainSupport(VkPhysicalDevice physicalDevice);

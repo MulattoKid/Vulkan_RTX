@@ -718,6 +718,73 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	vkDestroyBuffer(vkDevice, stagingBuffer, NULL);
 }
 
+void VulkanApp::TransitionImageLayoutSingle(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask)
+{
+	VkCommandBuffer commandBuffer;
+	AllocateGraphicsQueueCommandBuffer(&commandBuffer);
+	
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.pNext = NULL;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	beginInfo.pInheritanceInfo = NULL;
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+	
+	VkImageMemoryBarrier transitionBarrier = {};
+	transitionBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	transitionBarrier.pNext = NULL;
+	transitionBarrier.srcAccessMask = srcAccessMask;
+	transitionBarrier.dstAccessMask = dstAccessMask;
+	transitionBarrier.oldLayout = oldLayout;
+	transitionBarrier.newLayout = newLayout;
+	transitionBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transitionBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transitionBarrier.image = image;
+	transitionBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	transitionBarrier.subresourceRange.baseMipLevel = 0;
+	transitionBarrier.subresourceRange.levelCount = 1;
+	transitionBarrier.subresourceRange.baseArrayLayer = 0;
+	transitionBarrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, NULL, 0, NULL, 1, &transitionBarrier);
+	
+	vkEndCommandBuffer(commandBuffer);
+	
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pNext = NULL;
+	submitInfo.waitSemaphoreCount = 0;
+	submitInfo.pWaitSemaphores = NULL;
+	submitInfo.pWaitDstStageMask = NULL;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+	submitInfo.signalSemaphoreCount = 0;
+	submitInfo.pSignalSemaphores = NULL;
+	vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(vkGraphicsQueue);
+	
+	FreeGraphicsQueueCommandBuffer(&commandBuffer);
+}
+
+void VulkanApp::TransitionImageLayoutInProgress(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask, VkCommandBuffer commandBuffer)
+{
+	VkImageMemoryBarrier transitionBarrier = {};
+	transitionBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	transitionBarrier.pNext = NULL;
+	transitionBarrier.srcAccessMask = srcAccessMask;
+	transitionBarrier.dstAccessMask = dstAccessMask;
+	transitionBarrier.oldLayout = oldLayout;
+	transitionBarrier.newLayout = newLayout;
+	transitionBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transitionBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transitionBarrier.image = image;
+	transitionBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	transitionBarrier.subresourceRange.baseMipLevel = 0;
+	transitionBarrier.subresourceRange.levelCount = 1;
+	transitionBarrier.subresourceRange.baseArrayLayer = 0;
+	transitionBarrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, NULL, 0, NULL, 1, &transitionBarrier);
+}
+
 void VulkanApp::AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
 {
 	VkCommandBufferAllocateInfo allocationInfo = {};
@@ -829,6 +896,191 @@ void VulkanApp::Render(VkCommandBuffer* commandBuffers)
 	CHECK_VK_RESULT(result)
 	
 	currentFrame = (currentFrame + 1) % maxFramesInFlight;
+}
+
+struct VkGeometryInstanceNV
+{
+    float transform[12];
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureHandle;
+};
+
+//Basic transform
+float basicTransform[12] = { 
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f, 0.0f
+};
+
+VulkanAccelerationStructureBottom VulkanApp::CreateVulkanAccelerationStructureBottom(const std::vector<float>& vertexData, const std::vector<uint32_t>& indexData)
+{
+	VulkanAccelerationStructureBottom accStruct = {};
+	accStruct.device = vkDevice;
+
+	//Create vertex buffer
+	accStruct.vertexBufferSize = vertexData.size() * sizeof(float);
+	CreateDeviceBuffer(accStruct.vertexBufferSize, (void*)(vertexData.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &accStruct.vertexBuffer, &accStruct.vertexBufferMemory);
+	//Create index buffer
+	accStruct.indexBufferSize = indexData.size() * sizeof(uint32_t);
+	CreateDeviceBuffer(accStruct.indexBufferSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &accStruct.indexBuffer, &accStruct.indexBufferMemory);
+
+	//Create acceleration structure
+	/*
+	a) Specify geometry data buffers and format
+	b) Specify AABBs
+	c) Link a) to b)
+	d) Specify geometry type and link to c)
+	e) Specify acceleration structure (bottom level) and connect to d)
+	f) Create
+	g) Allocate memory for the acceleration structure
+	h) Bind memory to acceleration structure
+	i) Get uint64_t handle to acceleration structure
+	j) Create an instance of the geometry using the handle from g)
+	k) Create a buffer containing the instance created in j)
+	*/
+	
+	//a
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryTrianglesNV
+	accStruct.triangleInfo = {};
+	accStruct.triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
+	accStruct.triangleInfo.pNext = NULL;
+	accStruct.triangleInfo.vertexData = accStruct.vertexBuffer;
+	accStruct.triangleInfo.vertexOffset = 0;
+	accStruct.triangleInfo.vertexCount = vertexData.size() / 3;
+	accStruct.triangleInfo.vertexStride = 3 * sizeof(float);
+	accStruct.triangleInfo.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+	accStruct.triangleInfo.indexData = accStruct.indexBuffer;
+	accStruct.triangleInfo.indexOffset = 0;
+	accStruct.triangleInfo.indexCount = indexData.size();
+	accStruct.triangleInfo.indexType = VK_INDEX_TYPE_UINT32;
+	accStruct.triangleInfo.transformData = VK_NULL_HANDLE;
+	//accStruct.triangleInfo.transformOffset IGNORED
+	
+	//b
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryAABBNV
+	accStruct.aabbInfo = {};
+	accStruct.aabbInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
+	accStruct.aabbInfo.pNext = NULL;
+	accStruct.aabbInfo.aabbData = VK_NULL_HANDLE;
+	//IGNORED
+	//accStruct.aabbInfo.numAABBs
+	//accStruct.aabbInfo.stride
+	//accStruct.aabbInfo.offset
+	
+	//c
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryDataNV
+	accStruct.geometryDataInfo = {};
+	accStruct.geometryDataInfo.triangles = accStruct.triangleInfo;
+	accStruct.geometryDataInfo.aabbs = accStruct.aabbInfo;
+
+	//d
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkGeometryNV
+	accStruct.geometryInfo = {};
+	accStruct.geometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
+	accStruct.geometryInfo.pNext = NULL;
+	accStruct.geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+	accStruct.geometryInfo.geometry = accStruct.geometryDataInfo;
+	accStruct.geometryInfo.flags = 0;
+	
+	//e
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureInfoNV
+	accStruct.accelerationStructureInfo = {};
+	accStruct.accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+	accStruct.accelerationStructureInfo.pNext = NULL;
+	accStruct.accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
+	accStruct.accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
+	accStruct.accelerationStructureInfo.instanceCount = 0;
+	accStruct.accelerationStructureInfo.geometryCount = 1;
+	accStruct.accelerationStructureInfo.pGeometries = &accStruct.geometryInfo;
+	
+	//f
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureCreateInfoNV
+	VkAccelerationStructureCreateInfoNV accelerationStructureCreateInfo = {};
+	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
+	accelerationStructureCreateInfo.pNext = NULL;
+	accelerationStructureCreateInfo.compactedSize = 0;
+	accelerationStructureCreateInfo.info = accStruct.accelerationStructureInfo;	
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkCreateAccelerationStructureNV
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkDevice, &accelerationStructureCreateInfo, NULL, &accStruct.accelerationStructure))
+	
+	//g
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#resources-acceleration-structures
+	VkAccelerationStructureMemoryRequirementsInfoNV accelerationStructureMemoryRequirementInfo;
+	accelerationStructureMemoryRequirementInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+	accelerationStructureMemoryRequirementInfo.pNext = NULL;
+	accelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
+	accelerationStructureMemoryRequirementInfo.accelerationStructure = accStruct.accelerationStructure;
+	VkMemoryRequirements2 accelerationStructMemoryRequirements;
+	vkGetAccelerationStructureMemoryRequirementsNV(vkDevice, &accelerationStructureMemoryRequirementInfo, &accelerationStructMemoryRequirements);
+	
+	VkMemoryAllocateInfo accelerationStructureMemoryInfo = {};
+	accelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	accelerationStructureMemoryInfo.pNext = NULL;
+	accelerationStructureMemoryInfo.allocationSize = accelerationStructMemoryRequirements.memoryRequirements.size;
+	accelerationStructureMemoryInfo.memoryTypeIndex = FindMemoryType(accelerationStructMemoryRequirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	CHECK_VK_RESULT(vkAllocateMemory(vkDevice, &accelerationStructureMemoryInfo, NULL, &accStruct.accelerationStructureMemory))
+	
+	//h
+	VkBindAccelerationStructureMemoryInfoNV bindInfo = {};
+	bindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
+	bindInfo.pNext = NULL;
+	bindInfo.accelerationStructure = accStruct.accelerationStructure;
+	bindInfo.memory = accStruct.accelerationStructureMemory;
+	bindInfo.memoryOffset = 0;
+	bindInfo.deviceIndexCount = 0;
+	bindInfo.pDeviceIndices = NULL;
+	CHECK_VK_RESULT(vkBindAccelerationStructureMemoryNV(vkDevice, 1, &bindInfo))
+	
+	//i
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkGetAccelerationStructureHandleNV
+	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, accStruct.accelerationStructure, sizeof(uint64_t), &accStruct.accelerationStructureHandle))
+	
+	//j
+	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#acceleration-structure-instance
+	VkGeometryInstanceNV geometryInstance = {};
+	memcpy(geometryInstance.transform, basicTransform, sizeof(float) * 12);
+	geometryInstance.instanceCustomIndex = numAccelerationStructures++;
+	geometryInstance.mask = 0xff;
+	geometryInstance.instanceOffset = 0;
+	geometryInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
+	geometryInstance.accelerationStructureHandle = accStruct.accelerationStructureHandle;
+	
+	//k
+	accStruct.geometryInstanceBufferSize = sizeof(VkGeometryInstanceNV);
+	CreateDeviceBuffer(accStruct.geometryInstanceBufferSize, (void*)(&geometryInstance), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &accStruct.geometryInstanceBuffer, &accStruct.geometryInstanceBufferMemory);
+	
+	return accStruct;
+}
+
+VulkanAccelerationStructureBottom::~VulkanAccelerationStructureBottom()
+{
+	vkDestroyBuffer(device, vertexBuffer, NULL);
+	vkFreeMemory(device, vertexBufferMemory, NULL);
+	vkDestroyBuffer(device, indexBuffer, NULL);
+	vkFreeMemory(device, indexBufferMemory, NULL);
+	vkDestroyAccelerationStructureNV(device, accelerationStructure, NULL);
+	vkFreeMemory(device, accelerationStructureMemory, NULL);
+	vkDestroyBuffer(device, geometryInstanceBuffer, NULL);
+	vkFreeMemory(device, geometryInstanceBufferMemory, NULL);
+}
+
+VulkanAccelerationStructureTop VulkanApp::CreateVulkanAccelerationStructureTop()
+{
+	VulkanAccelerationStructureTop accStruct = {};
+	accStruct.device = vkDevice;
+	
+	
+	
+	return accStruct;
+}
+
+VulkanAccelerationStructureTop::~VulkanAccelerationStructureTop()
+{
+	vkDestroyAccelerationStructureNV(device, accelerationStructure, NULL);
+	vkFreeMemory(device, accelerationStructureMemory, NULL);
 }
 
 
