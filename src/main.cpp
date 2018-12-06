@@ -7,16 +7,6 @@
 #include <vector>
 #include "VulkanApp.h"
 
-struct VkGeometryInstanceNV
-{
-    float transform[12];
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureHandle;
-};
-
 void RaytraceTriangle()
 {
 	std::vector<const char*> validationLayerNames = {
@@ -41,24 +31,23 @@ void RaytraceTriangle()
 	vkAppInfo.maxFramesInFlight = 2;
 	VulkanApp vkApp(&vkAppInfo);
 
-	//Vertex buffer
-	std::vector<float> vertexData = {
+	//Geometry data
+	std::vector<float> vertexData0 = {
         -0.5f,  0.5f, -2.0f,
 		-0.5f, -0.5f, -2.0f,
          0.5f, -0.5f, -2.0f
 	};
-	VkDeviceSize vertexDataSize = vertexData.size() * sizeof(float);
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-	vkApp.CreateDeviceBuffer(vertexDataSize, (void*)(vertexData.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vertexBuffer, &vertexBufferMemory);
-	//Index buffer
+	std::vector<float> vertexData1 = {
+         0.5f, -0.5f, -2.0f,
+         0.5f,  0.5f, -2.0f,
+        -0.5f,  0.5f, -2.0f
+	};
 	std::vector<uint32_t> indexData = {
 		0, 1, 2,
 	};
-	VkDeviceSize indexDataSize = indexData.size() * sizeof(uint32_t);
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
-	vkApp.CreateDeviceBuffer(indexDataSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer, &indexBufferMemory);
+	std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>> geometryData;
+	geometryData.push_back(std::make_pair(vertexData0, indexData));
+	geometryData.push_back(std::make_pair(vertexData1, indexData));
 	////////////////////////////
 	///////////Camera///////////
 	////////////////////////////
@@ -99,14 +88,11 @@ void RaytraceTriangle()
 	////////////////////////////
 	///ACCELERATION STRUCTURE///
 	////////////////////////////
-	//Bottom
-	std::vector<VulkanAccelerationStructureBottom> bottomAccStructs(1);
-	vkApp.CreateVulkanAccelerationStructureBottom(vertexData, indexData, &bottomAccStructs[0]);
-	//Top
-	VulkanAccelerationStructureTop topAccStruct;
-	vkApp.CreateVulkanAccelerationStructureTop(1, &topAccStruct);
+	//Create
+	VulkanAccelerationStructure accStruct;
+	vkApp.CreateVulkanAccelerationStructure(geometryData, &accStruct);
 	//Build
-	vkApp.BuildAccelerationStructure(bottomAccStructs, topAccStruct);
+	vkApp.BuildAccelerationStructure(accStruct);
 	
 	////////////////////////////
 	////Ray tracing pipeline////
@@ -317,7 +303,7 @@ void RaytraceTriangle()
     descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV;
     descriptorAccelerationStructureInfo.pNext = NULL;
     descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-    descriptorAccelerationStructureInfo.pAccelerationStructures = &topAccStruct.accelerationStructure;
+    descriptorAccelerationStructureInfo.pAccelerationStructures = &accStruct.topAccStruct.accelerationStructure;
 
     VkWriteDescriptorSet accelerationStructureWrite = {};
     accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -454,10 +440,6 @@ void RaytraceTriangle()
 	//Basic data
 	vkFreeMemory(vkApp.vkDevice, cameraBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, indexBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, indexBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, vertexBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, vertexBuffer, NULL);
 }
 
 int main(int argc, char** argv)

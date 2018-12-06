@@ -941,16 +941,6 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
 	printf("Frame time:\n\t%u ns\n\t%.2f ms\n", ns, ms);
 }
 
-struct VkGeometryInstanceNV
-{
-    float transform[12];
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureHandle;
-};
-
 //Basic transform
 float basicTransform[12] = { 
 	1.0f, 0.0f, 0.0f, 0.0f,
@@ -958,16 +948,17 @@ float basicTransform[12] = {
 	0.0f, 0.0f, 1.0f, 0.0f
 };
 
-void VulkanApp::CreateVulkanAccelerationStructureBottom(const std::vector<float>& vertexData, const std::vector<uint32_t>& indexData, VulkanAccelerationStructureBottom* accStruct)
-{
-	accStruct->device = vkDevice;
+
+void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device)
+{	
+	bottomAccStruct->device = device;
 
 	//Create vertex buffer
-	accStruct->vertexBufferSize = vertexData.size() * sizeof(float);
-	CreateDeviceBuffer(accStruct->vertexBufferSize, (void*)(vertexData.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &accStruct->vertexBuffer, &accStruct->vertexBufferMemory);
+	VkDeviceSize vertexBufferSize = geometry.first.size() * sizeof(float);
+	CreateDeviceBuffer(vertexBufferSize, (void*)(geometry.first.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &bottomAccStruct->vertexBuffer, &bottomAccStruct->vertexBufferMemory);
 	//Create index buffer
-	accStruct->indexBufferSize = indexData.size() * sizeof(uint32_t);
-	CreateDeviceBuffer(accStruct->indexBufferSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &accStruct->indexBuffer, &accStruct->indexBufferMemory);
+	VkDeviceSize indexBufferSize = geometry.second.size() * sizeof(uint32_t);
+	CreateDeviceBuffer(indexBufferSize, (void*)(geometry.second.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &bottomAccStruct->indexBuffer, &bottomAccStruct->indexBufferMemory);
 
 	//Steps
 	/*
@@ -981,127 +972,108 @@ void VulkanApp::CreateVulkanAccelerationStructureBottom(const std::vector<float>
 	h) Bind memory to acceleration structure
 	i) Get uint64_t handle to acceleration structure
 	j) Create an instance of the geometry using the handle from g)
-	k) Create a buffer containing the instance created in j)
 	*/
-	
+		
 	//a
-	accStruct->triangleInfo = {};
-	accStruct->triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
-	accStruct->triangleInfo.pNext = NULL;
-	accStruct->triangleInfo.vertexData = accStruct->vertexBuffer;
-	accStruct->triangleInfo.vertexOffset = 0;
-	accStruct->triangleInfo.vertexCount = vertexData.size() / 3;
-	accStruct->triangleInfo.vertexStride = 3 * sizeof(float);
-	accStruct->triangleInfo.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-	accStruct->triangleInfo.indexData = accStruct->indexBuffer;
-	accStruct->triangleInfo.indexOffset = 0;
-	accStruct->triangleInfo.indexCount = indexData.size();
-	accStruct->triangleInfo.indexType = VK_INDEX_TYPE_UINT32;
-	accStruct->triangleInfo.transformData = VK_NULL_HANDLE;
-	//accStruct->triangleInfo.transformOffset = IGNORED
-	
+	bottomAccStruct->triangleInfo = {};
+	bottomAccStruct->triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
+	bottomAccStruct->triangleInfo.pNext = NULL;
+	bottomAccStruct->triangleInfo.vertexData = bottomAccStruct->vertexBuffer;
+	bottomAccStruct->triangleInfo.vertexOffset = 0;
+	bottomAccStruct->triangleInfo.vertexCount = geometry.first.size() / 3;
+	bottomAccStruct->triangleInfo.vertexStride = 3 * sizeof(float);
+	bottomAccStruct->triangleInfo.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+	bottomAccStruct->triangleInfo.indexData = bottomAccStruct->indexBuffer;
+	bottomAccStruct->triangleInfo.indexOffset = 0;
+	bottomAccStruct->triangleInfo.indexCount = geometry.second.size();
+	bottomAccStruct->triangleInfo.indexType = VK_INDEX_TYPE_UINT32;
+	bottomAccStruct->triangleInfo.transformData = VK_NULL_HANDLE;
+	//bottomAccStruct->triangleInfo.transformOffset = IGNORED
+		
 	//b
-	accStruct->aabbInfo = {};
-	accStruct->aabbInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
-	accStruct->aabbInfo.pNext = NULL;
-	accStruct->aabbInfo.aabbData = VK_NULL_HANDLE;
+	bottomAccStruct->aabbInfo = {};
+	bottomAccStruct->aabbInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
+	bottomAccStruct->aabbInfo.pNext = NULL;
+	bottomAccStruct->aabbInfo.aabbData = VK_NULL_HANDLE;
 	//IGNORED
-	//accStruct->aabbInfo.numAABBs
-	//accStruct->aabbInfo.stride
-	//accStruct->aabbInfo.offset
-	
+	//bottomAccStruct->aabbInfo.numAABBs
+	//bottomAccStruct->aabbInfo.stride
+	//bottomAccStruct->aabbInfo.offset
+		
 	//c
-	accStruct->geometryDataInfo = {};
-	accStruct->geometryDataInfo.triangles = accStruct->triangleInfo;
-	accStruct->geometryDataInfo.aabbs = accStruct->aabbInfo;
+	bottomAccStruct->geometryDataInfo = {};
+	bottomAccStruct->geometryDataInfo.triangles = bottomAccStruct->triangleInfo;
+	bottomAccStruct->geometryDataInfo.aabbs = bottomAccStruct->aabbInfo;
 
 	//d
-	accStruct->geometryInfo = {};
-	accStruct->geometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
-	accStruct->geometryInfo.pNext = NULL;
-	accStruct->geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
-	accStruct->geometryInfo.geometry = accStruct->geometryDataInfo;
-	accStruct->geometryInfo.flags = 0;
-	
+	bottomAccStruct->geometryInfo = {};
+	bottomAccStruct->geometryInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
+	bottomAccStruct->geometryInfo.pNext = NULL;
+	bottomAccStruct->geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+	bottomAccStruct->geometryInfo.geometry = bottomAccStruct->geometryDataInfo;
+	bottomAccStruct->geometryInfo.flags = 0;
+		
 	//e
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureInfoNV
-	accStruct->accelerationStructureInfo = {};
-	accStruct->accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-	accStruct->accelerationStructureInfo.pNext = NULL;
-	accStruct->accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-	accStruct->accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
-	accStruct->accelerationStructureInfo.instanceCount = 0;
-	accStruct->accelerationStructureInfo.geometryCount = 1;
-	accStruct->accelerationStructureInfo.pGeometries = &accStruct->geometryInfo;
-	
+	bottomAccStruct->accelerationStructureInfo = {};
+	bottomAccStruct->accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+	bottomAccStruct->accelerationStructureInfo.pNext = NULL;
+	bottomAccStruct->accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
+	bottomAccStruct->accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
+	bottomAccStruct->accelerationStructureInfo.instanceCount = 0;
+	bottomAccStruct->accelerationStructureInfo.geometryCount = 1;
+	bottomAccStruct->accelerationStructureInfo.pGeometries = &bottomAccStruct->geometryInfo;
+		
 	//f
 	VkAccelerationStructureCreateInfoNV accelerationStructureCreateInfo = {};
 	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
 	accelerationStructureCreateInfo.pNext = NULL;
 	accelerationStructureCreateInfo.compactedSize = 0;
-	accelerationStructureCreateInfo.info = accStruct->accelerationStructureInfo;	
-	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkDevice, &accelerationStructureCreateInfo, NULL, &accStruct->accelerationStructure))
-	
+	accelerationStructureCreateInfo.info = bottomAccStruct->accelerationStructureInfo;	
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkDevice, &accelerationStructureCreateInfo, NULL, &bottomAccStruct->accelerationStructure))
+		
 	//g
 	VkAccelerationStructureMemoryRequirementsInfoNV accelerationStructureMemoryRequirementInfo;
 	accelerationStructureMemoryRequirementInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
 	accelerationStructureMemoryRequirementInfo.pNext = NULL;
 	accelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
-	accelerationStructureMemoryRequirementInfo.accelerationStructure = accStruct->accelerationStructure;
+	accelerationStructureMemoryRequirementInfo.accelerationStructure = bottomAccStruct->accelerationStructure;
 	VkMemoryRequirements2 accelerationStructMemoryRequirements;
 	vkGetAccelerationStructureMemoryRequirementsNV(vkDevice, &accelerationStructureMemoryRequirementInfo, &accelerationStructMemoryRequirements);
-	
+		
 	VkMemoryAllocateInfo accelerationStructureMemoryInfo = {};
 	accelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	accelerationStructureMemoryInfo.pNext = NULL;
 	accelerationStructureMemoryInfo.allocationSize = accelerationStructMemoryRequirements.memoryRequirements.size;
 	accelerationStructureMemoryInfo.memoryTypeIndex = FindMemoryType(accelerationStructMemoryRequirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	CHECK_VK_RESULT(vkAllocateMemory(vkDevice, &accelerationStructureMemoryInfo, NULL, &accStruct->accelerationStructureMemory))
-	
+	CHECK_VK_RESULT(vkAllocateMemory(vkDevice, &accelerationStructureMemoryInfo, NULL, &bottomAccStruct->accelerationStructureMemory))
+		
 	//h
 	VkBindAccelerationStructureMemoryInfoNV bindInfo = {};
 	bindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
 	bindInfo.pNext = NULL;
-	bindInfo.accelerationStructure = accStruct->accelerationStructure;
-	bindInfo.memory = accStruct->accelerationStructureMemory;
+	bindInfo.accelerationStructure = bottomAccStruct->accelerationStructure;
+	bindInfo.memory = bottomAccStruct->accelerationStructureMemory;
 	bindInfo.memoryOffset = 0;
 	bindInfo.deviceIndexCount = 0;
 	bindInfo.pDeviceIndices = NULL;
 	CHECK_VK_RESULT(vkBindAccelerationStructureMemoryNV(vkDevice, 1, &bindInfo))
-	
+		
 	//i
-	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, accStruct->accelerationStructure, sizeof(uint64_t), &accStruct->accelerationStructureHandle))
-	
+	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, bottomAccStruct->accelerationStructure, sizeof(uint64_t), &bottomAccStruct->accelerationStructureHandle))
+		
 	//j
-	VkGeometryInstanceNV geometryInstance = {};
-	memcpy(geometryInstance.transform, basicTransform, sizeof(float) * 12);
-	geometryInstance.instanceCustomIndex = numAccelerationStructures++;
-	geometryInstance.mask = 0xff;
-	geometryInstance.instanceOffset = 0;
-	geometryInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
-	geometryInstance.accelerationStructureHandle = accStruct->accelerationStructureHandle;
-	
-	//k
-	accStruct->geometryInstanceBufferSize = sizeof(VkGeometryInstanceNV);
-	CreateDeviceBuffer(accStruct->geometryInstanceBufferSize, (void*)(&geometryInstance), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &accStruct->geometryInstanceBuffer, &accStruct->geometryInstanceBufferMemory);
+	memcpy(geometryInstance->transform, basicTransform, sizeof(float) * 12);
+	geometryInstance->instanceCustomIndex = numAccelerationStructures++;
+	geometryInstance->mask = 0xff;
+	geometryInstance->instanceOffset = 0;
+	geometryInstance->flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
+	geometryInstance->accelerationStructureHandle = bottomAccStruct->accelerationStructureHandle;
 }
 
-VulkanAccelerationStructureBottom::~VulkanAccelerationStructureBottom()
+void VulkanApp::CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccStruct, VkDevice device)
 {
-	vkFreeMemory(device, geometryInstanceBufferMemory, NULL);
-	vkDestroyBuffer(device, geometryInstanceBuffer, NULL);
-	vkFreeMemory(device, accelerationStructureMemory, NULL);
-	vkDestroyAccelerationStructureNV(device, accelerationStructure, NULL);
-	vkDestroyBuffer(device, indexBuffer, NULL);
-	vkFreeMemory(device, indexBufferMemory, NULL);
-	vkDestroyBuffer(device, vertexBuffer, NULL);
-	vkFreeMemory(device, vertexBufferMemory, NULL);
-}
+	topAccStruct->device = device;
 
-void VulkanApp::CreateVulkanAccelerationStructureTop(uint32_t numInstances, VulkanAccelerationStructureTop* accStruct)
-{
-	accStruct->device = vkDevice;
-	
 	//Steps
 	/*
 	a) Specify acceleration structure (bottom level) and connect to d)
@@ -1112,29 +1084,29 @@ void VulkanApp::CreateVulkanAccelerationStructureTop(uint32_t numInstances, Vulk
 	*/
 	
 	//a
-	accStruct->accelerationStructureInfo = {};
-	accStruct->accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-	accStruct->accelerationStructureInfo.pNext = NULL;
-	accStruct->accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-	accStruct->accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
-	accStruct->accelerationStructureInfo.instanceCount = numInstances;
-	accStruct->accelerationStructureInfo.geometryCount = 0;
-	accStruct->accelerationStructureInfo.pGeometries = NULL;
+	topAccStruct->accelerationStructureInfo = {};
+	topAccStruct->accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+	topAccStruct->accelerationStructureInfo.pNext = NULL;
+	topAccStruct->accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+	topAccStruct->accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
+	topAccStruct->accelerationStructureInfo.instanceCount = numInstances;
+	topAccStruct->accelerationStructureInfo.geometryCount = 0;
+	topAccStruct->accelerationStructureInfo.pGeometries = NULL;
 	
 	//b
 	VkAccelerationStructureCreateInfoNV accelerationStructureCreateInfo = {};
 	accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
 	accelerationStructureCreateInfo.pNext = NULL;
 	accelerationStructureCreateInfo.compactedSize = 0;
-	accelerationStructureCreateInfo.info = accStruct->accelerationStructureInfo;	
-	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkDevice, &accelerationStructureCreateInfo, NULL, &accStruct->accelerationStructure))
+	accelerationStructureCreateInfo.info = topAccStruct->accelerationStructureInfo;	
+	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkDevice, &accelerationStructureCreateInfo, NULL, &topAccStruct->accelerationStructure))
 	
 	//c
 	VkAccelerationStructureMemoryRequirementsInfoNV accelerationStructureMemoryRequirementInfo;
 	accelerationStructureMemoryRequirementInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
 	accelerationStructureMemoryRequirementInfo.pNext = NULL;
 	accelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
-	accelerationStructureMemoryRequirementInfo.accelerationStructure = accStruct->accelerationStructure;
+	accelerationStructureMemoryRequirementInfo.accelerationStructure = topAccStruct->accelerationStructure;
 	VkMemoryRequirements2 accelerationStructMemoryRequirements;
 	vkGetAccelerationStructureMemoryRequirementsNV(vkDevice, &accelerationStructureMemoryRequirementInfo, &accelerationStructMemoryRequirements);
 	
@@ -1143,30 +1115,78 @@ void VulkanApp::CreateVulkanAccelerationStructureTop(uint32_t numInstances, Vulk
 	accelerationStructureMemoryInfo.pNext = NULL;
 	accelerationStructureMemoryInfo.allocationSize = accelerationStructMemoryRequirements.memoryRequirements.size;
 	accelerationStructureMemoryInfo.memoryTypeIndex = FindMemoryType(accelerationStructMemoryRequirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	CHECK_VK_RESULT(vkAllocateMemory(vkDevice, &accelerationStructureMemoryInfo, NULL, &accStruct->accelerationStructureMemory))
+	CHECK_VK_RESULT(vkAllocateMemory(vkDevice, &accelerationStructureMemoryInfo, NULL, &topAccStruct->accelerationStructureMemory))
 	
 	//d
 	VkBindAccelerationStructureMemoryInfoNV bindInfo = {};
 	bindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
 	bindInfo.pNext = NULL;
-	bindInfo.accelerationStructure = accStruct->accelerationStructure;
-	bindInfo.memory = accStruct->accelerationStructureMemory;
+	bindInfo.accelerationStructure = topAccStruct->accelerationStructure;
+	bindInfo.memory = topAccStruct->accelerationStructureMemory;
 	bindInfo.memoryOffset = 0;
 	bindInfo.deviceIndexCount = 0;
 	bindInfo.pDeviceIndices = NULL;
 	CHECK_VK_RESULT(vkBindAccelerationStructureMemoryNV(vkDevice, 1, &bindInfo))
 	
 	//e
-	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, accStruct->accelerationStructure, sizeof(uint64_t), &accStruct->accelerationStructureHandle))
+	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, topAccStruct->accelerationStructure, sizeof(uint64_t), &topAccStruct->accelerationStructureHandle))
 }
 
-VulkanAccelerationStructureTop::~VulkanAccelerationStructureTop()
+void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct)
+{
+	//Steps
+	/*
+	a) Create all bottom level acceleration structures
+	b) Create buffer containing all geometry instances
+	c) Create top level acceleration structure
+	*/
+	
+	accStruct->device = vkDevice;
+	const uint32_t numMeshes = geometryData.size();
+	accStruct->bottomAccStructs.resize(numMeshes);
+	std::vector<VkGeometryInstanceNV> geometryInstances(numMeshes);
+	
+	//a)
+	for (uint32_t i = 0; i < numMeshes; i++)
+	{
+		const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry = geometryData[i];
+		VkGeometryInstanceNV* geometryInstance = &geometryInstances[i];
+		BottomAccStruct* bottomAccStruct = &accStruct->bottomAccStructs[i];
+		CreateBottomAccStruct(geometry, geometryInstance, bottomAccStruct, vkDevice);
+	}
+	
+	//b)
+	VkDeviceSize geometryInstanceBufferSize = geometryInstances.size() * sizeof(VkGeometryInstanceNV);
+	CreateDeviceBuffer(geometryInstanceBufferSize, (void*)(geometryInstances.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &accStruct->geometryInstancesBuffer, &accStruct->geometryInstancesBufferMemory);
+
+	//c)
+	CreateTopAccStruct(geometryInstances.size(), &accStruct->topAccStruct, vkDevice);
+}
+
+BottomAccStruct::~BottomAccStruct()
+{
+	vkFreeMemory(device, accelerationStructureMemory, NULL);
+	vkDestroyAccelerationStructureNV(device, accelerationStructure, NULL);
+	vkFreeMemory(device, indexBufferMemory, NULL);
+	vkDestroyBuffer(device, indexBuffer, NULL);
+	vkFreeMemory(device, vertexBufferMemory, NULL);
+	vkDestroyBuffer(device, vertexBuffer, NULL);
+}
+
+TopAccStruct::~TopAccStruct()
 {
 	vkFreeMemory(device, accelerationStructureMemory, NULL);
 	vkDestroyAccelerationStructureNV(device, accelerationStructure, NULL);
 }
 
-void VulkanApp::BuildAccelerationStructure(const std::vector<VulkanAccelerationStructureBottom>& bottomAccStructs, const VulkanAccelerationStructureTop& topAccStruct)
+VulkanAccelerationStructure::~VulkanAccelerationStructure()
+{
+	vkFreeMemory(device, geometryInstancesBufferMemory, NULL);
+	vkDestroyBuffer(device, geometryInstancesBuffer, NULL);
+}
+
+
+void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct)
 {
 	//Steps
 	/*
@@ -1198,15 +1218,15 @@ void VulkanApp::BuildAccelerationStructure(const std::vector<VulkanAccelerationS
 	accelerationStructureMemoryRequirementInfo.pNext = NULL;
 	accelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
 	VkMemoryRequirements2 accelerationStructMemoryRequirements;
-	for (const VulkanAccelerationStructureBottom& accStruct : bottomAccStructs)
+	for (const BottomAccStruct& bottomAccStruct : accStruct.bottomAccStructs)
 	{
-		accelerationStructureMemoryRequirementInfo.accelerationStructure = accStruct.accelerationStructure;
+		accelerationStructureMemoryRequirementInfo.accelerationStructure = bottomAccStruct.accelerationStructure;
 		vkGetAccelerationStructureMemoryRequirementsNV(vkDevice, &accelerationStructureMemoryRequirementInfo, &accelerationStructMemoryRequirements);
 		scratchBufferSize = std::max(scratchBufferSize, accelerationStructMemoryRequirements.memoryRequirements.size);
 	}
 	
 	//Top level
-	accelerationStructureMemoryRequirementInfo.accelerationStructure = topAccStruct.accelerationStructure;
+	accelerationStructureMemoryRequirementInfo.accelerationStructure = accStruct.topAccStruct.accelerationStructure;
 	vkGetAccelerationStructureMemoryRequirementsNV(vkDevice, &accelerationStructureMemoryRequirementInfo, &accelerationStructMemoryRequirements);
 	scratchBufferSize = std::max(scratchBufferSize, accelerationStructMemoryRequirements.memoryRequirements.size);
 	
@@ -1234,17 +1254,17 @@ void VulkanApp::BuildAccelerationStructure(const std::vector<VulkanAccelerationS
 	memoryBarrier.pNext = NULL;
 	memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
 	memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
-	for (const VulkanAccelerationStructureBottom& accStruct : bottomAccStructs)
+	for (const BottomAccStruct& bottomAccStruct : accStruct.bottomAccStructs)
 	{
 		//Build
-		vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &accStruct.accelerationStructureInfo, VK_NULL_HANDLE, 0, VK_FALSE, accStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
+		vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &bottomAccStruct.accelerationStructureInfo, VK_NULL_HANDLE, 0, VK_FALSE, bottomAccStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
 		//Barrier
 		vkCmdPipelineBarrier(tmpCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
 	}
 	
 	//f
 	//Build
-	vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &topAccStruct.accelerationStructureInfo, bottomAccStructs[0].geometryInstanceBuffer, 0, VK_FALSE, topAccStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
+	vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &accStruct.topAccStruct.accelerationStructureInfo, accStruct.geometryInstancesBuffer, 0, VK_FALSE, accStruct.topAccStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
 	//Barrier
 	vkCmdPipelineBarrier(tmpCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
 	

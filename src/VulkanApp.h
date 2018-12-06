@@ -29,14 +29,22 @@ struct VulkanAppCreateInfo
 	uint32_t maxFramesInFlight;
 };
 
-struct VulkanAccelerationStructureBottom
+struct VkGeometryInstanceNV
+{
+    float transform[12];
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureHandle;
+};
+
+struct BottomAccStruct
 {
 	VkDevice device;
 	VkBuffer vertexBuffer;
-	VkDeviceSize vertexBufferSize;
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
-	VkDeviceSize indexBufferSize;
 	VkDeviceMemory indexBufferMemory;
 	VkGeometryTrianglesNV triangleInfo;
 	VkGeometryAABBNV aabbInfo;
@@ -47,14 +55,11 @@ struct VulkanAccelerationStructureBottom
 	VkDeviceMemory accelerationStructureMemory;
 	uint64_t accelerationStructureHandle;
 	uint32_t geometryInstanceCustomIndex;
-	VkBuffer geometryInstanceBuffer;
-	VkDeviceSize geometryInstanceBufferSize;
-	VkDeviceMemory geometryInstanceBufferMemory;
 	
-	~VulkanAccelerationStructureBottom();
+	~BottomAccStruct();
 };
 
-struct VulkanAccelerationStructureTop
+struct TopAccStruct
 {
 	VkDevice device;
 	VkAccelerationStructureInfoNV accelerationStructureInfo;
@@ -62,7 +67,19 @@ struct VulkanAccelerationStructureTop
 	VkDeviceMemory accelerationStructureMemory;
 	uint64_t accelerationStructureHandle;
 	
-	~VulkanAccelerationStructureTop();
+	~TopAccStruct();
+};
+
+struct VulkanAccelerationStructure
+{
+	VkDevice device;
+	std::vector<BottomAccStruct> bottomAccStructs;
+	std::vector<VkGeometryInstanceNV> geometryInstances;
+	VkBuffer geometryInstancesBuffer;
+	VkDeviceMemory geometryInstancesBufferMemory;
+	TopAccStruct topAccStruct;
+	
+	~VulkanAccelerationStructure();
 };
 
 struct VulkanApp
@@ -133,9 +150,8 @@ public:
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
-	void CreateVulkanAccelerationStructureBottom(const std::vector<float>& vertexData, const std::vector<uint32_t>& indexData, VulkanAccelerationStructureBottom* accStruct);
-	void CreateVulkanAccelerationStructureTop(uint32_t numInstances, VulkanAccelerationStructureTop* accStruct);
-	void BuildAccelerationStructure(const std::vector<VulkanAccelerationStructureBottom>& bottomAccStructs, const VulkanAccelerationStructureTop& topAccStruct);
+	void CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct);
+	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
 	
 private:
 	void QuerySwapChainSupport(VkPhysicalDevice physicalDevice);
@@ -151,6 +167,8 @@ private:
 	void CreateGraphicsQueueCommandPool();
 	void CreateSyncObjects();
 	std::vector<char> ReadShaderFile(const char* spirvFile);
+	void CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device);
+	void CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccStruct, VkDevice device);
 };
 
 #endif
