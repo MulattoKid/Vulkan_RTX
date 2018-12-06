@@ -59,7 +59,9 @@ void RaytraceTriangle()
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 	vkApp.CreateDeviceBuffer(indexDataSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer, &indexBufferMemory);
-	//Camera
+	////////////////////////////
+	///////////Camera///////////
+	////////////////////////////
 	glm::vec3 cameraOrigin(0.0f, 0.0f, 6.0f);
 	glm::vec3 cameraDir(0.0f, 0.0f, -1.0f);
 	float cameraVerticalFOV = 19.0f;
@@ -84,7 +86,6 @@ void RaytraceTriangle()
 	//Go height of lense along the camera's down (-up) axis
 	glm::vec3 cameraVerticalEnd = lensHeight * (-cameraUp);
 	std::vector<float> cameraData = {
-		//Origin 
 		cameraOrigin.x, cameraOrigin.y, cameraOrigin.z, 0.0f,
 		cameraTopLeftCorner.x, cameraTopLeftCorner.y, cameraTopLeftCorner.z, 0.0f,
 		cameraHorizontalEnd.x, cameraHorizontalEnd.y, cameraHorizontalEnd.z, 0.0f,
@@ -95,167 +96,21 @@ void RaytraceTriangle()
 	VkDeviceMemory cameraBufferMemory;
 	vkApp.CreateDeviceBuffer(cameraBufferSize, (void*)(cameraData.data()), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &cameraBuffer, &cameraBufferMemory);
 	
-	/*
-	Acceleration structure steps:
-	2) Create TopLevel acceleration structure
-		a) Specify acceleration structure (bottom level) and connect to d)
-		b) Create
-		c) Allocate memory for the acceleration structure
-		d) Bind memory to acceleration structure
-		e) Get uint64_t handle to acceleration structure
-	3) Build acceleration structures
-		a) Create a buffer that will be used as scratch when building
-			- Should have the largest size that will be needed = max(largest_bottom_level, top_level)
-			- Size is of type VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV
-		b) Allocate command buffer
-		c) Begin command buffer
-		d) Build BottomLevel
-		e) Pipeline barrier
-		f) Build TopLevel
-		g) Pipeline barrier
-		h) End command buffer
-		i) Submit command buffer to graphics queue
-		j) Wait on graphics queue to be idle
-		k) Free command buffer
-		l) Destroy scratch buffer and free scratch memory
-	*/
+	////////////////////////////
+	///ACCELERATION STRUCTURE///
+	////////////////////////////
+	//Bottom
+	std::vector<VulkanAccelerationStructureBottom> bottomAccStructs(1);
+	vkApp.CreateVulkanAccelerationStructureBottom(vertexData, indexData, &bottomAccStructs[0]);
+	//Top
+	VulkanAccelerationStructureTop topAccStruct;
+	vkApp.CreateVulkanAccelerationStructureTop(1, &topAccStruct);
+	//Build
+	vkApp.BuildAccelerationStructure(bottomAccStructs, topAccStruct);
 	
-	VulkanAccelerationStructureBottom triangleAccStruct = vkApp.CreateVulkanAccelerationStructureBottom(vertexData, indexData);
-	
-	//2.a
-	VkAccelerationStructureInfoNV topAccelerationStructureInfo = {};
-	topAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-	topAccelerationStructureInfo.pNext = NULL;
-	topAccelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-	topAccelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
-	topAccelerationStructureInfo.instanceCount = 1;
-	topAccelerationStructureInfo.geometryCount = 0;
-	topAccelerationStructureInfo.pGeometries = NULL;
-	
-	//2.b
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VkAccelerationStructureCreateInfoNV
-	VkAccelerationStructureCreateInfoNV topAccelerationStructureCreateInfo = {};
-	topAccelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
-	topAccelerationStructureCreateInfo.pNext = NULL;
-	topAccelerationStructureCreateInfo.compactedSize = 0;
-	topAccelerationStructureCreateInfo.info = topAccelerationStructureInfo;	
-	VkAccelerationStructureNV topAccelerationStructure;
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkCreateAccelerationStructureNV
-	CHECK_VK_RESULT(vkCreateAccelerationStructureNV(vkApp.vkDevice, &topAccelerationStructureCreateInfo, NULL, &topAccelerationStructure))
-	
-	//2.c
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#resources-acceleration-structures
-	VkAccelerationStructureMemoryRequirementsInfoNV topAccelerationStructureMemoryRequirementInfo;
-	topAccelerationStructureMemoryRequirementInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-	topAccelerationStructureMemoryRequirementInfo.pNext = NULL;
-	topAccelerationStructureMemoryRequirementInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
-	topAccelerationStructureMemoryRequirementInfo.accelerationStructure = topAccelerationStructure;
-	VkMemoryRequirements2 topAccelerationStructMemoryRequirements;
-	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &topAccelerationStructureMemoryRequirementInfo, &topAccelerationStructMemoryRequirements);
-	
-	VkMemoryAllocateInfo topAccelerationStructureMemoryInfo = {};
-	topAccelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	topAccelerationStructureMemoryInfo.pNext = NULL;
-	topAccelerationStructureMemoryInfo.allocationSize = topAccelerationStructMemoryRequirements.memoryRequirements.size;
-	topAccelerationStructureMemoryInfo.memoryTypeIndex = vkApp.FindMemoryType(topAccelerationStructMemoryRequirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	VkDeviceMemory topAccelerationStructureMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &topAccelerationStructureMemoryInfo, NULL, &topAccelerationStructureMemory))
-	
-	//2.d
-	VkBindAccelerationStructureMemoryInfoNV topBindInfo = {};
-	topBindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
-	topBindInfo.pNext = NULL;
-	topBindInfo.accelerationStructure = topAccelerationStructure;
-	topBindInfo.memory = topAccelerationStructureMemory;
-	topBindInfo.memoryOffset = 0;
-	topBindInfo.deviceIndexCount = 0;
-	topBindInfo.pDeviceIndices = NULL;
-	CHECK_VK_RESULT(vkBindAccelerationStructureMemoryNV(vkApp.vkDevice, 1, &topBindInfo))
-	
-	//2.e
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#vkGetAccelerationStructureHandleNV
-	uint64_t topAccelerationStructureHandle;
-	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkApp.vkDevice, topAccelerationStructure, sizeof(uint64_t), &topAccelerationStructureHandle))
-	
-	//3.a
-	//BottomLevel
-	VkAccelerationStructureMemoryRequirementsInfoNV triangleAccelerationStructureMemoryRequirementInfoScratch;
-	triangleAccelerationStructureMemoryRequirementInfoScratch.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-	triangleAccelerationStructureMemoryRequirementInfoScratch.pNext = NULL;
-	triangleAccelerationStructureMemoryRequirementInfoScratch.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
-	triangleAccelerationStructureMemoryRequirementInfoScratch.accelerationStructure = triangleAccStruct.accelerationStructure;
-	VkMemoryRequirements2 triangleAccelerationStructMemoryRequirementsScratch;
-	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &triangleAccelerationStructureMemoryRequirementInfoScratch, &triangleAccelerationStructMemoryRequirementsScratch);
-	//TopLevel
-	VkAccelerationStructureMemoryRequirementsInfoNV topAccelerationStructureMemoryRequirementInfoScratch;
-	topAccelerationStructureMemoryRequirementInfoScratch.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-	topAccelerationStructureMemoryRequirementInfoScratch.pNext = NULL;
-	topAccelerationStructureMemoryRequirementInfoScratch.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
-	topAccelerationStructureMemoryRequirementInfoScratch.accelerationStructure = topAccelerationStructure;
-	VkMemoryRequirements2 topAccelerationStructMemoryRequirementsScratch;
-	vkGetAccelerationStructureMemoryRequirementsNV(vkApp.vkDevice, &topAccelerationStructureMemoryRequirementInfoScratch, &topAccelerationStructMemoryRequirementsScratch);
-	//Largest size
-	VkDeviceSize scratchBufferSize = std::max(triangleAccelerationStructMemoryRequirementsScratch.memoryRequirements.size, topAccelerationStructMemoryRequirementsScratch.memoryRequirements.size);
-	VkBuffer scratchBuffer;
-	VkDeviceMemory scratchBufferMemory;
-	vkApp.CreateDeviceBuffer(scratchBufferSize, (void*)(NULL), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &scratchBuffer, &scratchBufferMemory);
-	
-	//3.b
-	VkCommandBuffer tmpCommandBuffer;
-	vkApp.AllocateGraphicsQueueCommandBuffer(&tmpCommandBuffer);
-	
-	//3.c
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.pNext = NULL;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-	beginInfo.pInheritanceInfo = NULL;
-	vkBeginCommandBuffer(tmpCommandBuffer, &beginInfo);
-	
-	//3.d
-	vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &triangleAccStruct.accelerationStructureInfo, VK_NULL_HANDLE, 0, VK_FALSE, triangleAccStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
-	
-	//3.e
-	VkMemoryBarrier memoryBarrier = {};
-	memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-	memoryBarrier.pNext = NULL;
-	memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
-	memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
-	vkCmdPipelineBarrier(tmpCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
-	
-	//3.f
-	vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &topAccelerationStructureInfo, triangleAccStruct.geometryInstanceBuffer, 0, VK_FALSE, topAccelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
-	
-	//3.g
-	vkCmdPipelineBarrier(tmpCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
-	
-	//3.h
-	vkEndCommandBuffer(tmpCommandBuffer);
-	
-	//3.i
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.pNext = NULL;
-	submitInfo.waitSemaphoreCount = 0;
-	submitInfo.pWaitSemaphores = NULL;
-	submitInfo.pWaitDstStageMask = NULL;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &tmpCommandBuffer;
-	submitInfo.signalSemaphoreCount = 0;
-	submitInfo.pSignalSemaphores = NULL;
-	vkQueueSubmit(vkApp.vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	
-	//3.j
-	vkQueueWaitIdle(vkApp.vkGraphicsQueue);
-	
-	//3.k
-	vkApp.FreeGraphicsQueueCommandBuffer(&tmpCommandBuffer);
-	
-	//3.l
-	vkFreeMemory(vkApp.vkDevice, scratchBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, scratchBuffer, NULL);
-	
-	//Ray tracing pipeline
+	////////////////////////////
+	////Ray tracing pipeline////
+	////////////////////////////
 	VkShaderModule rayGenShaderModule, closestHitShaderModule, missShaderModule;
 	vkApp.CreateShaderModule("src/shaders/raygen.spv", &rayGenShaderModule);
 	vkApp.CreateShaderModule("src/shaders/closesthit.spv", &closestHitShaderModule);
@@ -349,7 +204,6 @@ void RaytraceTriangle()
 	VkPipelineLayout rayTracingPipelineLayout;
 	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &rayTracingPipelineLayoutInfo, NULL, &rayTracingPipelineLayout))
 	
-	//https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#pipelines-raytracing
 	VkRayTracingPipelineCreateInfoNV rayTracingPipelineInfo = {};
 	rayTracingPipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_NV;
 	rayTracingPipelineInfo.pNext = NULL;
@@ -365,7 +219,9 @@ void RaytraceTriangle()
 	VkPipeline rayTracingPipeline;
 	CHECK_VK_RESULT(vkCreateRayTracingPipelinesNV(vkApp.vkDevice, VK_NULL_HANDLE, 1, &rayTracingPipelineInfo, NULL, &rayTracingPipeline))
 	
-	//Shader binding table
+	////////////////////////////
+	////Shader binding table////
+	////////////////////////////
 	VkPhysicalDeviceRayTracingPropertiesNV physicalDeviceRayTracingProperties = {};
 	physicalDeviceRayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
 	physicalDeviceRayTracingProperties.pNext = NULL;
@@ -461,7 +317,7 @@ void RaytraceTriangle()
     descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV;
     descriptorAccelerationStructureInfo.pNext = NULL;
     descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-    descriptorAccelerationStructureInfo.pAccelerationStructures = &topAccelerationStructure;
+    descriptorAccelerationStructureInfo.pAccelerationStructures = &topAccStruct.accelerationStructure;
 
     VkWriteDescriptorSet accelerationStructureWrite = {};
     accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -574,9 +430,11 @@ void RaytraceTriangle()
 	}
 	
 	//Render
-	while (!glfwWindowShouldClose(vkApp.window)) {
+	while (!glfwWindowShouldClose(vkApp.window))
+	{
 		glfwPollEvents();
 		vkApp.Render(graphicsQueueCommandBuffers.data());
+		//vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);
 	
@@ -593,9 +451,6 @@ void RaytraceTriangle()
 	vkDestroyShaderModule(vkApp.vkDevice, missShaderModule, NULL);
 	vkDestroyShaderModule(vkApp.vkDevice, closestHitShaderModule, NULL);
 	vkDestroyShaderModule(vkApp.vkDevice, rayGenShaderModule, NULL);
-	//TopLevel
-	vkFreeMemory(vkApp.vkDevice, topAccelerationStructureMemory, NULL);
-	vkDestroyAccelerationStructureNV(vkApp.vkDevice, topAccelerationStructure, NULL);
 	//Basic data
 	vkFreeMemory(vkApp.vkDevice, cameraBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);

@@ -132,8 +132,10 @@ public:
 	VkFormat GetDefaultFramebufferFormat();
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
-	VulkanAccelerationStructureBottom CreateVulkanAccelerationStructureBottom(const std::vector<float>& vertexData, const std::vector<uint32_t>& indexData);
-	VulkanAccelerationStructureTop CreateVulkanAccelerationStructureTop();
+	void RenderOffscreen(VkCommandBuffer* commandBuffers);
+	void CreateVulkanAccelerationStructureBottom(const std::vector<float>& vertexData, const std::vector<uint32_t>& indexData, VulkanAccelerationStructureBottom* accStruct);
+	void CreateVulkanAccelerationStructureTop(uint32_t numInstances, VulkanAccelerationStructureTop* accStruct);
+	void BuildAccelerationStructure(const std::vector<VulkanAccelerationStructureBottom>& bottomAccStructs, const VulkanAccelerationStructureTop& topAccStruct);
 	
 private:
 	void QuerySwapChainSupport(VkPhysicalDevice physicalDevice);
