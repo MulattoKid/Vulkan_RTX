@@ -16,7 +16,6 @@ void RaytraceTriangle()
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 		VK_NV_RAY_TRACING_EXTENSION_NAME
 	};
-
 	VulkanAppCreateInfo vkAppInfo = {};
 	vkAppInfo.graphicsApp = VK_TRUE;
 	vkAppInfo.windowWidth = 1024;
@@ -31,16 +30,18 @@ void RaytraceTriangle()
 	vkAppInfo.maxFramesInFlight = 2;
 	VulkanApp vkApp(&vkAppInfo);
 
-	//Geometry data
+	////////////////////////////
+	//////////GEOMETRY//////////
+	////////////////////////////
 	std::vector<float> vertexData0 = {
-        -0.5f,  0.5f, -2.0f,
-		-0.5f, -0.5f, -2.0f,
-         0.5f, -0.5f, -2.0f
+        -0.5f,  0.5f, -2.0f,	0.0f, 1.0f,
+		-0.5f, -0.5f, -2.0f,	0.0f, 0.0f,
+         0.5f, -0.5f, -2.0f,	1.0f, 0.0f
 	};
 	std::vector<float> vertexData1 = {
-         0.5f, -0.5f, -2.0f,
-         0.5f,  0.5f, -2.0f,
-        -0.5f,  0.5f, -2.0f
+         0.5f, -0.5f, -2.0f,	1.0f, 0.0f,
+         0.5f,  0.5f, -2.0f,	1.0f, 1.0f,
+        -0.5f,  0.5f, -2.0f,	0.0f, 1.0f
 	};
 	std::vector<uint32_t> indexData = {
 		0, 1, 2,
@@ -48,8 +49,9 @@ void RaytraceTriangle()
 	std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>> geometryData;
 	geometryData.push_back(std::make_pair(vertexData0, indexData));
 	geometryData.push_back(std::make_pair(vertexData1, indexData));
+	
 	////////////////////////////
-	///////////Camera///////////
+	///////////CAMERA///////////
 	////////////////////////////
 	glm::vec3 cameraOrigin(0.0f, 0.0f, 6.0f);
 	glm::vec3 cameraDir(0.0f, 0.0f, -1.0f);
@@ -86,16 +88,24 @@ void RaytraceTriangle()
 	vkApp.CreateDeviceBuffer(cameraBufferSize, (void*)(cameraData.data()), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &cameraBuffer, &cameraBufferMemory);
 	
 	////////////////////////////
+	//////////TEXTURE///////////
+	////////////////////////////
+	VkSampler sampler;
+	vkApp.CreateDefaultSampler(&sampler);
+	VulkanTexture bfvTexture;
+	vkApp.CreateTexture("data/bfv.jpg", VK_FORMAT_R8G8B8A8_UNORM, &bfvTexture);
+	
+	////////////////////////////
 	///ACCELERATION STRUCTURE///
 	////////////////////////////
 	//Create
 	VulkanAccelerationStructure accStruct;
-	vkApp.CreateVulkanAccelerationStructure(geometryData, &accStruct);
+	vkApp.CreateVulkanAccelerationStructure(geometryData, TriangleDataLayout::VERTEX_UV_INTERLEAVED, &accStruct);
 	//Build
 	vkApp.BuildAccelerationStructure(accStruct);
 	
 	////////////////////////////
-	////Ray tracing pipeline////
+	////RAY TRACING PIPELINE////
 	////////////////////////////
 	VkShaderModule rayGenShaderModule, closestHitShaderModule, missShaderModule;
 	vkApp.CreateShaderModule("src/shaders/raygen.spv", &rayGenShaderModule);
@@ -148,7 +158,7 @@ void RaytraceTriangle()
 	rayTracingGroupInfos[2].anyHitShader = VK_SHADER_UNUSED_NV;
 	rayTracingGroupInfos[2].intersectionShader = VK_SHADER_UNUSED_NV;
 	
-	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(3);
+	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(4);
 	VkDescriptorSetLayoutBinding& accelerationStructureDescriptorSetLayoutBinding = descriptorSetLayoutBindings[0];
 	accelerationStructureDescriptorSetLayoutBinding.binding = 0;
 	accelerationStructureDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
@@ -169,6 +179,13 @@ void RaytraceTriangle()
 	cameraDescriptorSetLayoutBinding.descriptorCount = 1;
 	cameraDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	cameraDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
+	VkDescriptorSetLayoutBinding& textureDescriptorSetLayoutBinding = descriptorSetLayoutBindings[3];
+	textureDescriptorSetLayoutBinding.binding = 3;
+	textureDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	textureDescriptorSetLayoutBinding.descriptorCount = 1;
+	textureDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	textureDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo = {};
 	descriptorSetLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -206,7 +223,7 @@ void RaytraceTriangle()
 	CHECK_VK_RESULT(vkCreateRayTracingPipelinesNV(vkApp.vkDevice, VK_NULL_HANDLE, 1, &rayTracingPipelineInfo, NULL, &rayTracingPipeline))
 	
 	////////////////////////////
-	////Shader binding table////
+	////SHADER BINDING TABLE////
 	////////////////////////////
 	VkPhysicalDeviceRayTracingPropertiesNV physicalDeviceRayTracingProperties = {};
 	physicalDeviceRayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
@@ -278,7 +295,8 @@ void RaytraceTriangle()
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 }
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -351,10 +369,28 @@ void RaytraceTriangle()
     cameraWrite.pBufferInfo = &descriptorCameraInfo;
     cameraWrite.pTexelBufferView = NULL;
     
+    VkDescriptorImageInfo descriptorTextureInfo = {};
+    descriptorTextureInfo.sampler = sampler;
+    descriptorTextureInfo.imageView = bfvTexture.imageView;
+    descriptorTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    
+    VkWriteDescriptorSet textureWrite= {};
+    textureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    textureWrite.pNext = NULL;
+    textureWrite.dstSet = descriptorSet;
+    textureWrite.dstBinding = 3;
+    textureWrite.dstArrayElement = 0;
+    textureWrite.descriptorCount = 1;
+    textureWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureWrite.pImageInfo = &descriptorTextureInfo;
+    textureWrite.pBufferInfo = NULL;
+    textureWrite.pTexelBufferView = NULL;
+    
     std::vector<VkWriteDescriptorSet> descriptorWrites = {
         accelerationStructureWrite,
         rayTracingImageWrite,
-        cameraWrite
+        cameraWrite,
+        textureWrite
     };
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorWrites.size(), descriptorWrites.data(), 0, NULL);
     
@@ -434,6 +470,7 @@ void RaytraceTriangle()
 	vkDestroyPipeline(vkApp.vkDevice, rayTracingPipeline, NULL);
 	vkDestroyPipelineLayout(vkApp.vkDevice, rayTracingPipelineLayout, NULL);
 	vkDestroyDescriptorSetLayout(vkApp.vkDevice, rayTracingPipelineDescriptorSetLayout, NULL);
+	vkDestroySampler(vkApp.vkDevice, sampler, NULL);
 	vkDestroyShaderModule(vkApp.vkDevice, missShaderModule, NULL);
 	vkDestroyShaderModule(vkApp.vkDevice, closestHitShaderModule, NULL);
 	vkDestroyShaderModule(vkApp.vkDevice, rayGenShaderModule, NULL);

@@ -2,6 +2,8 @@
 #include <chrono>
 #include <fstream>
 #include <limits>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 #include <set>
 #include <stdlib.h>
 #include <string.h>
@@ -605,6 +607,21 @@ void VulkanApp::CreateShaderModule(const char* spirvFile, VkShaderModule* shader
 	CHECK_VK_RESULT(vkCreateShaderModule(vkDevice, &shaderModuleInfo, NULL, shaderModule))
 }
 
+void VulkanApp::AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
+{
+	VkCommandBufferAllocateInfo allocationInfo = {};
+    allocationInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocationInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocationInfo.commandPool = vkGraphicsQueueCommandPool;
+    allocationInfo.commandBufferCount = 1;
+    CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &allocationInfo, commandBuffer))
+}
+
+void VulkanApp::FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
+{
+	vkFreeCommandBuffers(vkDevice, vkGraphicsQueueCommandPool, 1, commandBuffer);
+}
+
 uint32_t VulkanApp::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
 	VkPhysicalDeviceMemoryProperties memoryProp;
@@ -650,28 +667,25 @@ void VulkanApp::CreateBuffer(uint32_t bufferSize, VkBufferUsageFlags bufferUsage
 	CHECK_VK_RESULT(vkBindBufferMemory(vkDevice, *buffer, *bufferMemory, 0))
 }
 
-void VulkanApp::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize copySize)
+void VulkanApp::CopyBufferToBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize copySize)
 {
-    VkCommandBuffer cmdBuffer;
-	VkCommandBufferAllocateInfo allocationInfo = {};
-    allocationInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocationInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocationInfo.commandPool = vkGraphicsQueueCommandPool;
-    allocationInfo.commandBufferCount = 1;
-    CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &allocationInfo, &cmdBuffer))
+    VkCommandBuffer tmpCmdBuffer;
+    AllocateGraphicsQueueCommandBuffer(&tmpCmdBuffer);
     
     VkCommandBufferBeginInfo cmdBufferBeginInfo = {};
     cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     cmdBufferBeginInfo.pNext = NULL;
     cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     cmdBufferBeginInfo.pInheritanceInfo = NULL;
-    CHECK_VK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufferBeginInfo))
+    CHECK_VK_RESULT(vkBeginCommandBuffer(tmpCmdBuffer, &cmdBufferBeginInfo))
+    
     VkBufferCopy bufferCopyRegion = {};
     bufferCopyRegion.srcOffset = 0;
     bufferCopyRegion.dstOffset = 0;
     bufferCopyRegion.size = copySize;
-    vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopyRegion);
-    CHECK_VK_RESULT(vkEndCommandBuffer(cmdBuffer))
+    vkCmdCopyBuffer(tmpCmdBuffer, srcBuffer, dstBuffer, 1, &bufferCopyRegion);
+    
+    CHECK_VK_RESULT(vkEndCommandBuffer(tmpCmdBuffer))
     
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -680,13 +694,13 @@ void VulkanApp::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize 
     submitInfo.pWaitSemaphores = NULL;
     submitInfo.pWaitDstStageMask = NULL;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmdBuffer;
+    submitInfo.pCommandBuffers = &tmpCmdBuffer;
     submitInfo.signalSemaphoreCount = 0;
     submitInfo.pSignalSemaphores = NULL;
     CHECK_VK_RESULT(vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE))
     CHECK_VK_RESULT(vkQueueWaitIdle(vkGraphicsQueue))
     
-    vkFreeCommandBuffers(vkDevice, vkGraphicsQueueCommandPool, 1, &cmdBuffer);
+    FreeGraphicsQueueCommandBuffer(&tmpCmdBuffer);
 }
 
 void VulkanApp::CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory)
@@ -718,7 +732,7 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	
 	CreateBuffer(bufferSize, bufferUsageFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bufferMemory);
 	
-	CopyBuffer(stagingBuffer, *buffer, bufferSize);
+	CopyBufferToBuffer(stagingBuffer, *buffer, bufferSize);
 	
 	vkFreeMemory(vkDevice, stagingBufferMemory, NULL);
 	vkDestroyBuffer(vkDevice, stagingBuffer, NULL);
@@ -791,19 +805,161 @@ void VulkanApp::TransitionImageLayoutInProgress(VkImage image, VkImageLayout old
 	vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, NULL, 0, NULL, 1, &transitionBarrier);
 }
 
-void VulkanApp::AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
+void VulkanApp::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t imageWidth, uint32_t imageHeight)
 {
-	VkCommandBufferAllocateInfo allocationInfo = {};
-    allocationInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocationInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocationInfo.commandPool = vkGraphicsQueueCommandPool;
-    allocationInfo.commandBufferCount = 1;
-    CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &allocationInfo, commandBuffer))
+	VkCommandBuffer tmpCmdBuffer;
+    AllocateGraphicsQueueCommandBuffer(&tmpCmdBuffer);
+    
+    VkCommandBufferBeginInfo cmdBufferBeginInfo = {};
+    cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    cmdBufferBeginInfo.pNext = NULL;
+    cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    cmdBufferBeginInfo.pInheritanceInfo = NULL;
+    CHECK_VK_RESULT(vkBeginCommandBuffer(tmpCmdBuffer, &cmdBufferBeginInfo))
+    
+    VkBufferImageCopy bufferImageCopy = {};
+    bufferImageCopy.bufferOffset = 0;
+    bufferImageCopy.bufferRowLength = 0;
+    bufferImageCopy.bufferImageHeight = 0;
+    bufferImageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    bufferImageCopy.imageSubresource.mipLevel = 0;
+    bufferImageCopy.imageSubresource.baseArrayLayer = 0;
+    bufferImageCopy.imageSubresource.layerCount = 1;
+    bufferImageCopy.imageOffset = { 0, 0, 0 };
+    bufferImageCopy.imageExtent = { imageWidth, imageHeight, 1 };
+    vkCmdCopyBufferToImage(tmpCmdBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferImageCopy);
+    
+    CHECK_VK_RESULT(vkEndCommandBuffer(tmpCmdBuffer))
+    
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = NULL;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = NULL;
+    submitInfo.pWaitDstStageMask = NULL;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &tmpCmdBuffer;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = NULL;
+    CHECK_VK_RESULT(vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE))
+    CHECK_VK_RESULT(vkQueueWaitIdle(vkGraphicsQueue))
+    
+    FreeGraphicsQueueCommandBuffer(&tmpCmdBuffer);
 }
 
-void VulkanApp::FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer)
+void VulkanApp::CreateTexture(const char* filename, VkFormat format, VulkanTexture* texture)
 {
-	vkFreeCommandBuffers(vkDevice, vkGraphicsQueueCommandPool, 1, commandBuffer);
+	int requestedComponents = 0;
+	switch (format)
+	{
+		case VK_FORMAT_R8G8B8A8_UNORM:
+			requestedComponents = STBI_rgb_alpha;
+			break;
+		default:
+			printf("Unsupported image format for texture %s\n", filename);
+			exit(1);
+	}	
+	
+	int x, y, comp;
+	stbi_set_flip_vertically_on_load(1);
+	stbi_uc* imageData = stbi_load(filename, &x, &y, &comp, requestedComponents);
+	if (imageData == NULL)
+	{
+		printf("Failed to load image %s\n", filename);
+		exit(1);
+	}
+	uint32_t width = x, height = y;
+	texture->device = vkDevice;
+	
+	//Create image
+	VkImageCreateInfo imageInfo = {};
+	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageInfo.pNext = NULL;
+	imageInfo.flags = 0;
+	imageInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageInfo.format = format;
+	imageInfo.extent = { width, height, 1 };
+	imageInfo.mipLevels = 1;
+	imageInfo.arrayLayers = 1;
+	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	//IGNORED
+	//imageInfo.queueFamilyIndexCount = 
+	//imageInfo.pQueueFamilyIndices = 
+	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	CHECK_VK_RESULT(vkCreateImage(vkDevice, &imageInfo, NULL, &texture->image))
+	
+	//Allocate memory
+	VkMemoryRequirements imageMemoryRequirements;
+	vkGetImageMemoryRequirements(vkDevice, texture->image, &imageMemoryRequirements);
+	VkMemoryAllocateInfo imageMemoryInfo = {};
+	imageMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageMemoryInfo.pNext = NULL;
+	imageMemoryInfo.allocationSize = imageMemoryRequirements.size;
+	imageMemoryInfo.memoryTypeIndex = FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	CHECK_VK_RESULT(vkAllocateMemory(vkDevice, &imageMemoryInfo, NULL, &texture->imageMemory))
+	
+	CHECK_VK_RESULT(vkBindImageMemory(vkDevice, texture->image, texture->imageMemory, 0))
+	
+	TransitionImageLayoutSingle(texture->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+	
+	VkBuffer imageStagingBuffer;
+	VkDeviceMemory imageStagingBufferMemory;
+	CreateHostVisibleBuffer(width * height * requestedComponents, (void*)(imageData), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &imageStagingBuffer, &imageStagingBufferMemory);
+	CopyBufferToImage(imageStagingBuffer, texture->image, width, height);
+	vkFreeMemory(vkDevice, imageStagingBufferMemory, NULL);
+	vkDestroyBuffer(vkDevice, imageStagingBuffer, NULL);
+	stbi_image_free(imageData);
+	
+	TransitionImageLayoutSingle(texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+	
+	VkImageViewCreateInfo imageViewInfo = {};
+	imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	imageViewInfo.pNext = NULL;
+	imageViewInfo.flags = 0;
+	imageViewInfo.image = texture->image;
+	imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	imageViewInfo.format = format;
+	imageViewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
+	imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageViewInfo.subresourceRange.baseMipLevel = 0;
+	imageViewInfo.subresourceRange.levelCount = 1;
+	imageViewInfo.subresourceRange.baseArrayLayer = 0;
+	imageViewInfo.subresourceRange.layerCount = 1;
+	CHECK_VK_RESULT(vkCreateImageView(vkDevice, &imageViewInfo, NULL, &texture->imageView))
+}
+
+VulkanTexture::~VulkanTexture()
+{
+	vkDestroyImageView(device, imageView, NULL);
+	vkFreeMemory(device, imageMemory, NULL);
+	vkDestroyImage(device, image, NULL);
+}
+
+void VulkanApp::CreateDefaultSampler(VkSampler* sampler)
+{
+	VkSamplerCreateInfo samplerInfo = {};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.pNext = NULL;
+	samplerInfo.flags = 0;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.mipLodBias = 1.0f;
+	samplerInfo.anisotropyEnable = VK_FALSE;
+	//samplerInfo.maxAnisotropy = IGNORED
+	samplerInfo.compareEnable = VK_FALSE;
+	//samplerInfo.compareOp = IGNORED
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 1.0f;
+	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	CHECK_VK_RESULT(vkCreateSampler(vkDevice, &samplerInfo, NULL, sampler))
 }
 
 VkViewport VulkanApp::GetDefaultViewport()
@@ -949,7 +1105,7 @@ float basicTransform[12] = {
 };
 
 
-void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device)
+void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, TriangleDataLayout dataLayout, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device)
 {	
 	bottomAccStruct->device = device;
 
@@ -973,15 +1129,35 @@ void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::v
 	i) Get uint64_t handle to acceleration structure
 	j) Create an instance of the geometry using the handle from g)
 	*/
-		
+	
 	//a
+	uint32_t vertexCount = 0;
+	VkDeviceSize vertexStride = 0;
+	switch (dataLayout)
+	{
+		case VERTEX:
+			vertexCount = geometry.first.size() / 3;
+			vertexStride = 3 * sizeof(float);
+			break;
+		case VERTEX_UV_INTERLEAVED:
+			vertexCount = geometry.first.size() / 5;
+			vertexStride = 5 * sizeof(float);
+			break;
+		case VERTEX_UV:
+			vertexCount = geometry.first.size() / 5;
+			vertexStride = 3 * sizeof(float);
+			break;
+		default:
+			printf("Invalid triangle data layout\n");
+			exit(1);
+	}
 	bottomAccStruct->triangleInfo = {};
 	bottomAccStruct->triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
 	bottomAccStruct->triangleInfo.pNext = NULL;
 	bottomAccStruct->triangleInfo.vertexData = bottomAccStruct->vertexBuffer;
 	bottomAccStruct->triangleInfo.vertexOffset = 0;
-	bottomAccStruct->triangleInfo.vertexCount = geometry.first.size() / 3;
-	bottomAccStruct->triangleInfo.vertexStride = 3 * sizeof(float);
+	bottomAccStruct->triangleInfo.vertexCount = vertexCount;
+	bottomAccStruct->triangleInfo.vertexStride = vertexStride;
 	bottomAccStruct->triangleInfo.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 	bottomAccStruct->triangleInfo.indexData = bottomAccStruct->indexBuffer;
 	bottomAccStruct->triangleInfo.indexOffset = 0;
@@ -1132,7 +1308,7 @@ void VulkanApp::CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccSt
 	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, topAccStruct->accelerationStructure, sizeof(uint64_t), &topAccStruct->accelerationStructureHandle))
 }
 
-void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct)
+void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, TriangleDataLayout dataLayout, VulkanAccelerationStructure* accStruct)
 {
 	//Steps
 	/*
@@ -1152,7 +1328,7 @@ void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<st
 		const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry = geometryData[i];
 		VkGeometryInstanceNV* geometryInstance = &geometryInstances[i];
 		BottomAccStruct* bottomAccStruct = &accStruct->bottomAccStructs[i];
-		CreateBottomAccStruct(geometry, geometryInstance, bottomAccStruct, vkDevice);
+		CreateBottomAccStruct(geometry, dataLayout, geometryInstance, bottomAccStruct, vkDevice);
 	}
 	
 	//b)

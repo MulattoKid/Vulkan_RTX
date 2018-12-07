@@ -29,6 +29,16 @@ struct VulkanAppCreateInfo
 	uint32_t maxFramesInFlight;
 };
 
+struct VulkanTexture
+{
+	VkDevice device;
+	VkImage image;
+	VkDeviceMemory imageMemory;
+	VkImageView imageView;
+	
+	~VulkanTexture();
+};
+
 struct VkGeometryInstanceNV
 {
     float transform[12];
@@ -37,6 +47,13 @@ struct VkGeometryInstanceNV
     uint32_t instanceOffset : 24;
     uint32_t flags : 8;
     uint64_t accelerationStructureHandle;
+};
+
+enum TriangleDataLayout
+{
+	VERTEX,
+	VERTEX_UV_INTERLEAVED,
+	VERTEX_UV
 };
 
 struct BottomAccStruct
@@ -133,16 +150,19 @@ struct VulkanApp
 public:
 	VulkanApp(const VulkanAppCreateInfo* createInfo);
 	~VulkanApp();
-	uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void CreateShaderModule(const char* spirvFile, VkShaderModule* shaderModule);
+	void AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
+	void FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
+	uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void CreateBuffer(uint32_t bufferSize, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory* bufferMemory);
-	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize copySize);
+	void CopyBufferToBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize copySize);
 	void CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void TransitionImageLayoutSingle(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask);
 	void TransitionImageLayoutInProgress(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask, VkCommandBuffer commandBuffer);
-	void AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
-	void FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
+	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t imageWidth, uint32_t imageHeight);
+	void CreateTexture(const char* filename, VkFormat format, VulkanTexture* texture);
+	void CreateDefaultSampler(VkSampler* sampler);
 	VkViewport GetDefaultViewport();
 	VkRect2D GetDefaultScissor();
 	void CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
@@ -150,7 +170,7 @@ public:
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
-	void CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct);
+	void CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, TriangleDataLayout dataLayout, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
 	
 private:
@@ -167,7 +187,7 @@ private:
 	void CreateGraphicsQueueCommandPool();
 	void CreateSyncObjects();
 	std::vector<char> ReadShaderFile(const char* spirvFile);
-	void CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device);
+	void CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, TriangleDataLayout dataLayout, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device);
 	void CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccStruct, VkDevice device);
 };
 

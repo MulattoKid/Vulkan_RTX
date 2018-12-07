@@ -23,10 +23,7 @@ void main()
     const uint missIndex = 0;
     const float tmin = 0.0f;
     const float tmax = 10.0f;
-    const int payloadLocation = 0;	
-
-
-
+    const int payloadLocation = 0;
 	
 	Ray r = GenerateRayFromCamera(camera);
     traceNV(scene, rayFlags, cullMask, sbtRecordOffset, sbtRecordStride, missIndex, r.origin, tmin, r.dir, tmax, payloadLocation);
