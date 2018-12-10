@@ -14,22 +14,30 @@ layout(set = 1, binding = 1, std430) readonly buffer uvBuffer
 {
 	UVsPerFace uvsPerFace[];
 };
+layout(set = 1, binding = 2) uniform sampler2D image;
 
 layout(location = 0) rayPayloadInNV vec3 resultColor;
 hitAttributeNV vec2 hitAttribs;
 
+vec2 PointUVFromBarycentric(vec2 faceUVs[3], vec3 barycentric)
+{
+	return (barycentric.x * faceUVs[0]) + (barycentric.y * faceUVs[1]) + (barycentric.z * faceUVs[2]);
+}
+
 void main()
 {
-    //const vec3 barycentrics = vec3(1.0f - hitAttribs.x - hitAttribs.y, hitAttribs.x, hitAttribs.y);
-    //resultColor = vec3(barycentrics);
+	//Get 
+    const vec3 barycentric = vec3(1.0f - hitAttribs.x - hitAttribs.y, hitAttribs.x, hitAttribs.y);
     
-    int meshID = gl_InstanceCustomIndexNV;
-    uint attributeArrayIndex = customIDToAttributeArrayIndex[meshID];
-	int faceID = gl_PrimitiveID;
-    resultColor = vec3(uvsPerFace[attributeArrayIndex + faceID].uvs[0], 0.0f);
-    //resultColor = vec3(0.0f, 1.0f, 0.0f);
-    //resultColor = vec3(uvsPerFace[0].uvs[0], 0.0f);
-	//resultColor = vec3(attributeArrayIndex, 0.0f, 0.0f);
+    //Get face attributes
+    const int meshID = gl_InstanceCustomIndexNV;
+    const uint attributeArrayIndex = customIDToAttributeArrayIndex[meshID];
+	const int faceID = gl_PrimitiveID;
+	const vec2 faceUVs[3] = uvsPerFace[attributeArrayIndex + faceID].uvs;
     
-    //resultColor = vec3(1.0f, 0.0f, 1.0f) + attributeArrayIndex;
+    //Calculate attributes for point of intersection
+	const vec2 uv = PointUVFromBarycentric(faceUVs, barycentric);
+	
+	//Output correct color
+	resultColor = texture(image, uv).bgr;
 }
