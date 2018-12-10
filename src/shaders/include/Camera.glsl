@@ -2,15 +2,7 @@
 #define SHADER_CAMERA_H
 
 #include "Ray.glsl"
-
-//std140 = 16-byte aligned
-struct Camera
-{
-	vec4 origin;
-	vec4 topLeftCorner;
-	vec4 horizontalEnd;
-	vec4 verticalEnd;
-};
+#include "UniformDataLayouts.glsl"
 
 Ray GenerateRayFromCamera(Camera camera)
 {

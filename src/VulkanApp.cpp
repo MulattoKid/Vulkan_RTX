@@ -574,6 +574,7 @@ VulkanApp::~VulkanApp()
 	vkDestroyInstance(vkInstance, NULL);
 	glfwDestroyWindow(window);
 	glfwTerminate();
+	printf("\n");
 }
 
 std::vector<char> VulkanApp::ReadShaderFile(const char* spirvFile)
@@ -1064,7 +1065,7 @@ void VulkanApp::Render(VkCommandBuffer* commandBuffers)
 	auto end_time = GetTime();
 	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
 	float ms = ns / 1000000.0f;
-	printf("Frame time:\n\t%u ns\n\t%.2f ms\n", ns, ms);
+	printf("\rFrame time (ms): %.2f", ms);
 }
 
 void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
@@ -1094,7 +1095,7 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
 	auto end_time = GetTime();
 	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
 	float ms = ns / 1000000.0f;
-	printf("Frame time:\n\t%u ns\n\t%.2f ms\n", ns, ms);
+	printf("\rFrame time (ms): %.2f", ms);
 }
 
 //Basic transform
@@ -1105,7 +1106,7 @@ float basicTransform[12] = {
 };
 
 
-void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, TriangleDataLayout dataLayout, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device)
+void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, uint32_t i, BottomAccStruct* bottomAccStruct, VkDevice device)
 {	
 	bottomAccStruct->device = device;
 
@@ -1120,7 +1121,7 @@ void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::v
 	/*
 	a) Specify geometry data buffers and format
 	b) Specify AABBs
-	c) Link a) to b)
+	c) Link a) and b)
 	d) Specify geometry type and link to c)
 	e) Specify acceleration structure (bottom level) and connect to d)
 	f) Create
@@ -1131,33 +1132,13 @@ void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::v
 	*/
 	
 	//a
-	uint32_t vertexCount = 0;
-	VkDeviceSize vertexStride = 0;
-	switch (dataLayout)
-	{
-		case VERTEX:
-			vertexCount = geometry.first.size() / 3;
-			vertexStride = 3 * sizeof(float);
-			break;
-		case VERTEX_UV_INTERLEAVED:
-			vertexCount = geometry.first.size() / 5;
-			vertexStride = 5 * sizeof(float);
-			break;
-		case VERTEX_UV:
-			vertexCount = geometry.first.size() / 5;
-			vertexStride = 3 * sizeof(float);
-			break;
-		default:
-			printf("Invalid triangle data layout\n");
-			exit(1);
-	}
 	bottomAccStruct->triangleInfo = {};
 	bottomAccStruct->triangleInfo.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
 	bottomAccStruct->triangleInfo.pNext = NULL;
 	bottomAccStruct->triangleInfo.vertexData = bottomAccStruct->vertexBuffer;
 	bottomAccStruct->triangleInfo.vertexOffset = 0;
-	bottomAccStruct->triangleInfo.vertexCount = vertexCount;
-	bottomAccStruct->triangleInfo.vertexStride = vertexStride;
+	bottomAccStruct->triangleInfo.vertexCount = geometry.first.size() / 3;
+	bottomAccStruct->triangleInfo.vertexStride = 3 * sizeof(float);
 	bottomAccStruct->triangleInfo.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 	bottomAccStruct->triangleInfo.indexData = bottomAccStruct->indexBuffer;
 	bottomAccStruct->triangleInfo.indexOffset = 0;
@@ -1187,7 +1168,7 @@ void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::v
 	bottomAccStruct->geometryInfo.pNext = NULL;
 	bottomAccStruct->geometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
 	bottomAccStruct->geometryInfo.geometry = bottomAccStruct->geometryDataInfo;
-	bottomAccStruct->geometryInfo.flags = 0;
+	bottomAccStruct->geometryInfo.flags = VK_GEOMETRY_OPAQUE_BIT_NV;
 		
 	//e
 	bottomAccStruct->accelerationStructureInfo = {};
@@ -1239,7 +1220,7 @@ void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::v
 		
 	//j
 	memcpy(geometryInstance->transform, basicTransform, sizeof(float) * 12);
-	geometryInstance->instanceCustomIndex = numAccelerationStructures++;
+	geometryInstance->instanceCustomIndex = i;
 	geometryInstance->mask = 0xff;
 	geometryInstance->instanceOffset = 0;
 	geometryInstance->flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
@@ -1308,7 +1289,7 @@ void VulkanApp::CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccSt
 	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, topAccStruct->accelerationStructure, sizeof(uint64_t), &topAccStruct->accelerationStructureHandle))
 }
 
-void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, TriangleDataLayout dataLayout, VulkanAccelerationStructure* accStruct)
+void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct)
 {
 	//Steps
 	/*
@@ -1328,7 +1309,8 @@ void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<st
 		const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry = geometryData[i];
 		VkGeometryInstanceNV* geometryInstance = &geometryInstances[i];
 		BottomAccStruct* bottomAccStruct = &accStruct->bottomAccStructs[i];
-		CreateBottomAccStruct(geometry, dataLayout, geometryInstance, bottomAccStruct, vkDevice);
+		
+		CreateBottomAccStruct(geometry, geometryInstance, i, bottomAccStruct, vkDevice);
 	}
 	
 	//b)

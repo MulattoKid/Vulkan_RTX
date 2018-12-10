@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 #ifdef VK_DEBUG
-#define CHECK_VK_RESULT(res) if (res != VK_SUCCESS) { printf("Vulkan call on line %i failed with error %i\n", __LINE__, res); exit(EXIT_FAILURE); }
+#define CHECK_VK_RESULT(res) if (res != VK_SUCCESS) { printf("Vulkan call %s:%i failed with error %i\n", __FILE__, __LINE__, res); exit(EXIT_FAILURE); }
 #else
 #define CHECK_VK_RESULT(res)
 #endif
@@ -47,13 +47,6 @@ struct VkGeometryInstanceNV
     uint32_t instanceOffset : 24;
     uint32_t flags : 8;
     uint64_t accelerationStructureHandle;
-};
-
-enum TriangleDataLayout
-{
-	VERTEX,
-	VERTEX_UV_INTERLEAVED,
-	VERTEX_UV
 };
 
 struct BottomAccStruct
@@ -136,9 +129,6 @@ struct VulkanApp
 	//Command pool and buffers
 	VkCommandPool vkGraphicsQueueCommandPool;
 	
-	//Acceleration structure info
-	uint32_t numAccelerationStructures = 0;
-	
 	//Synchronization objects
 	uint32_t maxFramesInFlight;
 	std::vector<VkSemaphore> vkImageAvailableSemaphores;
@@ -170,7 +160,7 @@ public:
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
-	void CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, TriangleDataLayout dataLayout, VulkanAccelerationStructure* accStruct);
+	void CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
 	
 private:
@@ -187,7 +177,7 @@ private:
 	void CreateGraphicsQueueCommandPool();
 	void CreateSyncObjects();
 	std::vector<char> ReadShaderFile(const char* spirvFile);
-	void CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, TriangleDataLayout dataLayout, VkGeometryInstanceNV* geometryInstance, BottomAccStruct* bottomAccStruct, VkDevice device);
+	void CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, uint32_t i, BottomAccStruct* bottomAccStruct, VkDevice device);
 	void CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccStruct, VkDevice device);
 };
 
