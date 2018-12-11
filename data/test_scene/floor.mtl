@@ -1,0 +1,8 @@
+newmtl floor_mtl
+  Ns 10.0000
+  Ni 1.0000
+  illum 2
+  Ka 0.35 0.35 0.35
+  Kd 0.35 0.35 0.35
+  Ks 0 0 0
+  Ke 0 0 0

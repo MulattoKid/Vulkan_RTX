@@ -2,7 +2,7 @@
 #define SHADER_CAMERA_H
 
 #include "Ray.glsl"
-#include "UniformDataLayouts.glsl"
+#include "DataLayouts.glsl"
 
 Ray GenerateRayFromCamera(Camera camera)
 {

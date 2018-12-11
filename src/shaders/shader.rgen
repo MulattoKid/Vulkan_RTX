@@ -11,7 +11,7 @@ layout(set = 0, binding = 2, std140) uniform cameraBuffer
 	Camera camera;
 };
 
-layout(location = 0) rayPayloadNV vec3 resultColor;
+layout(location = 0) rayPayloadNV PrimaryRayPayload payload;
 
 void main()
 {
@@ -21,12 +21,12 @@ void main()
     const uint sbtRecordStride = 0;
     const uint missIndex = 0;
     const float tmin = 0.0f;
-    const float tmax = 10.0f;
+    const float tmax = 1000.0f;
     const int payloadLocation = 0;
 
 	Ray r = GenerateRayFromCamera(camera);
     traceNV(scene, rayFlags, cullMask, sbtRecordOffset, sbtRecordStride, missIndex, r.origin, tmin, r.dir, tmax, payloadLocation);
 
 
-    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(resultColor, 1.0f));
+    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), payload.materialColor);
 }

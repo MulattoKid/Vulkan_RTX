@@ -97,6 +97,7 @@ struct Mesh
 	std::vector<float> vertices;
 	std::vector<float> normals;
 	std::vector<float> uvs;
+	float defaultColor[4];
 };
 
 struct VulkanApp
@@ -127,6 +128,9 @@ struct VulkanApp
 	//Physical and logical device
 	VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
 	VkDevice vkDevice;
+	
+	//Limits
+	uint32_t maxInlineUniformBlockSize;
 	
 	//Swap chain
 	VkSwapchainKHR vkSwapchain;
@@ -168,7 +172,7 @@ public:
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
 	void LoadMesh(const char* filename, Mesh* mesh);
-	void BuildAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
+	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<float>* colorData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
 	

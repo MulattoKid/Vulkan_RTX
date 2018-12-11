@@ -212,6 +212,18 @@ void VulkanApp::PickPhysicalDevice(uint32_t extensionCount, const char** extensi
 		if (PhysicalDeviceIsSuitable(devices[i], extensionCount, extensionNames))
 		{
 			vkPhysicalDevice = devices[i];
+			
+			VkPhysicalDeviceInlineUniformBlockPropertiesEXT uniformProp = {};
+			uniformProp.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_PROPERTIES_EXT;
+			uniformProp.pNext = NULL;
+			VkPhysicalDeviceProperties2 prop2 = {};
+			prop2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+			prop2.pNext = &uniformProp;
+			vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &prop2);
+			
+			maxInlineUniformBlockSize = uniformProp.maxInlineUniformBlockSize;
+			printf("\t maxInlineUniformBlockSize: %u\n", maxInlineUniformBlockSize);
+			
 			return;
 		}
 	}
@@ -1205,25 +1217,27 @@ void VulkanApp::LoadMesh(const char* filename, Mesh* mesh)
 			}
 			
 			// per-face material
-			//shapes[s].mesh.material_ids[f];
+			//material_ts[shapes[s].mesh.material_ids[f]]
 	  	}
 	}
+	
+	//Diffuse color of first material
+	mesh->defaultColor[0] = material_ts[shapes[0].mesh.material_ids[0]].diffuse[0];
+	mesh->defaultColor[1] = material_ts[shapes[0].mesh.material_ids[0]].diffuse[1];
+	mesh->defaultColor[2] = material_ts[shapes[0].mesh.material_ids[0]].diffuse[2];
+	mesh->defaultColor[3] = 1.0f;
 }
 
-/*
-Structure of attribute data on a per-face basis:
-	vec3 normal[3]
-	vec2 uvs[3]
-*/
-void VulkanApp::BuildAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex)
+void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<float>* colorData, std::vector<uint32_t>* customIDToAttributeArrayIndex)
 {
 	uint32_t currentAttributeIndex = 0;
 	for (const Mesh& mesh : meshes)
 	{
 		customIDToAttributeArrayIndex->push_back(currentAttributeIndex);
+		
+		//Remember that the layout is required to be std140 = 16-byte aligned.
+		//That's the reason for the padding below.
 		//For each vertex
-		//Remember that the layout is required to be std140 = 16-byte aligned
-		//	That's the reason for the padding below
 		for (size_t i = 0; i < mesh.vertices.size() / 3; i++)
 		{
 			attributeData->push_back(mesh.normals[i * 3 + 0]);
@@ -1236,6 +1250,11 @@ void VulkanApp::BuildAttributeData(const std::vector<Mesh>& meshes, std::vector<
 			attributeData->push_back(0.0f); //For vec4 in shader
 			currentAttributeIndex++;
 		}
+		
+		colorData->push_back(mesh.defaultColor[0]);
+		colorData->push_back(mesh.defaultColor[1]);
+		colorData->push_back(mesh.defaultColor[2]);
+		colorData->push_back(mesh.defaultColor[3]);
 	}
 }
 
