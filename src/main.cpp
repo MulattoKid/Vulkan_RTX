@@ -29,53 +29,6 @@ void RaytraceTriangle()
 	vkAppInfo.extensionNames = extensionNames.data();
 	vkAppInfo.maxFramesInFlight = 2;
 	VulkanApp vkApp(&vkAppInfo);
-
-	////////////////////////////
-	//////////GEOMETRY//////////
-	////////////////////////////
-	std::vector<float> vertexData0 = {
-        -0.5f,  0.5f, -2.0f,
-		-0.5f, -0.5f, -2.0f,
-         0.5f, -0.5f, -2.0f
-	};
-	std::vector<float> vertexData1 = {
-         0.5f, -0.5f, -2.0f,
-         0.5f,  0.5f, -2.0f,
-        -0.5f,  0.5f, -2.0f
-	};
-	std::vector<uint32_t> indexData0 = {
-		0, 1, 2
-	};
-	std::vector<uint32_t> indexData1 = {
-		0, 1, 2
-	};
-	std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>> geometryData;
-	geometryData.push_back(std::make_pair(vertexData0, indexData0));
-	geometryData.push_back(std::make_pair(vertexData1, indexData1));
-	
-	std::vector<float> uvData = {
-		0.0f, 1.0f,
-		0.0f, 0.0f,
-		1.0f, 0.0f,
-		
-		1.0f, 0.0f,
-		1.0f, 1.0f,
-		0.0f, 1.0f
-	};
-	VkDeviceSize uvBufferSize = uvData.size() * sizeof(float);
-	VkBuffer uvBuffer;
-	VkDeviceMemory uvBufferMemory;
-	vkApp.CreateDeviceBuffer(uvBufferSize, (void*)(uvData.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &uvBuffer, &uvBufferMemory);
-	
-	//[0]=0 means that customID=0 points to the value at offset=0
-	//in the attribute array
-	std::vector<uint32_t> customIDToAttributeArrayIndex = {
-		0, 1
-	};
-	VkDeviceSize customIDToAttributeArrayIndexBufferSize = customIDToAttributeArrayIndex.size() * sizeof(uint32_t);
-	VkBuffer customIDToAttributeArrayIndexBuffer;
-	VkDeviceMemory customIDToAttributeArrayIndexBufferMemory;
-	vkApp.CreateDeviceBuffer(customIDToAttributeArrayIndexBufferSize, (void*)(customIDToAttributeArrayIndex.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &customIDToAttributeArrayIndexBuffer, &customIDToAttributeArrayIndexBufferMemory);
 	
 	////////////////////////////
 	///////////CAMERA///////////
@@ -121,6 +74,43 @@ void RaytraceTriangle()
 	vkApp.CreateDefaultSampler(&defaultSampler);
 	VulkanTexture bfvTexture;
 	vkApp.CreateTexture("data/bfv.jpg", VK_FORMAT_R8G8B8A8_UNORM, &bfvTexture);
+	
+	////////////////////////////
+	//////////GEOMETRY//////////
+	////////////////////////////
+	std::vector<Mesh> meshes(2);
+	vkApp.LoadMesh("data/triangle0.obj", &meshes[0]);
+	vkApp.LoadMesh("data/triangle1.obj", &meshes[1]);
+	std::vector<std::vector<float>> geometryData;
+	geometryData.push_back(meshes[0].vertices);
+	geometryData.push_back(meshes[1].vertices);
+	
+	/*std::vector<float> uvData = {
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 0.0f,
+		
+		1.0f, 0.0f,
+		1.0f, 1.0f,
+		0.0f, 1.0f
+	};*/
+	std::vector<float> attributeData;
+	std::vector<uint32_t> customIDToAttributeArrayIndex;
+	vkApp.BuildAttributeData(meshes, &attributeData, &customIDToAttributeArrayIndex);
+	VkDeviceSize attributeBufferSize = attributeData.size() * sizeof(float);
+	VkBuffer attributeBuffer;
+	VkDeviceMemory attributeBufferMemory;
+	vkApp.CreateDeviceBuffer(attributeBufferSize, (void*)(attributeData.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &attributeBuffer, &attributeBufferMemory);
+	
+	//[0]=0 means that customID=0 points to the value at offset=0
+	//in the attribute array
+	/*std::vector<uint32_t> customIDToAttributeArrayIndex = {
+		0, 1
+	};*/
+	VkDeviceSize customIDToAttributeArrayIndexBufferSize = customIDToAttributeArrayIndex.size() * sizeof(uint32_t);
+	VkBuffer customIDToAttributeArrayIndexBuffer;
+	VkDeviceMemory customIDToAttributeArrayIndexBufferMemory;
+	vkApp.CreateDeviceBuffer(customIDToAttributeArrayIndexBufferSize, (void*)(customIDToAttributeArrayIndex.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &customIDToAttributeArrayIndexBuffer, &customIDToAttributeArrayIndexBufferMemory);
 	
 	////////////////////////////
 	///ACCELERATION STRUCTURE///
@@ -461,10 +451,10 @@ void RaytraceTriangle()
     customIDToAttributeArrayIndexWrite.pBufferInfo = &descriptorCustomIDToAttributeArrayIndexInfo;
     customIDToAttributeArrayIndexWrite.pTexelBufferView = NULL;
     
-    VkDescriptorBufferInfo descriptorUVInfo = {};
-    descriptorUVInfo.buffer = uvBuffer;
-    descriptorUVInfo.offset = 0;
-    descriptorUVInfo.range = uvBufferSize;
+    VkDescriptorBufferInfo descriptorAttributeInfo = {};
+    descriptorAttributeInfo.buffer = attributeBuffer;
+    descriptorAttributeInfo.offset = 0;
+    descriptorAttributeInfo.range = attributeBufferSize;
     
     VkWriteDescriptorSet& uvWrite = descriptorSet1Writes[1];
     uvWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -475,7 +465,7 @@ void RaytraceTriangle()
     uvWrite.descriptorCount = 1;
     uvWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     uvWrite.pImageInfo = NULL;
-    uvWrite.pBufferInfo = &descriptorUVInfo;
+    uvWrite.pBufferInfo = &descriptorAttributeInfo;
     uvWrite.pTexelBufferView = NULL;
     
     VkDescriptorImageInfo textureImageInfo = {};
@@ -585,8 +575,8 @@ void RaytraceTriangle()
 	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, customIDToAttributeArrayIndexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, customIDToAttributeArrayIndexBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, uvBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, uvBuffer, NULL);
+	vkFreeMemory(vkApp.vkDevice, attributeBufferMemory, NULL);
+	vkDestroyBuffer(vkApp.vkDevice, attributeBuffer, NULL);
 }
 
 int main(int argc, char** argv)

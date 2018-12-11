@@ -8,7 +8,7 @@ layout(set = 0, binding = 0) uniform accelerationStructureNV scene;
 layout(set = 0, binding = 1, rgba8) uniform image2D resultImage;
 layout(set = 0, binding = 2, std140) uniform cameraBuffer
 {
-	Camera camera[];
+	Camera camera;
 };
 
 layout(location = 0) rayPayloadNV vec3 resultColor;
@@ -24,7 +24,7 @@ void main()
     const float tmax = 10.0f;
     const int payloadLocation = 0;
 
-	Ray r = GenerateRayFromCamera(camera[0]);
+	Ray r = GenerateRayFromCamera(camera);
     traceNV(scene, rayFlags, cullMask, sbtRecordOffset, sbtRecordStride, missIndex, r.origin, tmin, r.dir, tmax, payloadLocation);
 
 

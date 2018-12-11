@@ -1,7 +1,6 @@
 #ifndef UNIFORM_DATA_LAYOUTS
 #define UNIFORM_DATA_LAYOUTS
 
-//std140
 struct Camera
 {
 	vec4 origin;
@@ -10,10 +9,10 @@ struct Camera
 	vec4 verticalEnd;
 };
 
-//std430
-struct UVsPerFace
+struct VertexAttributes
 {
-	vec2 uvs[3];
+	vec4 normal;
+	vec4 uv;
 };
 
 #endif

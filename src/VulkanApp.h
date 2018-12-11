@@ -92,6 +92,13 @@ struct VulkanAccelerationStructure
 	~VulkanAccelerationStructure();
 };
 
+struct Mesh
+{
+	std::vector<float> vertices;
+	std::vector<float> normals;
+	std::vector<float> uvs;
+};
+
 struct VulkanApp
 {
 	//Window
@@ -160,7 +167,9 @@ public:
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
-	void CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct);
+	void LoadMesh(const char* filename, Mesh* mesh);
+	void BuildAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
+	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
 	
 private:
@@ -177,7 +186,7 @@ private:
 	void CreateGraphicsQueueCommandPool();
 	void CreateSyncObjects();
 	std::vector<char> ReadShaderFile(const char* spirvFile);
-	void CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, uint32_t i, BottomAccStruct* bottomAccStruct, VkDevice device);
+	void CreateBottomAccStruct(const std::vector<float>& geometry, VkGeometryInstanceNV* geometryInstance, uint32_t i, BottomAccStruct* bottomAccStruct, VkDevice device);
 	void CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccStruct, VkDevice device);
 };
 

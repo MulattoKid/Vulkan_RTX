@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include "glm/geometric.hpp"
+#include "glm/vec3.hpp"
 #include <limits>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -8,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tinyobjloader/tiny_obj_loader.h"
 #include <vector>
 #include "VulkanApp.h"
 
@@ -1098,6 +1102,143 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
 	printf("\rFrame time (ms): %.2f", ms);
 }
 
+void VulkanApp::LoadMesh(const char* filename, Mesh* mesh)
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> material_ts;
+
+	std::string err;
+	bool success = tinyobj::LoadObj(&attrib, &shapes, &material_ts, &err, filename); 
+	if (!err.empty()) //`err` may contain warning message
+	{
+	  printf("%s\n", err.c_str());
+	}
+	if (!success)
+	{
+		printf("tinyobjloader failed to load %s\n", filename);
+		return;
+	}
+	if (material_ts.empty())
+	{
+		printf("No material detected for model '%s'- using default material (grey)\n", filename);
+	}
+	
+	bool hasNormals = attrib.normals.size() > 0 ? true : false;
+	bool hasUVs = attrib.texcoords.size() > 0 ? true : false;
+	
+	// Loop over shapes
+	float vertex[3];
+	float normal[3];
+	float uv[2];
+	for (size_t s = 0; s < shapes.size(); s++)
+	{
+		// Loop over faces(polygon)
+		size_t index_offset = 0;
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
+		{
+			int fv = shapes[s].mesh.num_face_vertices[f];
+			
+			// Loop over vertices in the face.
+			for (int v = 0; v < fv; v++)
+			{
+			  	// access to vertex
+			  	tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+				
+			  	vertex[0] = attrib.vertices[3*idx.vertex_index+0];
+			 	vertex[1] = attrib.vertices[3*idx.vertex_index+1];
+			  	vertex[2] = attrib.vertices[3*idx.vertex_index+2];
+			  	
+			  	if (hasNormals)
+			  	{
+			  		normal[0] = attrib.normals[3*idx.normal_index+0];
+				  	normal[1] = attrib.normals[3*idx.normal_index+1];
+				  	normal[2] = attrib.normals[3*idx.normal_index+2];
+			  	}
+			  	
+			  	if (hasUVs)
+			  	{
+			  		uv[0] = attrib.texcoords[2*idx.texcoord_index+0];
+			  		uv[1] = attrib.texcoords[2*idx.texcoord_index+1];
+			  	}
+			  	else
+			  	{
+			  		uv[0] = 0.0f;
+			  		uv[1] = 0.0f;
+			  	}
+			  	// Optional: vertex colors
+			  	// tinyobj::real_t red = attrib.colors[3*idx.vertex_index+0];
+			  	// tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
+			  	// tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
+			  	
+			  	mesh->vertices.push_back(vertex[0]);
+			  	mesh->vertices.push_back(vertex[1]);
+			  	mesh->vertices.push_back(vertex[2]);
+			  	mesh->normals.push_back(normal[0]);
+			  	mesh->normals.push_back(normal[1]);
+			  	mesh->normals.push_back(normal[2]);
+			  	mesh->uvs.push_back(uv[0]);
+			  	mesh->uvs.push_back(uv[1]);
+			}
+			index_offset += fv;
+			
+			//Generate normals (all are the same)
+			if (!hasNormals)
+			{
+				glm::vec3 v0(mesh->vertices[mesh->vertices.size() - 9], mesh->vertices[mesh->vertices.size() - 8], mesh->vertices[mesh->vertices.size() - 7]);
+				glm::vec3 v1(mesh->vertices[mesh->vertices.size() - 6], mesh->vertices[mesh->vertices.size() - 5], mesh->vertices[mesh->vertices.size() - 4]);
+				glm::vec3 v2(mesh->vertices[mesh->vertices.size() - 3], mesh->vertices[mesh->vertices.size() - 2], mesh->vertices[mesh->vertices.size() - 1]);
+				
+				glm::vec3 v0v1 = v1 - v0;
+				glm::vec3 v0v2 = v2 - v0;
+				glm::vec3 normal = glm::normalize(glm::cross(v0v1, v0v2));
+				
+				mesh->normals[mesh->normals.size() - 9] = normal[0];
+				mesh->normals[mesh->normals.size() - 8] = normal[1];
+				mesh->normals[mesh->normals.size() - 7] = normal[2];
+				mesh->normals[mesh->normals.size() - 6] = normal[0];
+				mesh->normals[mesh->normals.size() - 5] = normal[1];
+				mesh->normals[mesh->normals.size() - 4] = normal[2];
+				mesh->normals[mesh->normals.size() - 3] = normal[0];
+				mesh->normals[mesh->normals.size() - 2] = normal[1];
+				mesh->normals[mesh->normals.size() - 1] = normal[2];
+			}
+			
+			// per-face material
+			//shapes[s].mesh.material_ids[f];
+	  	}
+	}
+}
+
+/*
+Structure of attribute data on a per-face basis:
+	vec3 normal[3]
+	vec2 uvs[3]
+*/
+void VulkanApp::BuildAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex)
+{
+	uint32_t currentAttributeIndex = 0;
+	for (const Mesh& mesh : meshes)
+	{
+		customIDToAttributeArrayIndex->push_back(currentAttributeIndex);
+		//For each vertex
+		//Remember that the layout is required to be std140 = 16-byte aligned
+		//	That's the reason for the padding below
+		for (size_t i = 0; i < mesh.vertices.size() / 3; i++)
+		{
+			attributeData->push_back(mesh.normals[i * 3 + 0]);
+			attributeData->push_back(mesh.normals[i * 3 + 1]);
+			attributeData->push_back(mesh.normals[i * 3 + 2]);
+			attributeData->push_back(0.0f); //For vec4 in shader
+			attributeData->push_back(mesh.uvs[i * 2 + 0]);
+			attributeData->push_back(mesh.uvs[i * 2 + 1]);
+			attributeData->push_back(0.0f); //For vec4 in shader
+			attributeData->push_back(0.0f); //For vec4 in shader
+			currentAttributeIndex++;
+		}
+	}
+}
+
 //Basic transform
 float basicTransform[12] = { 
 	1.0f, 0.0f, 0.0f, 0.0f,
@@ -1106,16 +1247,13 @@ float basicTransform[12] = {
 };
 
 
-void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry, VkGeometryInstanceNV* geometryInstance, uint32_t i, BottomAccStruct* bottomAccStruct, VkDevice device)
+void VulkanApp::CreateBottomAccStruct(const std::vector<float>& geometry, VkGeometryInstanceNV* geometryInstance, uint32_t i, BottomAccStruct* bottomAccStruct, VkDevice device)
 {	
 	bottomAccStruct->device = device;
 
 	//Create vertex buffer
-	VkDeviceSize vertexBufferSize = geometry.first.size() * sizeof(float);
-	CreateDeviceBuffer(vertexBufferSize, (void*)(geometry.first.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &bottomAccStruct->vertexBuffer, &bottomAccStruct->vertexBufferMemory);
-	//Create index buffer
-	VkDeviceSize indexBufferSize = geometry.second.size() * sizeof(uint32_t);
-	CreateDeviceBuffer(indexBufferSize, (void*)(geometry.second.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &bottomAccStruct->indexBuffer, &bottomAccStruct->indexBufferMemory);
+	VkDeviceSize vertexBufferSize = geometry.size() * sizeof(float);
+	CreateDeviceBuffer(vertexBufferSize, (void*)(geometry.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &bottomAccStruct->vertexBuffer, &bottomAccStruct->vertexBufferMemory);
 
 	//Steps
 	/*
@@ -1137,13 +1275,17 @@ void VulkanApp::CreateBottomAccStruct(const std::pair<std::vector<float>, std::v
 	bottomAccStruct->triangleInfo.pNext = NULL;
 	bottomAccStruct->triangleInfo.vertexData = bottomAccStruct->vertexBuffer;
 	bottomAccStruct->triangleInfo.vertexOffset = 0;
-	bottomAccStruct->triangleInfo.vertexCount = geometry.first.size() / 3;
+	bottomAccStruct->triangleInfo.vertexCount = geometry.size() / 3;
 	bottomAccStruct->triangleInfo.vertexStride = 3 * sizeof(float);
 	bottomAccStruct->triangleInfo.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-	bottomAccStruct->triangleInfo.indexData = bottomAccStruct->indexBuffer;
+	bottomAccStruct->triangleInfo.indexData = VK_NULL_HANDLE;
+	bottomAccStruct->triangleInfo.indexOffset = 0;
+	bottomAccStruct->triangleInfo.indexCount = 0;
+	bottomAccStruct->triangleInfo.indexType = VK_INDEX_TYPE_NONE_NV;
+	/*bottomAccStruct->triangleInfo.indexData = bottomAccStruct->indexBuffer;
 	bottomAccStruct->triangleInfo.indexOffset = 0;
 	bottomAccStruct->triangleInfo.indexCount = geometry.second.size();
-	bottomAccStruct->triangleInfo.indexType = VK_INDEX_TYPE_UINT32;
+	bottomAccStruct->triangleInfo.indexType = VK_INDEX_TYPE_UINT32;*/
 	bottomAccStruct->triangleInfo.transformData = VK_NULL_HANDLE;
 	//bottomAccStruct->triangleInfo.transformOffset = IGNORED
 		
@@ -1289,7 +1431,7 @@ void VulkanApp::CreateTopAccStruct(uint32_t numInstances, TopAccStruct* topAccSt
 	CHECK_VK_RESULT(vkGetAccelerationStructureHandleNV(vkDevice, topAccStruct->accelerationStructure, sizeof(uint64_t), &topAccStruct->accelerationStructureHandle))
 }
 
-void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<std::vector<float>, std::vector<uint32_t>>>& geometryData, VulkanAccelerationStructure* accStruct)
+void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct)
 {
 	//Steps
 	/*
@@ -1306,7 +1448,7 @@ void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::pair<st
 	//a)
 	for (uint32_t i = 0; i < numMeshes; i++)
 	{
-		const std::pair<std::vector<float>, std::vector<uint32_t>>& geometry = geometryData[i];
+		const std::vector<float>& geometry = geometryData[i];
 		VkGeometryInstanceNV* geometryInstance = &geometryInstances[i];
 		BottomAccStruct* bottomAccStruct = &accStruct->bottomAccStructs[i];
 		
@@ -1346,6 +1488,8 @@ VulkanAccelerationStructure::~VulkanAccelerationStructure()
 
 void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct)
 {
+	auto start_time = GetTime();
+
 	//Steps
 	/*
 	a) Find largest acceleration structure
@@ -1451,6 +1595,11 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	//k
 	vkFreeMemory(vkDevice, scratchBufferMemory, NULL);
 	vkDestroyBuffer(vkDevice, scratchBuffer, NULL);
+	
+	auto end_time = GetTime();
+	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
+	float ms = ns / 1000000.0f;
+	printf("Acceleration structure build time (ms): %.2f\n", ms);
 }
 
 

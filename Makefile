@@ -1,7 +1,5 @@
 SRC_DIR = src
 VOLK_DIR = $(SRC_DIR)/volk
-GLM_DIR = $(SRC_DIR)/glm
-STB_DIR = $(SRC_DIR)/stb
 OBJ_DIR = build
 
 GLFW_PATH = ~/glfw-3.2.1
@@ -10,7 +8,7 @@ VULKAN_SDK_PATH = ~/VulkanSDK/1.1.92.1/x86_64
 #export VK_LAYER_PATH = $(VULKAN_SDK_PATH)/etc/explicit_layer.d
 
 CXX = g++
-CXXFLAGS = -std=c++11 -fopenmp -I $(VOLK_DIR) -I $(GLM_DIR) -I $(STB_DIR) -I $(GLFW_PATH)/include -I $(VULKAN_SDK_PATH)/include
+CXXFLAGS = -std=c++11 -fopenmp -I $(GLFW_PATH)/include -I $(VULKAN_SDK_PATH)/include
 LDFLAGS = -lstdc++fs -L $(GLFW_PATH)/src -lglfw3 -fopenmp -lrt -lm -ldl -lX11 -L $(VULKAN_SDK_PATH)/lib -lXrandr -lXinerama -lXcursor
 
 #Setup for release
