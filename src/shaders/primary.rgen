@@ -1,0 +1,64 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include "Camera.glsl"
+#include "Defines.glsl"
+
+layout(set = 0, binding = 0) uniform accelerationStructureNV scene;
+layout(set = 0, binding = 1, rgba8) uniform image2D resultImage;
+layout(set = 0, binding = 2, std140) uniform cameraBuffer
+{
+	Camera camera;
+};
+
+layout(location = 0) rayPayloadNV PrimaryRayPayload primaryPayload;
+layout(location = 1) rayPayloadNV ShadowRayPayload secondaryPayload;
+
+void main()
+{
+	const uint rayFlags = gl_RayFlagsNoneNV;
+    const uint cullMask = 0xFF;
+    const uint sbtRecordStride = 0;
+    const float tmin = 0.0f;
+    const float tmax = 1000.0f;
+    const int primaryPayloadLocation = 0;
+    const int secondaryPayloadLocation = 1;
+	
+	//Trace primary ray
+	Ray ray = GenerateRayFromCamera(camera);	
+    traceNV(scene, rayFlags, cullMask, PRIMARY_CHIT_IDX, sbtRecordStride, PRIMARY_MISS_IDX, ray.origin, tmin, ray.dir, tmax, primaryPayloadLocation);
+
+	//Simple lighting data
+	vec3 lightPos = vec3(0.0f, 5.0f, 0.0f);
+	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
+	
+	//Isect data
+	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
+	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
+	vec3 isectPointToLight = lightPos - isectPoint;
+	vec3 isectPointToLightDir = normalize(isectPointToLight);
+	float isectPointToLightDist = length(lightPos - isectPoint);
+	
+	//Trace shadow rays
+	Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
+	
+	traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tmin, shadowRay.dir, tmax, secondaryPayloadLocation);
+	imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(secondaryPayload.hitDist.x, 0.0f, 0.0f, 1.0f));
+	return;
+	
+    /*traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tmin, shadowRay.dir, tmax, secondaryPayloadLocation);
+    if (secondaryPayload.hitDist.x >= isectPointToLightDist)
+    {
+    	imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    	return;
+    }*/
+	
+	//Calculate light
+	float contr = dot(isectNormal, isectPointToLightDir);
+	vec3 contrColor = lightColor * contr;
+	vec3 color = primaryPayload.materialColor.rgb * contrColor;
+	
+	//Store
+    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+}

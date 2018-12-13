@@ -1,5 +1,7 @@
-#ifndef UNIFORM_DATA_LAYOUTS
-#define UNIFORM_DATA_LAYOUTS
+#ifndef DATA_LAYOUTS_GLSL
+#define DATA_LAYOUTS_GLSL
+
+//Only for unfirom/buffer structs and inter-shader structs
 
 struct Camera
 {
@@ -19,6 +21,11 @@ struct PrimaryRayPayload
 {
 	vec4 normalAndHitDistance;
 	vec4 materialColor;
+};
+
+struct ShadowRayPayload
+{
+	vec4 hitDist;
 };
 
 #endif

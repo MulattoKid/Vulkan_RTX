@@ -164,6 +164,7 @@ public:
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t imageWidth, uint32_t imageHeight);
 	void CreateTexture(const char* filename, VkFormat format, VulkanTexture* texture);
 	void CreateDefaultSampler(VkSampler* sampler);
+	void CreateDummyImage(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* imageView);
 	VkViewport GetDefaultViewport();
 	VkRect2D GetDefaultScissor();
 	void CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);

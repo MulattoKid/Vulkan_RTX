@@ -54,7 +54,6 @@ void main()
 	if (uv.x == 0.0f && uv.y == 0.0f)
 	{
 		payload.materialColor = defaultMeshColor[meshID].bgra;
-		//payload.materialColor = vec4(1.0f, 0.0f, 0.0f, 0.0f);
 	}
 	else
 	{

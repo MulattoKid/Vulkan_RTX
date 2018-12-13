@@ -33,8 +33,8 @@ void RaytraceTriangle()
 	////////////////////////////
 	///////////CAMERA///////////
 	////////////////////////////
-	glm::vec3 cameraOrigin(0.0f, 1.0f, 6.0f);
-	glm::vec3 cameraDir(0.0f, 0.0f, -1.0f);
+	glm::vec3 cameraOrigin(0.0f, -0.5f, 6.0f);
+	glm::vec3 cameraDir = glm::normalize(glm::vec3(0.0f, 0.05f, -1.0f));
 	float cameraVerticalFOV = 19.0f;
 	float cameraAspectRatio = vkApp.vkSurfaceExtent.width / float(vkApp.vkSurfaceExtent.height);
 	float theta = (cameraVerticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
@@ -74,15 +74,21 @@ void RaytraceTriangle()
 	vkApp.CreateDefaultSampler(&defaultSampler);
 	VulkanTexture bfvTexture;
 	vkApp.CreateTexture("data/test_scene/bfv.jpg", VK_FORMAT_R8G8B8A8_UNORM, &bfvTexture);
+	VulkanTexture dummyTexture;
+	vkApp.CreateDummyImage(&dummyTexture.image, &dummyTexture.imageMemory, &dummyTexture.imageView);
 	
 	////////////////////////////
 	//////////GEOMETRY//////////
 	////////////////////////////
-	const uint32_t numMeshes = 1;
+	const uint32_t numMeshes = 2;
 	std::vector<Mesh> meshes(numMeshes);
 	vkApp.LoadMesh("data/test_scene/floor.obj", &meshes[0]);
+	vkApp.LoadMesh("data/test_scene/pyramid.obj", &meshes[1]);
 	std::vector<std::vector<float>> geometryData;
-	geometryData.push_back(meshes[0].vertices);
+	for (Mesh& mesh : meshes)
+	{
+		geometryData.push_back(mesh.vertices);
+	}
 	
 	std::vector<float> colorData;
 	std::vector<float> attributeData;
@@ -114,39 +120,61 @@ void RaytraceTriangle()
 	////////////////////////////
 	////RAY TRACING PIPELINE////
 	////////////////////////////
-	VkShaderModule rayGenShaderModule, closestHitShaderModule, missShaderModule;
-	vkApp.CreateShaderModule("src/shaders/raygen.spv", &rayGenShaderModule);
-	vkApp.CreateShaderModule("src/shaders/closesthit.spv", &closestHitShaderModule);
-	vkApp.CreateShaderModule("src/shaders/miss.spv", &missShaderModule);
+	const uint32_t numShaders = 5;
+	std::vector<VkShaderModule> shaderModules(numShaders);
+	const uint32_t rayGenShaderIndex = 0;
+	const uint32_t primaryCHitShaderIndex = 1;
+	const uint32_t secondaryCHitShaderIndex = 2;
+	const uint32_t primaryMissShaderIndex = 3;
+	const uint32_t secondaryMissShaderIndex = 4;
+	vkApp.CreateShaderModule("src/shaders/out/primary_rgen.spv", &shaderModules[rayGenShaderIndex]);
+	vkApp.CreateShaderModule("src/shaders/out/primary_rchit.spv", &shaderModules[primaryCHitShaderIndex]);
+	vkApp.CreateShaderModule("src/shaders/out/secondary_rchit.spv", &shaderModules[secondaryCHitShaderIndex]);
+	vkApp.CreateShaderModule("src/shaders/out/primary_rmiss.spv", &shaderModules[primaryMissShaderIndex]);
+	vkApp.CreateShaderModule("src/shaders/out/secondary_rmiss.spv", &shaderModules[secondaryMissShaderIndex]);
 	
-	std::vector<VkPipelineShaderStageCreateInfo> rayTracingShaderStageInfos(3);
-	rayTracingShaderStageInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	rayTracingShaderStageInfos[0].pNext = NULL;
-	rayTracingShaderStageInfos[0].flags = 0;
-	rayTracingShaderStageInfos[0].stage = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingShaderStageInfos[0].module = rayGenShaderModule;
-	rayTracingShaderStageInfos[0].pName = "main";
-	rayTracingShaderStageInfos[0].pSpecializationInfo = NULL;
-	rayTracingShaderStageInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	rayTracingShaderStageInfos[1].pNext = NULL;
-	rayTracingShaderStageInfos[1].flags = 0;
-	rayTracingShaderStageInfos[1].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	rayTracingShaderStageInfos[1].module = closestHitShaderModule;
-	rayTracingShaderStageInfos[1].pName = "main";
-	rayTracingShaderStageInfos[1].pSpecializationInfo = NULL;
-	rayTracingShaderStageInfos[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	rayTracingShaderStageInfos[2].pNext = NULL;
-	rayTracingShaderStageInfos[2].flags = 0;
-	rayTracingShaderStageInfos[2].stage = VK_SHADER_STAGE_MISS_BIT_NV;
-	rayTracingShaderStageInfos[2].module = missShaderModule;
-	rayTracingShaderStageInfos[2].pName = "main";
-	rayTracingShaderStageInfos[2].pSpecializationInfo = NULL;
+	std::vector<VkPipelineShaderStageCreateInfo> rayTracingShaderStageInfos(numShaders);
+	rayTracingShaderStageInfos[rayGenShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	rayTracingShaderStageInfos[rayGenShaderIndex].pNext = NULL;
+	rayTracingShaderStageInfos[rayGenShaderIndex].flags = 0;
+	rayTracingShaderStageInfos[rayGenShaderIndex].stage = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingShaderStageInfos[rayGenShaderIndex].module = shaderModules[rayGenShaderIndex];
+	rayTracingShaderStageInfos[rayGenShaderIndex].pName = "main";
+	rayTracingShaderStageInfos[rayGenShaderIndex].pSpecializationInfo = NULL;
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].pNext = NULL;
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].flags = 0;
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].module = shaderModules[primaryCHitShaderIndex];
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].pName = "main";
+	rayTracingShaderStageInfos[primaryCHitShaderIndex].pSpecializationInfo = NULL;
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].pNext = NULL;
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].flags = 0;
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].module = shaderModules[secondaryCHitShaderIndex];
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].pName = "main";
+	rayTracingShaderStageInfos[secondaryCHitShaderIndex].pSpecializationInfo = NULL;
+	rayTracingShaderStageInfos[primaryMissShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	rayTracingShaderStageInfos[primaryMissShaderIndex].pNext = NULL;
+	rayTracingShaderStageInfos[primaryMissShaderIndex].flags = 0;
+	rayTracingShaderStageInfos[primaryMissShaderIndex].stage = VK_SHADER_STAGE_MISS_BIT_NV;
+	rayTracingShaderStageInfos[primaryMissShaderIndex].module = shaderModules[primaryMissShaderIndex];
+	rayTracingShaderStageInfos[primaryMissShaderIndex].pName = "main";
+	rayTracingShaderStageInfos[primaryMissShaderIndex].pSpecializationInfo = NULL;
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].pNext = NULL;
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].flags = 0;
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].stage = VK_SHADER_STAGE_MISS_BIT_NV;
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].module = shaderModules[secondaryMissShaderIndex];
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].pName = "main";
+	rayTracingShaderStageInfos[secondaryMissShaderIndex].pSpecializationInfo = NULL;
 	
-	std::vector<VkRayTracingShaderGroupCreateInfoNV> rayTracingGroupInfos(3);
+	std::vector<VkRayTracingShaderGroupCreateInfoNV> rayTracingGroupInfos(numShaders);
 	rayTracingGroupInfos[0].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
 	rayTracingGroupInfos[0].pNext = NULL;
 	rayTracingGroupInfos[0].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
-	rayTracingGroupInfos[0].generalShader = 0;
+	rayTracingGroupInfos[0].generalShader = rayGenShaderIndex;
 	rayTracingGroupInfos[0].closestHitShader = VK_SHADER_UNUSED_NV;
 	rayTracingGroupInfos[0].anyHitShader = VK_SHADER_UNUSED_NV;
 	rayTracingGroupInfos[0].intersectionShader = VK_SHADER_UNUSED_NV;
@@ -154,16 +182,30 @@ void RaytraceTriangle()
 	rayTracingGroupInfos[1].pNext = NULL;
 	rayTracingGroupInfos[1].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV;
 	rayTracingGroupInfos[1].generalShader = VK_SHADER_UNUSED_NV;
-	rayTracingGroupInfos[1].closestHitShader = 1;
+	rayTracingGroupInfos[1].closestHitShader = primaryCHitShaderIndex;
 	rayTracingGroupInfos[1].anyHitShader = VK_SHADER_UNUSED_NV;
 	rayTracingGroupInfos[1].intersectionShader = VK_SHADER_UNUSED_NV;
 	rayTracingGroupInfos[2].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
 	rayTracingGroupInfos[2].pNext = NULL;
 	rayTracingGroupInfos[2].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
-	rayTracingGroupInfos[2].generalShader = 2;
-	rayTracingGroupInfos[2].closestHitShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[2].generalShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[2].closestHitShader = secondaryCHitShaderIndex;
 	rayTracingGroupInfos[2].anyHitShader = VK_SHADER_UNUSED_NV;
 	rayTracingGroupInfos[2].intersectionShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[3].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+	rayTracingGroupInfos[3].pNext = NULL;
+	rayTracingGroupInfos[3].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
+	rayTracingGroupInfos[3].generalShader = primaryMissShaderIndex;
+	rayTracingGroupInfos[3].closestHitShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[3].anyHitShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[3].intersectionShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[4].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+	rayTracingGroupInfos[4].pNext = NULL;
+	rayTracingGroupInfos[4].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
+	rayTracingGroupInfos[4].generalShader = secondaryMissShaderIndex;
+	rayTracingGroupInfos[4].closestHitShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[4].anyHitShader = VK_SHADER_UNUSED_NV;
+	rayTracingGroupInfos[4].intersectionShader = VK_SHADER_UNUSED_NV;
 	
 	const uint32_t numDescriptorSets = 2;
 	std::vector<VkDescriptorSetLayoutCreateInfo> descriptorSetLayoutInfos(numDescriptorSets);
@@ -487,10 +529,12 @@ void RaytraceTriangle()
     colorWrite.pTexelBufferView = NULL;
     
     std::vector<VkDescriptorImageInfo> imageInfos(numMeshes);
-    VkDescriptorImageInfo& bfvImageInfo = imageInfos[0];
-    bfvImageInfo.sampler = defaultSampler;
-    bfvImageInfo.imageView = bfvTexture.imageView;
-    bfvImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    for (VkDescriptorImageInfo& imageInfo : imageInfos)
+    {
+		imageInfo.sampler = defaultSampler;
+		imageInfo.imageView = dummyTexture.imageView;
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
     
     VkWriteDescriptorSet& textureWrite = descriptorSet1Writes[3];
     textureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -526,7 +570,7 @@ void RaytraceTriangle()
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rayTracingPipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, NULL);
 		vkCmdTraceRaysNV(graphicsQueueCommandBuffers[i], 
 			shaderBindingTableBuffer, 0 * physicalDeviceRayTracingProperties.shaderGroupHandleSize,
-			shaderBindingTableBuffer, 2 * physicalDeviceRayTracingProperties.shaderGroupHandleSize, physicalDeviceRayTracingProperties.shaderGroupHandleSize,
+			shaderBindingTableBuffer, 3 * physicalDeviceRayTracingProperties.shaderGroupHandleSize, physicalDeviceRayTracingProperties.shaderGroupHandleSize,
 			shaderBindingTableBuffer, 1 * physicalDeviceRayTracingProperties.shaderGroupHandleSize, physicalDeviceRayTracingProperties.shaderGroupHandleSize,
 			 VK_NULL_HANDLE, 0, 0, vkApp.vkSurfaceExtent.width, vkApp.vkSurfaceExtent.height, 1);
 		
@@ -586,9 +630,10 @@ void RaytraceTriangle()
 		vkDestroyDescriptorSetLayout(vkApp.vkDevice, descriptorSetLayout, NULL);
 	}
 	vkDestroySampler(vkApp.vkDevice, defaultSampler, NULL);
-	vkDestroyShaderModule(vkApp.vkDevice, missShaderModule, NULL);
-	vkDestroyShaderModule(vkApp.vkDevice, closestHitShaderModule, NULL);
-	vkDestroyShaderModule(vkApp.vkDevice, rayGenShaderModule, NULL);
+	for (VkShaderModule& shaderModule : shaderModules)
+	{
+		vkDestroyShaderModule(vkApp.vkDevice, shaderModule, NULL);
+	}
 	//Basic data
 	vkFreeMemory(vkApp.vkDevice, customIDToAttributeArrayIndexBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, customIDToAttributeArrayIndexBuffer, NULL);
