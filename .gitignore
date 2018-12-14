@@ -31,3 +31,6 @@
 *.out
 *.app
 build/VulkanRTX
+
+# Other
+src/shaders/out
