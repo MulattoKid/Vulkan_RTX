@@ -33,8 +33,8 @@ void RaytraceTriangle()
 	////////////////////////////
 	///////////CAMERA///////////
 	////////////////////////////
-	glm::vec3 cameraOrigin(0.0f, -0.75f, 6.0f);
-	glm::vec3 cameraDir = glm::normalize(glm::vec3(0.0f, 0.1f, -1.0f));
+	glm::vec3 cameraOrigin(0.0f, -0.5f, 6.0f);
+	glm::vec3 cameraDir = glm::normalize(glm::vec3(0.0f, 0.05f, -1.0f));
 	float cameraVerticalFOV = 19.0f;
 	float cameraAspectRatio = vkApp.vkSurfaceExtent.width / float(vkApp.vkSurfaceExtent.height);
 	float theta = (cameraVerticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
