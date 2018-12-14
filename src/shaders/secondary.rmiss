@@ -3,10 +3,11 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "DataLayouts.glsl"
+#include "Defines.glsl"
 
-layout(location = 1) rayPayloadInNV ShadowRayPayload payload;
+layout(location = SECONDARY_PAYLOAD_LOCATION) rayPayloadInNV ShadowRayPayload payload;
 
 void main()
 {
-	payload.hitDist.x = 0.2f;//-1.0f;
+	payload.hitDist.x = -1.0f;
 }

@@ -4,6 +4,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #include "DataLayouts.glsl"
+#include "Defines.glsl"
 
 layout(set = 1, binding = 0, std430) readonly buffer customIDToAttributeArrayIndexBuffer
 {
@@ -19,7 +20,7 @@ layout(set = 1, binding = 2, std430) readonly buffer perMeshColor
 };
 layout(set = 1, binding = 3) uniform sampler2D images[];
 
-layout(location = 0) rayPayloadInNV PrimaryRayPayload payload;
+layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadInNV PrimaryRayPayload payload;
 hitAttributeNV vec2 hitAttribs;
 
 vec3 NormalAtPoint(vec3 faceNormal0, vec3 faceNormal1, vec3 faceNormal2, vec3 barycentric)
