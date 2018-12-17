@@ -221,6 +221,8 @@ void VulkanApp::PickPhysicalDevice(uint32_t extensionCount, const char** extensi
 			prop2.pNext = &uniformProp;
 			vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &prop2);
 			
+			maxBoundDescriptorSets = prop2.properties.limits.maxBoundDescriptorSets;
+			printf("\t maxBoundDescriptorSets: %u\n", maxBoundDescriptorSets);
 			maxInlineUniformBlockSize = uniformProp.maxInlineUniformBlockSize;
 			printf("\t maxInlineUniformBlockSize: %u\n", maxInlineUniformBlockSize);
 			
@@ -872,6 +874,9 @@ void VulkanApp::CreateTexture(const char* filename, VkFormat format, VulkanTextu
 		case VK_FORMAT_R8G8B8A8_UNORM:
 			requestedComponents = STBI_rgb_alpha;
 			break;
+		case VK_FORMAT_R8_UNORM:
+			requestedComponents = STBI_grey;
+			break;
 		default:
 			printf("Unsupported image format for texture %s\n", filename);
 			exit(1);
@@ -1173,7 +1178,7 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
 	printf("\rFrame time (ms): %.2f", ms);
 }
 
-void VulkanApp::LoadMesh(const char* filename, Mesh* mesh)
+void VulkanApp::LoadMesh(const char* filename, std::vector<Mesh>* meshes)
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -1195,6 +1200,51 @@ void VulkanApp::LoadMesh(const char* filename, Mesh* mesh)
 		printf("No material detected for model '%s'- using default material (grey)\n", filename);
 	}
 	
+	size_t oldMeshesSize = meshes->size();
+	meshes->resize(oldMeshesSize + material_ts.size());
+	
+	//Extract materials
+	for (size_t i = 0; i < material_ts.size(); i++)
+	{
+		tinyobj::material_t& mtl = material_ts[i];
+		MaterialFile& mf = meshes->data()[oldMeshesSize + i].materialFile;
+		
+		mf.diffuseColor[0] = mtl.diffuse[0];
+		mf.diffuseColor[1] = mtl.diffuse[1];
+		mf.diffuseColor[2] = mtl.diffuse[2];
+		mf.diffuseColor[3] = 1.0f;
+		mf.specularColor[0] = mtl.specular[0];
+		mf.specularColor[1] = mtl.specular[1];
+		mf.specularColor[2] = mtl.specular[2];
+		mf.specularColor[3] = 1.0f;
+		mf.emissiveColor[0] = mtl.emission[0];
+		mf.emissiveColor[1] = mtl.emission[1];
+		mf.emissiveColor[2] = mtl.emission[2];
+		mf.emissiveColor[3] = 1.0f;
+		mf.otherData[0] = mtl.ior;
+		mf.otherData[1] = mtl.roughness;
+		if (!mtl.diffuse_texname.empty())
+		{
+			mf.diffuseTexture = new VulkanTexture();
+			CreateTexture(mtl.diffuse_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, mf.diffuseTexture);
+		}
+		if (!mtl.specular_texname.empty())
+		{
+			mf.specularTexture = new VulkanTexture();
+			CreateTexture(mtl.specular_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, mf.specularTexture);
+		}
+		if (!mtl.emissive_texname.empty())
+		{
+			mf.emissiveTexture = new VulkanTexture();
+			CreateTexture(mtl.emissive_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, mf.emissiveTexture);
+		}
+		if (!mtl.roughness_texname.empty())
+		{
+			mf.roughnessTexture = new VulkanTexture();
+			CreateTexture(mtl.roughness_texname.c_str(), VK_FORMAT_R8_UNORM, mf.roughnessTexture);
+		}
+	}
+	
 	bool hasNormals = attrib.normals.size() > 0 ? true : false;
 	bool hasUVs = attrib.texcoords.size() > 0 ? true : false;
 	
@@ -1208,9 +1258,17 @@ void VulkanApp::LoadMesh(const char* filename, Mesh* mesh)
 		size_t index_offset = 0;
 		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
 		{
-			int fv = shapes[s].mesh.num_face_vertices[f];
+			// Per-face material
+			int materialIdx = shapes[s].mesh.material_ids[f];
+			Mesh& mesh = meshes->data()[oldMeshesSize + materialIdx];
+			//Diffuse color of first material
+			mesh.defaultColor[0] = material_ts[materialIdx].diffuse[0];
+			mesh.defaultColor[1] = material_ts[materialIdx].diffuse[1];
+			mesh.defaultColor[2] = material_ts[materialIdx].diffuse[2];
+			mesh.defaultColor[3] = 1.0f;
 			
 			// Loop over vertices in the face.
+			int fv = shapes[s].mesh.num_face_vertices[f];
 			for (int v = 0; v < fv; v++)
 			{
 			  	// access to vertex
@@ -1242,49 +1300,40 @@ void VulkanApp::LoadMesh(const char* filename, Mesh* mesh)
 			  	// tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
 			  	// tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
 			  	
-			  	mesh->vertices.push_back(vertex[0]);
-			  	mesh->vertices.push_back(vertex[1]);
-			  	mesh->vertices.push_back(vertex[2]);
-			  	mesh->normals.push_back(normal[0]);
-			  	mesh->normals.push_back(normal[1]);
-			  	mesh->normals.push_back(normal[2]);
-			  	mesh->uvs.push_back(uv[0]);
-			  	mesh->uvs.push_back(uv[1]);
+			  	mesh.vertices.push_back(vertex[0]);
+			  	mesh.vertices.push_back(vertex[1]);
+			  	mesh.vertices.push_back(vertex[2]);
+			  	mesh.normals.push_back(normal[0]);
+			  	mesh.normals.push_back(normal[1]);
+			  	mesh.normals.push_back(normal[2]);
+			  	mesh.uvs.push_back(uv[0]);
+			  	mesh.uvs.push_back(uv[1]);
 			}
 			index_offset += fv;
 			
 			//Generate normals (all are the same)
 			if (!hasNormals)
 			{
-				glm::vec3 v0(mesh->vertices[mesh->vertices.size() - 9], mesh->vertices[mesh->vertices.size() - 8], mesh->vertices[mesh->vertices.size() - 7]);
-				glm::vec3 v1(mesh->vertices[mesh->vertices.size() - 6], mesh->vertices[mesh->vertices.size() - 5], mesh->vertices[mesh->vertices.size() - 4]);
-				glm::vec3 v2(mesh->vertices[mesh->vertices.size() - 3], mesh->vertices[mesh->vertices.size() - 2], mesh->vertices[mesh->vertices.size() - 1]);
+				glm::vec3 v0(mesh.vertices[mesh.vertices.size() - 9], mesh.vertices[mesh.vertices.size() - 8], mesh.vertices[mesh.vertices.size() - 7]);
+				glm::vec3 v1(mesh.vertices[mesh.vertices.size() - 6], mesh.vertices[mesh.vertices.size() - 5], mesh.vertices[mesh.vertices.size() - 4]);
+				glm::vec3 v2(mesh.vertices[mesh.vertices.size() - 3], mesh.vertices[mesh.vertices.size() - 2], mesh.vertices[mesh.vertices.size() - 1]);
 				
 				glm::vec3 v0v1 = v1 - v0;
 				glm::vec3 v0v2 = v2 - v0;
 				glm::vec3 normal = glm::normalize(glm::cross(v0v1, v0v2));
 				
-				mesh->normals[mesh->normals.size() - 9] = normal[0];
-				mesh->normals[mesh->normals.size() - 8] = normal[1];
-				mesh->normals[mesh->normals.size() - 7] = normal[2];
-				mesh->normals[mesh->normals.size() - 6] = normal[0];
-				mesh->normals[mesh->normals.size() - 5] = normal[1];
-				mesh->normals[mesh->normals.size() - 4] = normal[2];
-				mesh->normals[mesh->normals.size() - 3] = normal[0];
-				mesh->normals[mesh->normals.size() - 2] = normal[1];
-				mesh->normals[mesh->normals.size() - 1] = normal[2];
+				mesh.normals[mesh.normals.size() - 9] = normal[0];
+				mesh.normals[mesh.normals.size() - 8] = normal[1];
+				mesh.normals[mesh.normals.size() - 7] = normal[2];
+				mesh.normals[mesh.normals.size() - 6] = normal[0];
+				mesh.normals[mesh.normals.size() - 5] = normal[1];
+				mesh.normals[mesh.normals.size() - 4] = normal[2];
+				mesh.normals[mesh.normals.size() - 3] = normal[0];
+				mesh.normals[mesh.normals.size() - 2] = normal[1];
+				mesh.normals[mesh.normals.size() - 1] = normal[2];
 			}
-			
-			// per-face material
-			//material_ts[shapes[s].mesh.material_ids[f]]
 	  	}
 	}
-	
-	//Diffuse color of first material
-	mesh->defaultColor[0] = material_ts[shapes[0].mesh.material_ids[0]].diffuse[0];
-	mesh->defaultColor[1] = material_ts[shapes[0].mesh.material_ids[0]].diffuse[1];
-	mesh->defaultColor[2] = material_ts[shapes[0].mesh.material_ids[0]].diffuse[2];
-	mesh->defaultColor[3] = 1.0f;
 }
 
 void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<float>* colorData, std::vector<uint32_t>* customIDToAttributeArrayIndex)

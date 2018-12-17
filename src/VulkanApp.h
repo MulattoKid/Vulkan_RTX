@@ -29,16 +29,6 @@ struct VulkanAppCreateInfo
 	uint32_t maxFramesInFlight;
 };
 
-struct VulkanTexture
-{
-	VkDevice device;
-	VkImage image;
-	VkDeviceMemory imageMemory;
-	VkImageView imageView;
-	
-	~VulkanTexture();
-};
-
 struct VkGeometryInstanceNV
 {
     float transform[12];
@@ -92,12 +82,38 @@ struct VulkanAccelerationStructure
 	~VulkanAccelerationStructure();
 };
 
+struct VulkanTexture
+{
+	VkDevice device;
+	VkImage image;
+	VkDeviceMemory imageMemory;
+	VkImageView imageView;
+	
+	~VulkanTexture();
+};
+
+struct MaterialFile
+{
+	float diffuseColor[4];
+	float specularColor[4];
+	float emissiveColor[4];
+	//Other data:
+	// 0 = index of refraction
+	// 1 = roughness
+	float otherData[4];
+	VulkanTexture* diffuseTexture = NULL;
+	VulkanTexture* specularTexture = NULL;
+	VulkanTexture* emissiveTexture = NULL;
+	VulkanTexture* roughnessTexture = NULL;
+};
+
 struct Mesh
 {
 	std::vector<float> vertices;
 	std::vector<float> normals;
 	std::vector<float> uvs;
 	float defaultColor[4];
+	MaterialFile materialFile;
 };
 
 struct VulkanApp
@@ -130,6 +146,7 @@ struct VulkanApp
 	VkDevice vkDevice;
 	
 	//Limits
+	uint32_t maxBoundDescriptorSets;
 	uint32_t maxInlineUniformBlockSize;
 	
 	//Swap chain
@@ -172,7 +189,7 @@ public:
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
-	void LoadMesh(const char* filename, Mesh* mesh);
+	void LoadMesh(const char* filename, std::vector<Mesh>* meshes);
 	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<float>* colorData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);

@@ -80,10 +80,13 @@ void RaytraceTriangle()
 	////////////////////////////
 	//////////GEOMETRY//////////
 	////////////////////////////
-	const uint32_t numMeshes = 2;
+	/*const uint32_t numMeshes = 2;
 	std::vector<Mesh> meshes(numMeshes);
 	vkApp.LoadMesh("data/test_scene/floor.obj", &meshes[0]);
-	vkApp.LoadMesh("data/test_scene/pyramid.obj", &meshes[1]);
+	vkApp.LoadMesh("data/test_scene/pyramid.obj", &meshes[1]);*/
+	std::vector<Mesh> meshes;
+	vkApp.LoadMesh("data/test_scene/floor.obj", &meshes);
+	vkApp.LoadMesh("data/test_scene/pyramid.obj", &meshes);
 	std::vector<std::vector<float>> geometryData;
 	for (Mesh& mesh : meshes)
 	{
@@ -270,7 +273,7 @@ void RaytraceTriangle()
 	VkDescriptorSetLayoutBinding& textureDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[3];
 	textureDescriptorSetLayoutBinding.binding = 3;
 	textureDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	textureDescriptorSetLayoutBinding.descriptorCount = numMeshes;
+	textureDescriptorSetLayoutBinding.descriptorCount = meshes.size();
 	textureDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 	textureDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
@@ -384,7 +387,7 @@ void RaytraceTriangle()
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, numMeshes }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, uint32_t(meshes.size()) }
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -528,7 +531,7 @@ void RaytraceTriangle()
     colorWrite.pBufferInfo = &descriptorColorInfo;
     colorWrite.pTexelBufferView = NULL;
     
-    std::vector<VkDescriptorImageInfo> imageInfos(numMeshes);
+    std::vector<VkDescriptorImageInfo> imageInfos(meshes.size());
     for (VkDescriptorImageInfo& imageInfo : imageInfos)
     {
 		imageInfo.sampler = defaultSampler;

@@ -1,0 +1,41 @@
+Although a shader has descriptor set and bindings limits, it seems that the size of arrays can be very large.
+
+For a single OBJ file, there can be various gruops. Each group can use a different material.
+Therefore, I think it would be best to split a single OBJ file into several meshes, where each mesh is "connected to 
+a single material". That way, only a single index is needed in the shader (mesh -> material), and I avoid having to
+connect each vertex to a material. This will REQUIRE dividing a OBJ file when loading it.
+
+Example: buddha.obj
+	group a : material 1
+	group b : material 2
+	group c : material 3
+	group d : material 4
+	
+becomes 4 meshes
+
+	mesh a -> material 1
+	mesh b -> material 2
+	mesh c -> material 3
+	mesh d -> material 4
+
+In the shader, each mesh has some data associated with it, be it a set of textures or static colors. 
+Example: chit shader when rendering a set of meshes
+	layout(set=0, binding=0) uniform vec4 diffuseColors[];
+	layout(set=0, binding=1) uniform vec4 specularColors[];
+	layout(set=0, binding=2) uniform vec4 emissiveColors[];
+	layout(set=0, binding=3) uniform vec4 otherMeshDatas[];
+	layout(set=0, binding=4) uniform sampler2D textures[];
+	layout(set=0, binding=5) uint customIDToAttributeArrayIndex[];
+	
+	void main()
+	{
+		const int meshID = gl_InstanceCustomIndexNV;
+		const uint attributeArrayIndex = customIDToAttributeArrayIndex[meshID];
+		vec4 diffuseColor = diffuseColors[attributeArrayIndex];
+		vec4 specularColor = specularColors[attributeArrayIndex];
+		vec4 emissiveColor = emissiveColors[attributeArrayIndex];
+		vec4 otherMeshData = otherMeshDatas[attributeArrayIndex];
+		//To access the correct textures, use the attributeArrayIndex and multiply with the number of texture per mesh,
+		//e.g. 4 if there are diffuse, specular, emissive and roughness textures
+	}
+	
