@@ -1261,11 +1261,17 @@ void VulkanApp::LoadMesh(const char* filename, std::vector<Mesh>* meshes)
 			// Per-face material
 			int materialIdx = shapes[s].mesh.material_ids[f];
 			Mesh& mesh = meshes->data()[oldMeshesSize + materialIdx];
-			//Diffuse color of first material
-			mesh.defaultColor[0] = material_ts[materialIdx].diffuse[0];
-			mesh.defaultColor[1] = material_ts[materialIdx].diffuse[1];
-			mesh.defaultColor[2] = material_ts[materialIdx].diffuse[2];
-			mesh.defaultColor[3] = 1.0f;
+			
+			mesh.diffuseColor[0] = material_ts[materialIdx].diffuse[0];
+			mesh.diffuseColor[1] = material_ts[materialIdx].diffuse[1];
+			mesh.diffuseColor[2] = material_ts[materialIdx].diffuse[2];
+			mesh.specularColor[0] = material_ts[materialIdx].specular[0];
+			mesh.specularColor[1] = material_ts[materialIdx].specular[1];
+			mesh.specularColor[2] = material_ts[materialIdx].specular[2];
+			mesh.emissiveColor[0] = material_ts[materialIdx].emission[0];
+			mesh.emissiveColor[1] = material_ts[materialIdx].emission[1];
+			mesh.emissiveColor[2] = material_ts[materialIdx].emission[2];
+			mesh.roughness = material_ts[materialIdx].roughness;
 			
 			// Loop over vertices in the face.
 			int fv = shapes[s].mesh.num_face_vertices[f];
@@ -1336,7 +1342,7 @@ void VulkanApp::LoadMesh(const char* filename, std::vector<Mesh>* meshes)
 	}
 }
 
-void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<float>* colorData, std::vector<uint32_t>* customIDToAttributeArrayIndex)
+void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* perMeshAttributeData, std::vector<float>* perVertexAttributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex)
 {
 	uint32_t currentAttributeIndex = 0;
 	for (const Mesh& mesh : meshes)
@@ -1348,21 +1354,33 @@ void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std:
 		//For each vertex
 		for (size_t i = 0; i < mesh.vertices.size() / 3; i++)
 		{
-			attributeData->push_back(mesh.normals[i * 3 + 0]);
-			attributeData->push_back(mesh.normals[i * 3 + 1]);
-			attributeData->push_back(mesh.normals[i * 3 + 2]);
-			attributeData->push_back(0.0f); //For vec4 in shader
-			attributeData->push_back(mesh.uvs[i * 2 + 0]);
-			attributeData->push_back(mesh.uvs[i * 2 + 1]);
-			attributeData->push_back(0.0f); //For vec4 in shader
-			attributeData->push_back(0.0f); //For vec4 in shader
+			perVertexAttributeData->push_back(mesh.normals[i * 3 + 0]);
+			perVertexAttributeData->push_back(mesh.normals[i * 3 + 1]);
+			perVertexAttributeData->push_back(mesh.normals[i * 3 + 2]);
+			perVertexAttributeData->push_back(0.0f); //For vec4 in shader
+			perVertexAttributeData->push_back(mesh.uvs[i * 2 + 0]);
+			perVertexAttributeData->push_back(mesh.uvs[i * 2 + 1]);
+			perVertexAttributeData->push_back(0.0f); //For vec4 in shader
+			perVertexAttributeData->push_back(0.0f); //For vec4 in shader
 			currentAttributeIndex++;
 		}
 		
-		colorData->push_back(mesh.defaultColor[0]);
-		colorData->push_back(mesh.defaultColor[1]);
-		colorData->push_back(mesh.defaultColor[2]);
-		colorData->push_back(mesh.defaultColor[3]);
+		perMeshAttributeData->push_back(mesh.diffuseColor[0]);
+		perMeshAttributeData->push_back(mesh.diffuseColor[1]);
+		perMeshAttributeData->push_back(mesh.diffuseColor[2]);
+		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
+		perMeshAttributeData->push_back(mesh.specularColor[0]);
+		perMeshAttributeData->push_back(mesh.specularColor[1]);
+		perMeshAttributeData->push_back(mesh.specularColor[2]);
+		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
+		perMeshAttributeData->push_back(mesh.emissiveColor[0]);
+		perMeshAttributeData->push_back(mesh.emissiveColor[1]);
+		perMeshAttributeData->push_back(mesh.emissiveColor[2]);
+		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
+		perMeshAttributeData->push_back(mesh.roughness);
+		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
+		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
+		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
 	}
 }
 

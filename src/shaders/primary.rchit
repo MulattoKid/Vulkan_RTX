@@ -6,22 +6,22 @@
 #include "DataLayouts.glsl"
 #include "Defines.glsl"
 
-layout(set = 1, binding = 0, std430) readonly buffer customIDToAttributeArrayIndexBuffer
+layout(set = 1, binding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION, std430) readonly buffer customIDToAttributeArrayIndexBuffer
 {
 	uint customIDToAttributeArrayIndex[];
 };
-layout(set = 1, binding = 1, std430) readonly buffer perVertexAttributeBuffer
+layout(set = 1, binding = PER_MESH_ATTRIBUTES_BINDING_LOCATION, std430) readonly buffer perMeshAttributesBuffer
+{
+	MeshAttributes meshAttributes[];
+};
+layout(set = 1, binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION, std430) readonly buffer perVertexAttributesBuffer
 {
 	VertexAttributes vertexAttributes[];
 };
-layout(set = 1, binding = 2, std430) readonly buffer perMeshColor
-{
-	vec4 defaultMeshColor[];
-};
-layout(set = 1, binding = 3) uniform sampler2D diffuseTextures[];
-layout(set = 1, binding = 4) uniform sampler2D specularTextures[];
-layout(set = 1, binding = 5) uniform sampler2D emissiveTextures[];
-layout(set = 1, binding = 6) uniform sampler2D roughnessTextures[];
+layout(set = 1, binding = DIFFUSE_TEXTURES_BINDING_LOCATION) uniform sampler2D diffuseTextures[];
+layout(set = 1, binding = SPECULAR_TEXTURES_BINDING_LOCATION) uniform sampler2D specularTextures[];
+layout(set = 1, binding = EMISSIVE_TEXTURES_BINDING_LOCATION) uniform sampler2D emissiveTextures[];
+layout(set = 1, binding = ROUGHNESS_TEXTURES_BINDING_LOCATION) uniform sampler2D roughnessTextures[];
 
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadInNV PrimaryRayPayload payload;
 hitAttributeNV vec2 hitAttribs;
@@ -50,7 +50,7 @@ void main()
 	const VertexAttributes v2Attr = vertexAttributes[attributeArrayIndex + (faceID * 3) + 2];
 	
 	//Material attributes
-	vec4 meshStaticColor = defaultMeshColor[meshID].bgra;
+	vec4 meshStaticColor = meshAttributes[meshID].diffuseColor.bgra;
 	
 	//Calculate attributes at point of intersection
     const vec3 barycentric = vec3(1.0f - hitAttribs.x - hitAttribs.y, hitAttribs.x, hitAttribs.y);

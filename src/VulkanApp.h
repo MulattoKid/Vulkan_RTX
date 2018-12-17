@@ -112,7 +112,10 @@ struct Mesh
 	std::vector<float> vertices;
 	std::vector<float> normals;
 	std::vector<float> uvs;
-	float defaultColor[4];
+	float diffuseColor[3];
+	float specularColor[3];
+	float emissiveColor[3];
+	float roughness;
 	MaterialFile materialFile;
 };
 
@@ -190,7 +193,7 @@ public:
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
 	void LoadMesh(const char* filename, std::vector<Mesh>* meshes);
-	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* attributeData, std::vector<float>* colorData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
+	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* perMeshAttributeData, std::vector<float>* perVertexAttributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
 	

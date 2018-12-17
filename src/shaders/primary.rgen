@@ -5,9 +5,9 @@
 #include "Camera.glsl"
 #include "Defines.glsl"
 
-layout(set = 0, binding = 0) uniform accelerationStructureNV scene;
-layout(set = 0, binding = 1, rgba8) uniform image2D resultImage;
-layout(set = 0, binding = 2, std140) uniform cameraBuffer
+layout(set = 0, binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
+layout(set = 0, binding = RESULT_IMAGE_BINDING_LOCATION, rgba8) uniform image2D resultImage;
+layout(set = 0, binding = CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
 {
 	Camera camera;
 };
