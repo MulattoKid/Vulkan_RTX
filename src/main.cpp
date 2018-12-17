@@ -214,7 +214,7 @@ void RaytraceTriangle()
 	std::vector<VkDescriptorSetLayoutCreateInfo> descriptorSetLayoutInfos(numDescriptorSets);
 	const uint32_t numDescriptorBindingsSet0 = 3;
 	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings0(numDescriptorBindingsSet0);
-	const uint32_t numDescriptorBindingsSet1 = 4;
+	const uint32_t numDescriptorBindingsSet1 = 7;
 	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings1(numDescriptorBindingsSet1);
 	std::vector<VkDescriptorSetLayout> rayTracingPipelineDescriptorSetLayouts(numDescriptorSets);
 	
@@ -270,12 +270,33 @@ void RaytraceTriangle()
 	colorDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 	colorDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& textureDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[3];
-	textureDescriptorSetLayoutBinding.binding = 3;
-	textureDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	textureDescriptorSetLayoutBinding.descriptorCount = meshes.size();
-	textureDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	textureDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& diffuseImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[3];
+	diffuseImageDescriptorSetLayoutBinding.binding = 3;
+	diffuseImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	diffuseImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
+	diffuseImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+	diffuseImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
+	VkDescriptorSetLayoutBinding& specularImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[4];
+	specularImageDescriptorSetLayoutBinding.binding = 4;
+	specularImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	specularImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
+	specularImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+	specularImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
+	VkDescriptorSetLayoutBinding& emissiveImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[5];
+	emissiveImageDescriptorSetLayoutBinding.binding = 5;
+	emissiveImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	emissiveImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
+	emissiveImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+	emissiveImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
+	VkDescriptorSetLayoutBinding& roughnessImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[6];
+	roughnessImageDescriptorSetLayoutBinding.binding = 6;
+	roughnessImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	roughnessImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
+	roughnessImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+	roughnessImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
 	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo1 = descriptorSetLayoutInfos[1];
 	descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -382,12 +403,13 @@ void RaytraceTriangle()
 	vkApp.TransitionImageLayoutSingle(rayTracingImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
 	
 	//Descriptor pool
+	const uint32_t numTexturesPerMesh = 4;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, uint32_t(meshes.size()) }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, uint32_t(meshes.size() * numTexturesPerMesh) }
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -531,25 +553,109 @@ void RaytraceTriangle()
     colorWrite.pBufferInfo = &descriptorColorInfo;
     colorWrite.pTexelBufferView = NULL;
     
-    std::vector<VkDescriptorImageInfo> imageInfos(meshes.size());
-    for (VkDescriptorImageInfo& imageInfo : imageInfos)
+    std::vector<VkDescriptorImageInfo> diffuseImageInfos(meshes.size());
+    std::vector<VkDescriptorImageInfo> specularImageInfos(meshes.size());
+    std::vector<VkDescriptorImageInfo> emissiveImageInfos(meshes.size());
+    std::vector<VkDescriptorImageInfo> roughnessImageInfos(meshes.size());
+    for (size_t i = 0; i < meshes.size(); i++)
     {
-		imageInfo.sampler = defaultSampler;
-		imageInfo.imageView = dummyTexture.imageView;
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    	VkDescriptorImageInfo& diffuseImageInfo = diffuseImageInfos[i];
+    	VkDescriptorImageInfo& specularImageInfo = specularImageInfos[i];
+    	VkDescriptorImageInfo& emissiveImageInfo = emissiveImageInfos[i];
+    	VkDescriptorImageInfo& roughnessImageInfo = roughnessImageInfos[i];
+    	
+		diffuseImageInfo.sampler = defaultSampler;
+		if (meshes[i].materialFile.diffuseTexture == NULL)
+		{
+			diffuseImageInfo.imageView = dummyTexture.imageView;
+		}
+		else
+		{
+			diffuseImageInfo.imageView = meshes[i].materialFile.diffuseTexture->imageView;
+		}
+		diffuseImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		
+		specularImageInfo.sampler = defaultSampler;
+		if (meshes[i].materialFile.specularTexture == NULL)
+		{
+			specularImageInfo.imageView = dummyTexture.imageView;
+		}
+		else
+		{
+			specularImageInfo.imageView = meshes[i].materialFile.specularTexture->imageView;
+		}
+		specularImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		
+		emissiveImageInfo.sampler = defaultSampler;
+		if (meshes[i].materialFile.emissiveTexture == NULL)
+		{
+			emissiveImageInfo.imageView = dummyTexture.imageView;
+		}
+		else
+		{
+			emissiveImageInfo.imageView = meshes[i].materialFile.emissiveTexture->imageView;
+		}
+		emissiveImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		
+		roughnessImageInfo.sampler = defaultSampler;
+		if (meshes[i].materialFile.roughnessTexture == NULL)
+		{
+			roughnessImageInfo.imageView = dummyTexture.imageView;
+		}
+		else
+		{
+			roughnessImageInfo.imageView = meshes[i].materialFile.roughnessTexture->imageView;
+		}
+		roughnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
     
-    VkWriteDescriptorSet& textureWrite = descriptorSet1Writes[3];
-    textureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    textureWrite.pNext = NULL;
-    textureWrite.dstSet = descriptorSet1;
-    textureWrite.dstBinding = 3;
-    textureWrite.dstArrayElement = 0;
-    textureWrite.descriptorCount = imageInfos.size();
-    textureWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    textureWrite.pImageInfo = imageInfos.data();
-    textureWrite.pBufferInfo = NULL;
-    textureWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& diffuseImageWrite = descriptorSet1Writes[3];
+    diffuseImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    diffuseImageWrite.pNext = NULL;
+    diffuseImageWrite.dstSet = descriptorSet1;
+    diffuseImageWrite.dstBinding = 3;
+    diffuseImageWrite.dstArrayElement = 0;
+    diffuseImageWrite.descriptorCount = diffuseImageInfos.size();
+    diffuseImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    diffuseImageWrite.pImageInfo = diffuseImageInfos.data();
+    diffuseImageWrite.pBufferInfo = NULL;
+    diffuseImageWrite.pTexelBufferView = NULL;
+    
+    VkWriteDescriptorSet& specularImageWrite = descriptorSet1Writes[4];
+    specularImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    specularImageWrite.pNext = NULL;
+    specularImageWrite.dstSet = descriptorSet1;
+    specularImageWrite.dstBinding = 4;
+    specularImageWrite.dstArrayElement = 0;
+    specularImageWrite.descriptorCount = specularImageInfos.size();
+    specularImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    specularImageWrite.pImageInfo = specularImageInfos.data();
+    specularImageWrite.pBufferInfo = NULL;
+    specularImageWrite.pTexelBufferView = NULL;
+    
+    VkWriteDescriptorSet& emissiveImageWrite = descriptorSet1Writes[5];
+    emissiveImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    emissiveImageWrite.pNext = NULL;
+    emissiveImageWrite.dstSet = descriptorSet1;
+    emissiveImageWrite.dstBinding = 5;
+    emissiveImageWrite.dstArrayElement = 0;
+    emissiveImageWrite.descriptorCount = emissiveImageInfos.size();
+    emissiveImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    emissiveImageWrite.pImageInfo = emissiveImageInfos.data();
+    emissiveImageWrite.pBufferInfo = NULL;
+    emissiveImageWrite.pTexelBufferView = NULL;
+    
+    VkWriteDescriptorSet& roughnessImageWrite = descriptorSet1Writes[6];
+    roughnessImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    roughnessImageWrite.pNext = NULL;
+    roughnessImageWrite.dstSet = descriptorSet1;
+    roughnessImageWrite.dstBinding = 6;
+    roughnessImageWrite.dstArrayElement = 0;
+    roughnessImageWrite.descriptorCount = roughnessImageInfos.size();
+    roughnessImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    roughnessImageWrite.pImageInfo = roughnessImageInfos.data();
+    roughnessImageWrite.pBufferInfo = NULL;
+    roughnessImageWrite.pTexelBufferView = NULL;
     
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet1Writes.size(), descriptorSet1Writes.data(), 0, NULL);
     
