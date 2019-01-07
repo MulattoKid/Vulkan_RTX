@@ -1,15 +1,18 @@
-#include "shaders/include/Defines.glsl"
+#include "BrhanFile.h"
 #include "glm/gtc/constants.hpp"
 #include "glm/geometric.hpp"
 #include "glm/trigonometric.hpp"
 #include "glm/vec3.hpp"
+#include "shaders/include/Defines.glsl"
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
 #include "VulkanApp.h"
 
-void RaytraceTriangle()
+void RaytraceTriangle(const char* brhanFile)
 {
+	BrhanFile sceneFile(brhanFile);
+
 	std::vector<const char*> validationLayerNames = {
 		"VK_LAYER_LUNARG_standard_validation"
 	};
@@ -19,8 +22,8 @@ void RaytraceTriangle()
 	};
 	VulkanAppCreateInfo vkAppInfo = {};
 	vkAppInfo.graphicsApp = VK_TRUE;
-	vkAppInfo.windowWidth = 1024;
-	vkAppInfo.windowHeight = 1024;
+	vkAppInfo.windowWidth = sceneFile.filmWidth;
+	vkAppInfo.windowHeight = sceneFile.filmHeight;
 	vkAppInfo.windowName = "Vulkan RTX";
 	vkAppInfo.appName = "Vulkan RTX";
 	vkAppInfo.engineName = "VRTX";
@@ -29,7 +32,7 @@ void RaytraceTriangle()
 	vkAppInfo.extensionCount = extensionNames.size();
 	vkAppInfo.extensionNames = extensionNames.data();
 	vkAppInfo.maxFramesInFlight = 2;
-	VulkanApp vkApp(&vkAppInfo);
+	VulkanApp vkApp(&vkAppInfo);	
 	
 	////////////////////////////
 	///////////CAMERA///////////
@@ -750,7 +753,7 @@ void RaytraceTriangle()
 int main(int argc, char** argv)
 {
 	//RasterizeTriangle();
-	RaytraceTriangle();
+	RaytraceTriangle(argv[1]);
 
 	return EXIT_SUCCESS;
 }

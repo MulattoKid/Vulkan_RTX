@@ -20,10 +20,12 @@ debug : CXXFLAGS += -Wall -g -O0
 debug : VulkanRTX
 
 VulkanRTX :
+	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/Logger.cpp -o $(OBJ_DIR)/Logger.o
 	$(CXX) $(CXXFLAGS) -c $(VOLK_DIR)/volk.c -o $(OBJ_DIR)/volk.o
 	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/VulkanApp.cpp -o $(OBJ_DIR)/VulkanApp.o
+	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/BrhanFile.cpp -o $(OBJ_DIR)/BrhanFile.o
 	$(CXX) $(CXXFLAGS) -c $(SRC_DIR)/main.cpp -o $(OBJ_DIR)/main.o
-	$(CXX) -o $(OBJ_DIR)/VulkanRTX $(OBJ_DIR)/main.o $(OBJ_DIR)/VulkanApp.o $(OBJ_DIR)/volk.o $(LDFLAGS)
+	$(CXX) -o $(OBJ_DIR)/VulkanRTX $(OBJ_DIR)/main.o $(OBJ_DIR)/BrhanFile.o $(OBJ_DIR)/VulkanApp.o $(OBJ_DIR)/volk.o $(OBJ_DIR)/Logger.o $(LDFLAGS)
 	./CompileShaders
 
 .PHONY : clean
