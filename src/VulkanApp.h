@@ -6,6 +6,7 @@
 
 #include "volk/volk.h"
 #include "GLFW/glfw3.h"
+#include "BrhanFile.h"
 #include <stdio.h>
 
 #ifdef VK_DEBUG
@@ -92,19 +93,19 @@ struct VulkanTexture
 	~VulkanTexture();
 };
 
-struct MaterialFile
+struct Material
 {
 	float diffuseColor[4];
 	float specularColor[4];
 	float emissiveColor[4];
 	//Other data:
-	// 0 = index of refraction
-	// 1 = roughness
-	float otherData[4];
+	float ior;
+	float roughness;
 	VulkanTexture* diffuseTexture = NULL;
 	VulkanTexture* specularTexture = NULL;
 	VulkanTexture* emissiveTexture = NULL;
 	VulkanTexture* roughnessTexture = NULL;
+	int materialType;
 };
 
 struct Mesh
@@ -112,11 +113,7 @@ struct Mesh
 	std::vector<float> vertices;
 	std::vector<float> normals;
 	std::vector<float> uvs;
-	float diffuseColor[3];
-	float specularColor[3];
-	float emissiveColor[3];
-	float roughness;
-	MaterialFile materialFile;
+	Material material;
 };
 
 struct VulkanApp
@@ -192,7 +189,7 @@ public:
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers);
-	void LoadMesh(const char* filename, std::vector<Mesh>* meshes);
+	void LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes);
 	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* perMeshAttributeData, std::vector<float>* perVertexAttributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);

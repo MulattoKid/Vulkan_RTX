@@ -1,6 +1,7 @@
 #include "BrhanFile.h"
 #include <fstream>
 #include "glm/gtc/constants.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "glm/trigonometric.hpp"
 #include "Logger.h"
 #include <string>
@@ -124,98 +125,98 @@ void BrhanFile::LoadCamera(const std::string& line)
 	cameraVerticalEnd = lensHeight * (-cameraUp);
 }
 
-/*void BrhanFile::AddModel(const std::string& line)
+void BrhanFile::AddModel(const std::string& line)
 {
-	ModelLoad model;
-	static const std::string file_str = "file";
-	bool found_file = false;
-	static const std::string translate_str = "translate";
-	bool found_translate = false;
-	static const std::string rotate_str = "rotate";
-	bool found_rotate = false;
-	static const std::string scale_str = "scale";
-	bool found_scale = false;
+	ModelFromFile model;
+	static const std::string fileStr = "file";
+	bool foundFile = false;
+	static const std::string translateStr = "translate";
+	bool foundTranslate = false;
+	static const std::string rotateStr = "rotate";
+	bool foundRotate = false;
+	static const std::string scaleStr = "scale";
+	bool foundScale = false;
 	
-	static const std::string material_str = "material";
-	bool found_material = false;
-	static const std::string diffuse_str = "diffuse";
-	bool found_diffuse = false;
-	static const std::string specular_str = "specular";
-	bool found_specular = false;
-	static const std::string reflectance_str = "reflectance";
-	bool found_reflectance = false;
-	static const std::string transmittance_str = "transmittance";
-	bool found_transmittance = false;
+	static const std::string materialStr = "material";
+	bool foundMaterial = false;
+	static const std::string diffuseStr = "diffuse";
+	bool foundDiffuse = false;
+	static const std::string specularStr = "specular";
+	bool foundSpecular = false;
+	static const std::string reflectanceStr = "reflectance";
+	bool foundReflectance = false;
+	static const std::string transmittanceStr = "transmittance";
+	bool foundTransmittance = false;
 	
 	unsigned int index = 6; //Eat "Model "
 	while (index < line.length())
 	{
-		if (line.compare(index, file_str.length(), file_str) == 0)
+		if (line.compare(index, fileStr.length(), fileStr) == 0)
 		{
 			index += 5; //Eat "file["
 			unsigned int end = index + 1;
 			while (line[end] != ']') { end++; }
 			model.file = line.substr(index, end - index);
 			index = end + 1;
-			found_file = true;
+			foundFile = true;
 		}
-		else if (line.compare(index, translate_str.length(), translate_str) == 0)
+		else if (line.compare(index, translateStr.length(), translateStr) == 0)
 		{
 			index += 10; //Eat "translate["
-			glm::vec3 translation_vec(0.0f);
+			glm::vec3 translationVec(0.0f);
 			for (int i = 0; i < 3; i++)
 			{
 				unsigned int end = index + 1;
 				while (line[end] != ' ' && line[end] != ']') { end++; }
-				translation_vec[i] = std::stof(line.substr(index, end - index));
+				translationVec[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			model.translation = glm::translate(glm::mat4(1.0f), translation_vec);
-			model.translation_active = true;
-			found_translate = true;
+			model.translation = glm::translate(glm::mat4(1.0f), translationVec);
+			model.translationActive = true;
+			foundTranslate = true;
 		}
-		else if (line.compare(index, rotate_str.length(), rotate_str) == 0)
+		else if (line.compare(index, rotateStr.length(), rotateStr) == 0)
 		{
 			index += 7; //Eat "rotate["
-			glm::vec3 rotation_vec(0.0f);
+			glm::vec3 rotationVec(0.0f);
 			for (int i = 0; i < 3; i++)
 			{
 				unsigned int end = index + 1;
 				while (line[end] != ' ' && line[end] != ']') { end++; }
-				rotation_vec[i] = std::stof(line.substr(index, end - index));
+				rotationVec[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			model.rotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotation_vec.x), glm::vec3(1.0f, 0.0f, 0.0f));
-			model.rotation = glm::rotate(model.rotation, glm::radians(rotation_vec.y), glm::vec3(0.0f, 1.0f, 0.0f));
-			model.rotation = glm::rotate(model.rotation, glm::radians(rotation_vec.z), glm::vec3(0.0f, 0.0f, 1.0f));
-			model.rotation_active = true;
-			found_rotate = true;
+			model.rotation = glm::rotate(glm::mat4(1.0f), glm::radians(rotationVec.x), glm::vec3(1.0f, 0.0f, 0.0f));
+			model.rotation = glm::rotate(model.rotation, glm::radians(rotationVec.y), glm::vec3(0.0f, 1.0f, 0.0f));
+			model.rotation = glm::rotate(model.rotation, glm::radians(rotationVec.z), glm::vec3(0.0f, 0.0f, 1.0f));
+			model.rotationActive = true;
+			foundRotate = true;
 		}
-		else if (line.compare(index, scale_str.length(), scale_str) == 0)
+		else if (line.compare(index, scaleStr.length(), scaleStr) == 0)
 		{
 			index += 6; //Eat "scale["
-			glm::vec3 scaling_vec(0.0f);
+			glm::vec3 scalingVec(0.0f);
 			for (int i = 0; i < 3; i++)
 			{
 				unsigned int end = index + 1;
 				while (line[end] != ' ' && line[end] != ']') { end++; }
-				scaling_vec[i] = std::stof(line.substr(index, end - index));
+				scalingVec[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			model.scaling = glm::scale(glm::mat4(1.0f), scaling_vec);
-			model.scaling_active = true;
-			found_scale = true;
+			model.scaling = glm::scale(glm::mat4(1.0f), scalingVec);
+			model.scalingActive = true;
+			foundScale = true;
 		}
-		else if (line.compare(index, material_str.length(), material_str) == 0)
+		else if (line.compare(index, materialStr.length(), materialStr) == 0)
 		{
 			index += 9; //Eat "material["
 			unsigned int end = index + 1;
 			while (line[end] != ']') { end++; }
 			model.material = line.substr(index, end - index);
-			found_material = true;
-			model.has_custom_material = true;
+			model.hasCustomMaterial = true;
+			foundMaterial = true;
 		}
-		else if (line.compare(index, diffuse_str.length(), diffuse_str) == 0)
+		else if (line.compare(index, diffuseStr.length(), diffuseStr) == 0)
 		{
 			index += 8; //Eat "diffuse["
 			for (int i = 0; i < 3; i++)
@@ -225,9 +226,9 @@ void BrhanFile::LoadCamera(const std::string& line)
 				model.diffuse[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			found_diffuse = true;
+			foundDiffuse = true;
 		}
-		else if (line.compare(index, specular_str.length(), specular_str) == 0)
+		else if (line.compare(index, specularStr.length(), specularStr) == 0)
 		{
 			index += 9; //Eat "specular["
 			for (int i = 0; i < 3; i++)
@@ -237,9 +238,9 @@ void BrhanFile::LoadCamera(const std::string& line)
 				model.specular[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			found_specular = true;
+			foundSpecular = true;
 		}
-		else if (line.compare(index, reflectance_str.length(), reflectance_str) == 0)
+		else if (line.compare(index, reflectanceStr.length(), reflectanceStr) == 0)
 		{
 			index += 12; //Eat "reflectance["
 			for (int i = 0; i < 3; i++)
@@ -249,9 +250,9 @@ void BrhanFile::LoadCamera(const std::string& line)
 				model.reflectance[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			found_reflectance = true;
+			foundReflectance = true;
 		}
-		else if (line.compare(index, transmittance_str.length(), transmittance_str) == 0)
+		else if (line.compare(index, transmittanceStr.length(), transmittanceStr) == 0)
 		{
 			index += 14; //Eat "transmittance["
 			for (int i = 0; i < 3; i++)
@@ -261,55 +262,51 @@ void BrhanFile::LoadCamera(const std::string& line)
 				model.transmittance[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
-			found_transmittance = true;
+			foundTransmittance = true;
 		}
 		
 		index++;
 	}
 	
-	if (!found_file)
+	if (!foundFile)
 	{
 		LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find model file\n");
 	}
-	if (!found_translate)
+	if (!foundTranslate)
 	{
 		model.translation = glm::mat4(1.0f);
 	}
-	if (!found_rotate)
+	if (!foundRotate)
 	{
 		model.rotation = glm::mat4(1.0f);
 	}
-	if (!found_scale)
+	if (!foundScale)
 	{
 		model.scaling = glm::mat4(1.0f);
 	}
-	if (found_material)
-	{
-		if (model.material == "matte" && !found_diffuse)
+	if (foundMaterial)
+	{	
+		if (model.material == "matte" && !foundDiffuse)
 		{
 			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find diffuse spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
 		}
-		if (model.material == "mirror" && !found_specular)
+		if (model.material == "mirror" && !foundSpecular)
 		{
 			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find specular spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
 		}
-		if (model.material == "plastic" && (!found_specular || !found_specular))
+		/*if (model.material == "plastic" && (!foundDiffuse || !foundSpecular))
 		{
 			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find diffuse or specular spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
 		}
-		if ((model.material == "copper" || model.material == "gold" || model.material == "aluminium" || model.material == "salt") && !found_specular)
+		if ((model.material == "copper" || model.material == "gold" || model.material == "aluminium" || model.material == "salt") && !foundSpecular)
 		{
 			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find specular spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
 		}
-		if (model.material == "translucent" && !found_transmittance)
+		if (model.material == "translucent" && !foundTransmittance)
 		{
 			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find transmittance spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
-		}
-		if (model.material == "water" && (!found_reflectance || !found_transmittance))
-		{
-			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find reflectance or transmittance spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
-		}
-		if (model.material == "glass" && (!found_reflectance || !found_transmittance))
+		}*/
+		if ((model.material == "water" || model.material == "glass") && (!foundReflectance || !foundTransmittance))
 		{
 			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find reflectance or transmittance spectrum of model %s on line: '%s'\n", model.file.c_str(), line.c_str());
 		}
@@ -318,7 +315,7 @@ void BrhanFile::LoadCamera(const std::string& line)
 	models.push_back(model);
 }
 
-void BrhanFile::AddSphere(const std::string& line)
+/*void BrhanFile::AddSphere(const std::string& line)
 {
 	SphereLoad sphere;
 	static const std::string center_str = "center";
@@ -498,7 +495,7 @@ BrhanFile::BrhanFile(const char* brhanFile)
   		}
   		else if (line.compare(0, modelStr.length(), modelStr) == 0)
   		{
-  			//AddModel(line);
+  			AddModel(line);
   		}
   		else if (line.compare(0, sphereStr.length(), sphereStr) == 0)
   		{

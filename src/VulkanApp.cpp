@@ -4,9 +4,11 @@
 #include "glm/geometric.hpp"
 #include "glm/vec3.hpp"
 #include <limits>
+#include "Logger.h"
+#include <set>
+#include "shaders/include/Defines.glsl"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
-#include <set>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
@@ -1178,80 +1180,166 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
 	printf("\rFrame time (ms): %.2f", ms);
 }
 
-void VulkanApp::LoadMesh(const char* filename, std::vector<Mesh>* meshes)
+void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> material_ts;
 
 	std::string err;
-	bool success = tinyobj::LoadObj(&attrib, &shapes, &material_ts, &err, filename); 
+	bool success = tinyobj::LoadObj(&attrib, &shapes, &material_ts, &err, model.file.c_str()); 
 	if (!err.empty()) //`err` may contain warning message
 	{
 	  printf("%s\n", err.c_str());
 	}
 	if (!success)
 	{
-		printf("tinyobjloader failed to load %s\n", filename);
+		printf("tinyobjloader failed to load %s\n", model.file.c_str());
 		return;
 	}
 	if (material_ts.empty())
 	{
-		printf("No material detected for model '%s'- using default material (grey)\n", filename);
+		printf("No material detected for model '%s'- using default material (grey)\n", model.file.c_str());
 	}
 	
-	size_t oldMeshesSize = meshes->size();
-	meshes->resize(oldMeshesSize + material_ts.size());
-	
 	//Extract materials
-	for (size_t i = 0; i < material_ts.size(); i++)
+	size_t oldMeshesSize = meshes->size();
+	if (model.hasCustomMaterial)
 	{
-		tinyobj::material_t& mtl = material_ts[i];
-		MaterialFile& mf = meshes->data()[oldMeshesSize + i].materialFile;
-		
-		mf.diffuseColor[0] = mtl.diffuse[0];
-		mf.diffuseColor[1] = mtl.diffuse[1];
-		mf.diffuseColor[2] = mtl.diffuse[2];
-		mf.diffuseColor[3] = 1.0f;
-		mf.specularColor[0] = mtl.specular[0];
-		mf.specularColor[1] = mtl.specular[1];
-		mf.specularColor[2] = mtl.specular[2];
-		mf.specularColor[3] = 1.0f;
-		mf.emissiveColor[0] = mtl.emission[0];
-		mf.emissiveColor[1] = mtl.emission[1];
-		mf.emissiveColor[2] = mtl.emission[2];
-		mf.emissiveColor[3] = 1.0f;
-		mf.otherData[0] = mtl.ior;
-		mf.otherData[1] = mtl.roughness;
-		if (!mtl.diffuse_texname.empty())
+		meshes->resize(oldMeshesSize + 1);
+		Material& m = meshes->data()[oldMeshesSize].material;
+		m.diffuseColor[0] = model.diffuse.x;
+		m.diffuseColor[1] = model.diffuse.y;
+		m.diffuseColor[2] = model.diffuse.z;
+		m.diffuseColor[3] = 1.0f;
+		m.specularColor[0] = model.specular[0];
+		m.specularColor[1] = model.specular[1];
+		m.specularColor[2] = model.specular[2];
+		m.specularColor[3] = 1.0f;
+		m.emissiveColor[0] = 0.0f;
+		m.emissiveColor[1] = 0.0f;
+		m.emissiveColor[2] = 0.0f;
+		m.emissiveColor[3] = 1.0f;
+		if (model.material == "matte")
 		{
-			mf.diffuseTexture = new VulkanTexture();
-			CreateTexture(mtl.diffuse_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, mf.diffuseTexture);
+			m.materialType = MATTE_MATERIAL;
 		}
-		if (!mtl.specular_texname.empty())
+		else if (model.material == "mirror")
 		{
-			mf.specularTexture = new VulkanTexture();
-			CreateTexture(mtl.specular_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, mf.specularTexture);
+			m.materialType = MIRROR_MATERIAL;
 		}
-		if (!mtl.emissive_texname.empty())
+		else if (model.material == "water")
 		{
-			mf.emissiveTexture = new VulkanTexture();
-			CreateTexture(mtl.emissive_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, mf.emissiveTexture);
+			m.materialType = WATER_MATERIAL;
+			m.specularColor[0] = model.reflectance[0];
+			m.specularColor[1] = model.reflectance[1];
+			m.specularColor[2] = model.reflectance[2];
 		}
-		if (!mtl.roughness_texname.empty())
+		else if (model.material == "glass")
 		{
-			mf.roughnessTexture = new VulkanTexture();
-			CreateTexture(mtl.roughness_texname.c_str(), VK_FORMAT_R8_UNORM, mf.roughnessTexture);
+			m.materialType = GLASS_MATERIAL;
+			m.specularColor[0] = model.reflectance[0];
+			m.specularColor[1] = model.reflectance[1];
+			m.specularColor[2] = model.reflectance[2];
+		}
+		else
+		{
+			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Unsupported material\n");
+		}
+	}
+	else
+	{
+		meshes->resize(oldMeshesSize + material_ts.size());
+		for (size_t i = 0; i < material_ts.size(); i++)
+		{
+			tinyobj::material_t& mtl = material_ts[i];
+			Material& m = meshes->data()[oldMeshesSize + i].material;
+			
+			m.diffuseColor[0] = mtl.diffuse[0];
+			m.diffuseColor[1] = mtl.diffuse[1];
+			m.diffuseColor[2] = mtl.diffuse[2];
+			m.diffuseColor[3] = 1.0f;
+			m.specularColor[0] = mtl.specular[0];
+			m.specularColor[1] = mtl.specular[1];
+			m.specularColor[2] = mtl.specular[2];
+			m.specularColor[3] = 1.0f;
+			m.emissiveColor[0] = mtl.emission[0];
+			m.emissiveColor[1] = mtl.emission[1];
+			m.emissiveColor[2] = mtl.emission[2];
+			m.emissiveColor[3] = 1.0f;
+			m.ior = mtl.ior;
+			m.roughness = mtl.roughness;
+			
+			if ((m.diffuseColor[0] > 0.0f && m.diffuseColor[1] > 0.0f && m.diffuseColor[2] > 0.0f) && (m.specularColor[0] == 0.0f && m.specularColor[1] == 0.0f && m.specularColor[2] == 0.0f))
+			{
+				m.materialType = MATTE_MATERIAL;
+			}
+			else if ((m.diffuseColor[0] == 0.0f && m.diffuseColor[1] == 0.0f && m.diffuseColor[2] == 0.0f) && (m.specularColor[0] > 0.0f && m.specularColor[1] > 0.0f && m.specularColor[2] > 0.0f))
+			{
+				m.materialType = MIRROR_MATERIAL;
+			}
+			else if (m.ior >= 1.32f && m.ior <= 1.35f)
+			{
+				m.materialType = WATER_MATERIAL;
+			}
+			else if (m.ior >= 1.5f && m.ior <= 1.6f)
+			{
+				m.materialType = GLASS_MATERIAL;
+			}
+			else
+			{
+				LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Unsupported material\n");
+			}
+			
+			if (!mtl.diffuse_texname.empty())
+			{
+				m.diffuseTexture = new VulkanTexture();
+				CreateTexture(mtl.diffuse_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, m.diffuseTexture);
+			}
+			if (!mtl.specular_texname.empty())
+			{
+				m.specularTexture = new VulkanTexture();
+				CreateTexture(mtl.specular_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, m.specularTexture);
+			}
+			if (!mtl.emissive_texname.empty())
+			{
+				m.emissiveTexture = new VulkanTexture();
+				CreateTexture(mtl.emissive_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, m.emissiveTexture);
+			}
+			if (!mtl.roughness_texname.empty())
+			{
+				m.roughnessTexture = new VulkanTexture();
+				CreateTexture(mtl.roughness_texname.c_str(), VK_FORMAT_R8_UNORM, m.roughnessTexture);
+			}
 		}
 	}
 	
 	bool hasNormals = attrib.normals.size() > 0 ? true : false;
 	bool hasUVs = attrib.texcoords.size() > 0 ? true : false;
 	
+	// Pre-calculate model matrix
+	glm::mat4 modelMatrix(1.0f);
+	bool modelMatrixActive = false;
+	if (model.scalingActive)
+	{
+		modelMatrix = model.scaling * modelMatrix;
+		modelMatrixActive = true;
+	}
+	if (model.rotationActive)
+	{
+		modelMatrix = model.rotation * modelMatrix;
+		modelMatrixActive = true;
+	}
+	if (model.translationActive)
+	{
+		modelMatrix = model.translation * modelMatrix;
+		modelMatrixActive = true;
+	}
+	
 	// Loop over shapes
-	float vertex[3];
-	float normal[3];
-	float uv[2];
+	glm::vec3 vertex;
+	glm::vec3 normal;
+	glm::vec2 uv;
 	for (size_t s = 0; s < shapes.size(); s++)
 	{
 		// Loop over faces(polygon)
@@ -1262,58 +1350,53 @@ void VulkanApp::LoadMesh(const char* filename, std::vector<Mesh>* meshes)
 			int materialIdx = shapes[s].mesh.material_ids[f];
 			Mesh& mesh = meshes->data()[oldMeshesSize + materialIdx];
 			
-			mesh.diffuseColor[0] = material_ts[materialIdx].diffuse[0];
-			mesh.diffuseColor[1] = material_ts[materialIdx].diffuse[1];
-			mesh.diffuseColor[2] = material_ts[materialIdx].diffuse[2];
-			mesh.specularColor[0] = material_ts[materialIdx].specular[0];
-			mesh.specularColor[1] = material_ts[materialIdx].specular[1];
-			mesh.specularColor[2] = material_ts[materialIdx].specular[2];
-			mesh.emissiveColor[0] = material_ts[materialIdx].emission[0];
-			mesh.emissiveColor[1] = material_ts[materialIdx].emission[1];
-			mesh.emissiveColor[2] = material_ts[materialIdx].emission[2];
-			mesh.roughness = material_ts[materialIdx].roughness;
-			
 			// Loop over vertices in the face.
 			int fv = shapes[s].mesh.num_face_vertices[f];
 			for (int v = 0; v < fv; v++)
 			{
-			  	// access to vertex
+			  	// Access to vertex
 			  	tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
 				
-			  	vertex[0] = attrib.vertices[3*idx.vertex_index+0];
-			 	vertex[1] = attrib.vertices[3*idx.vertex_index+1];
-			  	vertex[2] = attrib.vertices[3*idx.vertex_index+2];
+			  	vertex.x = attrib.vertices[3*idx.vertex_index+0];
+			 	vertex.y = attrib.vertices[3*idx.vertex_index+1];
+			  	vertex.z = attrib.vertices[3*idx.vertex_index+2];
 			  	
 			  	if (hasNormals)
 			  	{
-			  		normal[0] = attrib.normals[3*idx.normal_index+0];
-				  	normal[1] = attrib.normals[3*idx.normal_index+1];
-				  	normal[2] = attrib.normals[3*idx.normal_index+2];
+			  		normal.x = attrib.normals[3*idx.normal_index+0];
+				  	normal.y = attrib.normals[3*idx.normal_index+1];
+				  	normal.z = attrib.normals[3*idx.normal_index+2];
 			  	}
 			  	
 			  	if (hasUVs)
 			  	{
-			  		uv[0] = attrib.texcoords[2*idx.texcoord_index+0];
-			  		uv[1] = attrib.texcoords[2*idx.texcoord_index+1];
+			  		uv.x = attrib.texcoords[2*idx.texcoord_index+0];
+			  		uv.y = attrib.texcoords[2*idx.texcoord_index+1];
 			  	}
 			  	else
 			  	{
-			  		uv[0] = 0.0f;
-			  		uv[1] = 0.0f;
+			  		uv.x = -1.0f;
+			  		uv.y = -1.0f;
 			  	}
 			  	// Optional: vertex colors
 			  	// tinyobj::real_t red = attrib.colors[3*idx.vertex_index+0];
 			  	// tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
 			  	// tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
 			  	
-			  	mesh.vertices.push_back(vertex[0]);
-			  	mesh.vertices.push_back(vertex[1]);
-			  	mesh.vertices.push_back(vertex[2]);
-			  	mesh.normals.push_back(normal[0]);
-			  	mesh.normals.push_back(normal[1]);
-			  	mesh.normals.push_back(normal[2]);
-			  	mesh.uvs.push_back(uv[0]);
-			  	mesh.uvs.push_back(uv[1]);
+			  	if (modelMatrixActive)
+			  	{
+			  		vertex = glm::vec3(modelMatrix * glm::vec4(vertex, 1.0f));
+			  		normal = glm::vec3(modelMatrix * glm::vec4(normal, 1.0f));
+			  	}
+			  	
+			  	mesh.vertices.push_back(vertex.x);
+			  	mesh.vertices.push_back(vertex.y);
+			  	mesh.vertices.push_back(vertex.z);
+			  	mesh.normals.push_back(normal.x);
+			  	mesh.normals.push_back(normal.y);
+			  	mesh.normals.push_back(normal.z);
+			  	mesh.uvs.push_back(uv.x);
+			  	mesh.uvs.push_back(uv.y);
 			}
 			index_offset += fv;
 			
@@ -1365,21 +1448,21 @@ void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std:
 			currentAttributeIndex++;
 		}
 		
-		perMeshAttributeData->push_back(mesh.diffuseColor[0]);
-		perMeshAttributeData->push_back(mesh.diffuseColor[1]);
-		perMeshAttributeData->push_back(mesh.diffuseColor[2]);
+		perMeshAttributeData->push_back(mesh.material.diffuseColor[0]);
+		perMeshAttributeData->push_back(mesh.material.diffuseColor[1]);
+		perMeshAttributeData->push_back(mesh.material.diffuseColor[2]);
 		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(mesh.specularColor[0]);
-		perMeshAttributeData->push_back(mesh.specularColor[1]);
-		perMeshAttributeData->push_back(mesh.specularColor[2]);
+		perMeshAttributeData->push_back(mesh.material.specularColor[0]);
+		perMeshAttributeData->push_back(mesh.material.specularColor[1]);
+		perMeshAttributeData->push_back(mesh.material.specularColor[2]);
 		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(mesh.emissiveColor[0]);
-		perMeshAttributeData->push_back(mesh.emissiveColor[1]);
-		perMeshAttributeData->push_back(mesh.emissiveColor[2]);
+		perMeshAttributeData->push_back(mesh.material.emissiveColor[0]);
+		perMeshAttributeData->push_back(mesh.material.emissiveColor[1]);
+		perMeshAttributeData->push_back(mesh.material.emissiveColor[2]);
 		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(mesh.roughness);
-		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
+		perMeshAttributeData->push_back(float(mesh.material.materialType));
+		perMeshAttributeData->push_back(mesh.material.ior);
+		perMeshAttributeData->push_back(mesh.material.roughness);
 		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
 	}
 }

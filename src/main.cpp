@@ -37,34 +37,11 @@ void RaytraceTriangle(const char* brhanFile)
 	////////////////////////////
 	///////////CAMERA///////////
 	////////////////////////////
-	glm::vec3 cameraOrigin(0.0f, -0.5f, 6.0f);
-	glm::vec3 cameraDir = glm::normalize(glm::vec3(0.0f, 0.05f, -1.0f));
-	float cameraVerticalFOV = 19.0f;
-	float cameraAspectRatio = vkApp.vkSurfaceExtent.width / float(vkApp.vkSurfaceExtent.height);
-	float theta = (cameraVerticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
-	float lensHeight = glm::tan(theta);
-	float lensWidth = lensHeight * cameraAspectRatio;
-	float lensHalfWidth = lensWidth / 2.0f;
-	float lensHalfHeight = lensHeight / 2.0f;
-	//Calculate the three vectors that define the camera	
-	glm::vec3 baseUp(0.0f, 1.0f, 0.0f);
-	glm::vec3 cameraRight = glm::normalize(glm::cross(cameraDir, baseUp));
-	glm::vec3 cameraUp = glm::normalize(glm::cross(cameraRight, cameraDir));
-	//Calculate top_left_corner
-	//1) Start at camera's position
-	//2) Go lens_half_width along the camera's left (-right) axis
-	//3) Go lens_half_height along the camera's up axis
-	//4) Go 1 unit along the camera's view_direction axis
-	glm::vec3 cameraTopLeftCorner = cameraOrigin + (lensHalfWidth * (-cameraRight)) + (lensHalfHeight * cameraUp) + cameraDir;
-	//Go width of lense along the camera's right axis
-	glm::vec3 cameraHorizontalEnd = lensWidth * cameraRight;
-	//Go height of lense along the camera's down (-up) axis
-	glm::vec3 cameraVerticalEnd = lensHeight * (-cameraUp);
 	std::vector<float> cameraData = {
-		cameraOrigin.x, cameraOrigin.y, cameraOrigin.z, 0.0f,
-		cameraTopLeftCorner.x, cameraTopLeftCorner.y, cameraTopLeftCorner.z, 0.0f,
-		cameraHorizontalEnd.x, cameraHorizontalEnd.y, cameraHorizontalEnd.z, 0.0f,
-		cameraVerticalEnd.x, cameraVerticalEnd.y, cameraVerticalEnd.z, 0.0f
+		sceneFile.cameraOrigin.x, sceneFile.cameraOrigin.y, sceneFile.cameraOrigin.z, 0.0f,
+		sceneFile.cameraTopLeftCorner.x, sceneFile.cameraTopLeftCorner.y, sceneFile.cameraTopLeftCorner.z, 0.0f,
+		sceneFile.cameraHorizontalEnd.x, sceneFile.cameraHorizontalEnd.y, sceneFile.cameraHorizontalEnd.z, 0.0f,
+		sceneFile.cameraVerticalEnd.x, sceneFile.cameraVerticalEnd.y, sceneFile.cameraVerticalEnd.z, 0.0f
 	};
 	VkDeviceSize cameraBufferSize = cameraData.size() * sizeof(float);
 	VkBuffer cameraBuffer;
@@ -72,19 +49,13 @@ void RaytraceTriangle(const char* brhanFile)
 	vkApp.CreateDeviceBuffer(cameraBufferSize, (void*)(cameraData.data()), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &cameraBuffer, &cameraBufferMemory);
 	
 	////////////////////////////
-	//////////TEXTURE///////////
-	////////////////////////////
-	VkSampler defaultSampler;
-	vkApp.CreateDefaultSampler(&defaultSampler);
-	VulkanTexture dummyTexture;
-	vkApp.CreateDummyImage(&dummyTexture.image, &dummyTexture.imageMemory, &dummyTexture.imageView);
-	
-	////////////////////////////
 	//////////GEOMETRY//////////
 	////////////////////////////
 	std::vector<Mesh> meshes;
-	vkApp.LoadMesh("data/test_scene/floor.obj", &meshes);
-	vkApp.LoadMesh("data/test_scene/pyramid.obj", &meshes);
+	for (const ModelFromFile& mff : sceneFile.models)
+	{
+		vkApp.LoadMesh(mff, &meshes);
+	}
 	std::vector<std::vector<float>> geometryData;
 	for (Mesh& mesh : meshes)
 	{
@@ -110,6 +81,14 @@ void RaytraceTriangle(const char* brhanFile)
 	VkBuffer customIDToAttributeArrayIndexBuffer;
 	VkDeviceMemory customIDToAttributeArrayIndexBufferMemory;
 	vkApp.CreateDeviceBuffer(customIDToAttributeArrayIndexBufferSize, (void*)(customIDToAttributeArrayIndex.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &customIDToAttributeArrayIndexBuffer, &customIDToAttributeArrayIndexBufferMemory);
+	
+	////////////////////////////
+	//////////TEXTURE///////////
+	////////////////////////////
+	VkSampler defaultSampler;
+	vkApp.CreateDefaultSampler(&defaultSampler);
+	VulkanTexture dummyTexture;
+	vkApp.CreateDummyImage(&dummyTexture.image, &dummyTexture.imageMemory, &dummyTexture.imageView);
 	
 	////////////////////////////
 	///ACCELERATION STRUCTURE///
@@ -279,20 +258,6 @@ void RaytraceTriangle(const char* brhanFile)
 	specularImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
 	specularImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 	specularImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutBinding& emissiveImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[EMISSIVE_TEXTURES_BINDING_LOCATION];
-	emissiveImageDescriptorSetLayoutBinding.binding = EMISSIVE_TEXTURES_BINDING_LOCATION;
-	emissiveImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	emissiveImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
-	emissiveImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	emissiveImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutBinding& roughnessImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings1[ROUGHNESS_TEXTURES_BINDING_LOCATION];
-	roughnessImageDescriptorSetLayoutBinding.binding = ROUGHNESS_TEXTURES_BINDING_LOCATION;
-	roughnessImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	roughnessImageDescriptorSetLayoutBinding.descriptorCount = meshes.size();
-	roughnessImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	roughnessImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
 	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo1 = descriptorSetLayoutInfos[1];
 	descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -557,52 +522,28 @@ void RaytraceTriangle(const char* brhanFile)
     {
     	VkDescriptorImageInfo& diffuseImageInfo = diffuseImageInfos[i];
     	VkDescriptorImageInfo& specularImageInfo = specularImageInfos[i];
-    	VkDescriptorImageInfo& emissiveImageInfo = emissiveImageInfos[i];
-    	VkDescriptorImageInfo& roughnessImageInfo = roughnessImageInfos[i];
     	
 		diffuseImageInfo.sampler = defaultSampler;
-		if (meshes[i].materialFile.diffuseTexture == NULL)
+		if (meshes[i].material.diffuseTexture == NULL)
 		{
 			diffuseImageInfo.imageView = dummyTexture.imageView;
 		}
 		else
 		{
-			diffuseImageInfo.imageView = meshes[i].materialFile.diffuseTexture->imageView;
+			diffuseImageInfo.imageView = meshes[i].material.diffuseTexture->imageView;
 		}
 		diffuseImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		
 		specularImageInfo.sampler = defaultSampler;
-		if (meshes[i].materialFile.specularTexture == NULL)
+		if (meshes[i].material.specularTexture == NULL)
 		{
 			specularImageInfo.imageView = dummyTexture.imageView;
 		}
 		else
 		{
-			specularImageInfo.imageView = meshes[i].materialFile.specularTexture->imageView;
+			specularImageInfo.imageView = meshes[i].material.specularTexture->imageView;
 		}
 		specularImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		
-		emissiveImageInfo.sampler = defaultSampler;
-		if (meshes[i].materialFile.emissiveTexture == NULL)
-		{
-			emissiveImageInfo.imageView = dummyTexture.imageView;
-		}
-		else
-		{
-			emissiveImageInfo.imageView = meshes[i].materialFile.emissiveTexture->imageView;
-		}
-		emissiveImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		
-		roughnessImageInfo.sampler = defaultSampler;
-		if (meshes[i].materialFile.roughnessTexture == NULL)
-		{
-			roughnessImageInfo.imageView = dummyTexture.imageView;
-		}
-		else
-		{
-			roughnessImageInfo.imageView = meshes[i].materialFile.roughnessTexture->imageView;
-		}
-		roughnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
     
     VkWriteDescriptorSet& diffuseImageWrite = descriptorSet1Writes[DIFFUSE_TEXTURES_BINDING_LOCATION];
@@ -628,30 +569,6 @@ void RaytraceTriangle(const char* brhanFile)
     specularImageWrite.pImageInfo = specularImageInfos.data();
     specularImageWrite.pBufferInfo = NULL;
     specularImageWrite.pTexelBufferView = NULL;
-    
-    VkWriteDescriptorSet& emissiveImageWrite = descriptorSet1Writes[EMISSIVE_TEXTURES_BINDING_LOCATION];
-    emissiveImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    emissiveImageWrite.pNext = NULL;
-    emissiveImageWrite.dstSet = descriptorSet1;
-    emissiveImageWrite.dstBinding = EMISSIVE_TEXTURES_BINDING_LOCATION;
-    emissiveImageWrite.dstArrayElement = 0;
-    emissiveImageWrite.descriptorCount = emissiveImageInfos.size();
-    emissiveImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    emissiveImageWrite.pImageInfo = emissiveImageInfos.data();
-    emissiveImageWrite.pBufferInfo = NULL;
-    emissiveImageWrite.pTexelBufferView = NULL;
-    
-    VkWriteDescriptorSet& roughnessImageWrite = descriptorSet1Writes[ROUGHNESS_TEXTURES_BINDING_LOCATION];
-    roughnessImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    roughnessImageWrite.pNext = NULL;
-    roughnessImageWrite.dstSet = descriptorSet1;
-    roughnessImageWrite.dstBinding = ROUGHNESS_TEXTURES_BINDING_LOCATION;
-    roughnessImageWrite.dstArrayElement = 0;
-    roughnessImageWrite.descriptorCount = roughnessImageInfos.size();
-    roughnessImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    roughnessImageWrite.pImageInfo = roughnessImageInfos.data();
-    roughnessImageWrite.pBufferInfo = NULL;
-    roughnessImageWrite.pTexelBufferView = NULL;
     
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet1Writes.size(), descriptorSet1Writes.data(), 0, NULL);
     

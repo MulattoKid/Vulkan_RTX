@@ -1,0 +1,7 @@
+#Camera position[0.0 1.0 6.58] view_direction[0.0 0.0 -1.0] vertical_fov[19.5] width[1024] height[1024]
+Camera position[0.0f -0.5 6.0] view_direction[0.0 0.05 -1.0] vertical_fov[19] width[1024] height[1024]
+
+Integrator type[path] spp[512] max_depth[4]
+
+Model file[data/test_scene/floor.obj]
+Model file[data/test_scene/pyramid.obj] material[glass] reflectance[1 1 1] transmittance[1 1 1]

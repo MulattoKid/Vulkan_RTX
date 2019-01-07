@@ -10,18 +10,18 @@ struct ModelFromFile
 {
 	std::string file;
 	glm::mat4 translation;
-	bool translation_active = false;
+	bool translationActive = false;
 	glm::mat4 rotation;
-	bool rotation_active = false;
+	bool rotationActive = false;
 	glm::mat4 scaling;
-	bool scaling_active = false;
+	bool scalingActive = false;
 	
 	std::string material = "";
 	glm::vec3 diffuse;
 	glm::vec3 specular;
 	glm::vec3 reflectance;
 	glm::vec3 transmittance;
-	bool has_custom_material = false;
+	bool hasCustomMaterial = false;
 };
 
 struct SphereFromFile
@@ -50,7 +50,7 @@ struct BrhanFile
 	BrhanFile(const char* brhanFile);
 	void LoadCamera(const std::string& line);
 	void AddModel(const std::string& line);
-	void AddSphere(const std::string& line);
+	//void AddSphere(const std::string& line);
 };
 
 #endif

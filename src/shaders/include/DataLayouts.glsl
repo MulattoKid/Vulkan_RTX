@@ -7,6 +7,10 @@ struct PrimaryRayPayload
 {
 	vec4 normalAndHitDistance;
 	vec4 materialColor;
+	// .x = ior
+	// .y = roughness
+	vec4 otherData;
+	ivec4 otherData2;
 };
 
 struct ShadowRayPayload
@@ -27,7 +31,10 @@ struct MeshAttributes
 	vec4 diffuseColor;
 	vec4 specularColor;
 	vec4 emissiveColor;
-	vec4 roughness;
+	// .x = material type
+	// .y = ior
+	// .z = roughness
+	vec4 otherData;
 };
 
 struct VertexAttributes
