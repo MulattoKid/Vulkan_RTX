@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <chrono>
 #include <fstream>
 #include "glm/geometric.hpp"
 #include "glm/vec3.hpp"
@@ -17,7 +16,7 @@
 #include <vector>
 #include "VulkanApp.h"
 
-std::chrono::high_resolution_clock::time_point GetTime()
+std::chrono::high_resolution_clock::time_point VulkanApp::GetTime()
 {
 	return std::chrono::high_resolution_clock::now();
 }
@@ -759,6 +758,17 @@ void VulkanApp::CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBuff
 	vkDestroyBuffer(vkDevice, stagingBuffer, NULL);
 }
 
+void VulkanApp::UpdateHostVisibleBuffer(VkDeviceSize bufferSize, void* updateData, VkDeviceMemory bufferMemory)
+{
+	void* data;
+	CHECK_VK_RESULT(vkMapMemory(vkDevice, bufferMemory, 0, bufferSize, 0, &data))
+	if (updateData != NULL)
+	{
+		memcpy(data, updateData, bufferSize);
+	}
+	vkUnmapMemory(vkDevice, bufferMemory);
+}
+
 void VulkanApp::TransitionImageLayoutSingle(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask)
 {
 	VkCommandBuffer commandBuffer;
@@ -1194,12 +1204,12 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 	}
 	if (!success)
 	{
-		printf("tinyobjloader failed to load %s\n", model.file.c_str());
+		LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "tinyobjloader failed to load %s\n", model.file.c_str());
 		return;
 	}
-	if (material_ts.empty())
+	if (material_ts.empty() && !model.hasCustomMaterial)
 	{
-		printf("No material detected for model '%s'- using default material (grey)\n", model.file.c_str());
+		LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "No material detected for model '%s'\n", model.file.c_str());
 	}
 	
 	//Extract materials
@@ -1216,6 +1226,7 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 		m.specularColor[1] = model.specular[1];
 		m.specularColor[2] = model.specular[2];
 		m.specularColor[3] = 1.0f;
+		// Emission property isn't supported by .brhan files yet
 		m.emissiveColor[0] = 0.0f;
 		m.emissiveColor[1] = 0.0f;
 		m.emissiveColor[2] = 0.0f;
@@ -1347,7 +1358,11 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
 		{
 			// Per-face material
-			int materialIdx = shapes[s].mesh.material_ids[f];
+			int materialIdx = 0; // Assuming model has custom material
+			if (!model.hasCustomMaterial)
+			{
+				materialIdx = shapes[s].mesh.material_ids[f];
+			}
 			Mesh& mesh = meshes->data()[oldMeshesSize + materialIdx];
 			
 			// Loop over vertices in the face.
@@ -1386,7 +1401,10 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 			  	if (modelMatrixActive)
 			  	{
 			  		vertex = glm::vec3(modelMatrix * glm::vec4(vertex, 1.0f));
-			  		normal = glm::vec3(modelMatrix * glm::vec4(normal, 1.0f));
+			  		if (model.rotationActive)
+			  		{
+			  			normal = glm::normalize(glm::vec3(model.rotation * glm::vec4(normal, 1.0f)));
+			  		}
 			  	}
 			  	
 			  	mesh.vertices.push_back(vertex.x);
@@ -1403,23 +1421,23 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 			//Generate normals (all are the same)
 			if (!hasNormals)
 			{
-				glm::vec3 v0(mesh.vertices[mesh.vertices.size() - 9], mesh.vertices[mesh.vertices.size() - 8], mesh.vertices[mesh.vertices.size() - 7]);
-				glm::vec3 v1(mesh.vertices[mesh.vertices.size() - 6], mesh.vertices[mesh.vertices.size() - 5], mesh.vertices[mesh.vertices.size() - 4]);
+				glm::vec3 v1(mesh.vertices[mesh.vertices.size() - 9], mesh.vertices[mesh.vertices.size() - 8], mesh.vertices[mesh.vertices.size() - 7]);
+				glm::vec3 v0(mesh.vertices[mesh.vertices.size() - 6], mesh.vertices[mesh.vertices.size() - 5], mesh.vertices[mesh.vertices.size() - 4]);
 				glm::vec3 v2(mesh.vertices[mesh.vertices.size() - 3], mesh.vertices[mesh.vertices.size() - 2], mesh.vertices[mesh.vertices.size() - 1]);
 				
 				glm::vec3 v0v1 = v1 - v0;
 				glm::vec3 v0v2 = v2 - v0;
 				glm::vec3 normal = glm::normalize(glm::cross(v0v1, v0v2));
 				
-				mesh.normals[mesh.normals.size() - 9] = normal[0];
-				mesh.normals[mesh.normals.size() - 8] = normal[1];
-				mesh.normals[mesh.normals.size() - 7] = normal[2];
-				mesh.normals[mesh.normals.size() - 6] = normal[0];
-				mesh.normals[mesh.normals.size() - 5] = normal[1];
-				mesh.normals[mesh.normals.size() - 4] = normal[2];
-				mesh.normals[mesh.normals.size() - 3] = normal[0];
-				mesh.normals[mesh.normals.size() - 2] = normal[1];
-				mesh.normals[mesh.normals.size() - 1] = normal[2];
+				mesh.normals[mesh.normals.size() - 9] = normal.x;
+				mesh.normals[mesh.normals.size() - 8] = normal.y;
+				mesh.normals[mesh.normals.size() - 7] = normal.z;
+				mesh.normals[mesh.normals.size() - 6] = normal.x;
+				mesh.normals[mesh.normals.size() - 5] = normal.y;
+				mesh.normals[mesh.normals.size() - 4] = normal.z;
+				mesh.normals[mesh.normals.size() - 3] = normal.x;
+				mesh.normals[mesh.normals.size() - 2] = normal.y;
+				mesh.normals[mesh.normals.size() - 1] = normal.z;
 			}
 	  	}
 	}

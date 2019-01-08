@@ -6,6 +6,7 @@
 
 #include "volk/volk.h"
 #include "GLFW/glfw3.h"
+#include <chrono>
 #include "BrhanFile.h"
 #include <stdio.h>
 
@@ -168,6 +169,7 @@ struct VulkanApp
 public:
 	VulkanApp(const VulkanAppCreateInfo* createInfo);
 	~VulkanApp();
+	std::chrono::high_resolution_clock::time_point GetTime();
 	void CreateShaderModule(const char* spirvFile, VkShaderModule* shaderModule);
 	void AllocateGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
 	void FreeGraphicsQueueCommandBuffer(VkCommandBuffer* commandBuffer);
@@ -176,6 +178,7 @@ public:
 	void CopyBufferToBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize copySize);
 	void CreateHostVisibleBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void CreateDeviceBuffer(uint32_t bufferSize, void* bufferData, VkBufferUsageFlags bufferUsageFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	void UpdateHostVisibleBuffer(VkDeviceSize bufferSize, void* updateData, VkDeviceMemory bufferMemory);
 	void TransitionImageLayoutSingle(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask);
 	void TransitionImageLayoutInProgress(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask, VkCommandBuffer commandBuffer);
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t imageWidth, uint32_t imageHeight);
