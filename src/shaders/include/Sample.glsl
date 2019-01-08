@@ -5,7 +5,7 @@
 
 float Rand(vec2 co, float rnd)
 {
-    return fract(sin(dot(co, vec2(12.9898,78.233)) * rnd) * 43758.5453);
+    return fract(sin(dot(co, vec2(12.9898f, 78.233f)) * rnd) * 43758.5453f);
 }
 
 vec2 Rand2D(vec2 co, vec2 rnd)
@@ -18,8 +18,8 @@ vec2 Rand2D(vec2 co, vec2 rnd)
 mat3 RotationToAlignAToB(vec3 a, vec3 b)
 {
 	vec3 v = cross(a, b);
-	//mat3 m = mat3(vec3(0.0f, v.z, -v.y), vec3(-v.z, 0.0f, v.x), vec3(v.y, -v.x, 0.0f));
-	mat3 m = mat3(vec3(0.0f, -v.z, v.y), vec3(v.z, 0.0f, -v.x), vec3(-v.y, v.x, 0.0f));
+	//mat3 m = mat3(vec3(0.0f, v[2], -v[1]), vec3(-v[2], 0.0f, v[0]), vec3(v[1], -v[0], 0.0f));
+	mat3 m = mat3(vec3(0.0f, -v[2], v[1]), vec3(v[2], 0.0f, -v[0]), vec3(-v[1], v[0], 0.0f));
 	float s = length(v);
 	float c = dot(a, b);
 	mat3 rotation = mat3(1.0f) + m + ((m * m) * ((1.0f - c) / (s * s)));

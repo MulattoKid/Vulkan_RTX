@@ -1421,8 +1421,8 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 			//Generate normals (all are the same)
 			if (!hasNormals)
 			{
-				glm::vec3 v1(mesh.vertices[mesh.vertices.size() - 9], mesh.vertices[mesh.vertices.size() - 8], mesh.vertices[mesh.vertices.size() - 7]);
-				glm::vec3 v0(mesh.vertices[mesh.vertices.size() - 6], mesh.vertices[mesh.vertices.size() - 5], mesh.vertices[mesh.vertices.size() - 4]);
+				glm::vec3 v0(mesh.vertices[mesh.vertices.size() - 9], mesh.vertices[mesh.vertices.size() - 8], mesh.vertices[mesh.vertices.size() - 7]);
+				glm::vec3 v1(mesh.vertices[mesh.vertices.size() - 6], mesh.vertices[mesh.vertices.size() - 5], mesh.vertices[mesh.vertices.size() - 4]);
 				glm::vec3 v2(mesh.vertices[mesh.vertices.size() - 3], mesh.vertices[mesh.vertices.size() - 2], mesh.vertices[mesh.vertices.size() - 1]);
 				
 				glm::vec3 v0v1 = v1 - v0;

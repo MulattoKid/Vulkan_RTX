@@ -5,6 +5,7 @@
 #include "Camera.glsl"
 #include "Defines.glsl"
 #include "Sample.glsl"
+#include "Sphere.glsl"
 
 layout(set = 0, binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RESULT_IMAGE_BINDING_LOCATION, rgba8) uniform image2D resultImage;
@@ -25,14 +26,14 @@ void main()
 	const uint rayFlags = gl_RayFlagsNoneNV;
     const uint cullMask = 0xFF;
     const uint sbtRecordStride = 0;
-    const float tmin = 0.0f;
-    const float tmax = 1000.0f;
+    const float tMin = 0.0f;
+    const float tMax = 1000.0f;
 	
-	//Trace primary ray
+	// Trace primary ray
 	Ray ray = GenerateRayFromCamera(camera);
-    traceNV(scene, rayFlags, cullMask, PRIMARY_CHIT_IDX, sbtRecordStride, PRIMARY_MISS_IDX, ray.origin, tmin, ray.dir, tmax, PRIMARY_PAYLOAD_LOCATION);
+    traceNV(scene, rayFlags, cullMask, PRIMARY_CHIT_IDX, sbtRecordStride, PRIMARY_MISS_IDX, ray.origin, tMin, ray.dir, tMax, PRIMARY_PAYLOAD_LOCATION);
     
-    //Early exit
+    // Early exit
 	if (primaryPayload.normalAndHitDistance.w < 0.0f)
 	{
 		//Background color: blue sky-ish
@@ -42,21 +43,26 @@ void main()
 		imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.8f, green, red, 1.0f));
 		return;
 	}
-
-	//Basic lighting data
-	vec3 lightPos = vec3(0.0f, 5.0f, 0.0f);
-	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
 	
-	//Intersection data
+	// Intersection data
 	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
+	
+	
+	
+	
+	
+	// Basic lighting data
+	/*vec3 lightPos = vec3(0.0f, 50.0f, 0.0f);
+	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
+	// Intersection-Light data
 	vec3 isectPointToLight = lightPos - isectPoint;
 	vec3 isectPointToLightDir = normalize(isectPointToLight);
 	float isectPointToLightDist = length(isectPointToLight);
 	
 	// Trace shadow rays
 	Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
-	traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tmin, shadowRay.dir, tmax, SECONDARY_PAYLOAD_LOCATION);
+	traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
     
     // Check for geometry between intersection point and light
     if (secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
@@ -65,26 +71,63 @@ void main()
     	return;
     }
     
-	//Calculate light
+	// Calculate light
 	float contribution = dot(isectNormal, isectPointToLightDir);
 	vec3 contributionColor = lightColor * contribution;
-	vec3 color = primaryPayload.materialColor.rgb * contributionColor;
+	vec3 color = primaryPayload.materialColor.rgb * contributionColor;*/
 	
-	/*int numHits = 0;
-	for (int i = 0; i < 100; i++)
+	
+	
+	
+	
+	
+	// Advanced light data
+	vec3 lightCenter = vec3(0.0f, 50.0f, 0.0f);
+	float lightRadius = 5.0f;
+	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
+	
+	const int numShadowRays = 100;
+	int numOccludedOrMiss = 0;
+	for (int i = 0; i < numShadowRays; i++)
 	{
-		vec3 shadowRayDir = SampleNormalHemisphere(isectNormal, Rand2D(gl_LaunchIDNV.xy, random * i));
+		// Sample shadow ray direction and trace
+		vec3 shadowRayDir = SampleNormalHemisphere(isectNormal, random);
+		//shadowRayDir = normalize(lightCenter - isectPoint);
+		//shadowRayDir = vec3(0.0f, 1.0f, 0.0f);
 		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), shadowRayDir);
-		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tmin, shadowRay.dir, tmax, SECONDARY_PAYLOAD_LOCATION);
+		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
 		
-		// Check for geometry between intersection point and light
-		if (secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
+		//imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(shadowRayDir, 1.0f));
+		//return;
+		
+		// Intersect spherical light
+		float lightDist = SphereIntersect(lightCenter, lightRadius, shadowRay.origin, shadowRay.dir, tMin, tMax);
+		/*if (lightDist < 0.0f)
 		{
-			numHits++;
+			imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			return;
+		}
+		else
+		{
+			imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f, 1.0f, 1.0f, 1.0f));
+			return;
+		}*/
+		
+		// Check for intersection with geometry before an intersection with the light
+		// 1) The shadow ray hit some geometry
+		// 2) The shadow ray also intersects the light
+		// 3) The geometry intersection is closer than the light intersection
+		if ((secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < lightDist) || (lightDist < 0.0f))
+		{
+			numOccludedOrMiss++;
 		}
 	}
+	vec3 color = vec3(float((100 - numOccludedOrMiss)) / float(numShadowRays));
 	
-	vec3 color = vec3(float((100 - numHits)) / 100.0f);*/
+	
+	
+	
+	
 	
 	//Store
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
