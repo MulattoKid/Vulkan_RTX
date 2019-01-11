@@ -33,4 +33,4 @@
 build/VulkanRTX
 
 # Other
-src/shaders/out/*
+*.spv
