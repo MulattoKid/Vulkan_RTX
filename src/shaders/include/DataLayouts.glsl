@@ -1,14 +1,26 @@
 #ifndef DATA_LAYOUTS_GLSL
 #define DATA_LAYOUTS_GLSL
 
-// Input structures
-
+//////////////////////////////////
+/////////Input structures/////////
+//////////////////////////////////
 struct Camera
 {
 	vec4 origin;
 	vec4 topLeftCorner;
 	vec4 horizontalEnd;
 	vec4 verticalEnd;
+};
+
+struct SphericalLightSource
+{
+	vec4 centerAndRadius;
+	vec4 emittance;
+};
+
+struct OtherData
+{
+	int numSphericalLightSources;
 };
 
 struct MeshAttributes
@@ -28,9 +40,9 @@ struct VertexAttributes
 	vec4 uv;
 };
 
-
-// Shader-local structures
-
+//////////////////////////////////
+//////Shader-local structures/////
+//////////////////////////////////
 struct PrimaryRayPayload
 {
 	vec4 normalAndHitDistance;

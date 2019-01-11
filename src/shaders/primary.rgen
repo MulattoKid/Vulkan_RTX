@@ -6,8 +6,8 @@
 #define HARD_SHADOWS 0
 
 #include "Camera.glsl"
+#include "DataLayouts.glsl"
 #include "Defines.glsl"
-#include "Random.glsl"
 #include "Sample.glsl"
 #include "Sphere.glsl"
 
@@ -17,9 +17,13 @@ layout(set = 0, binding = CAMERA_BUFFER_BINDING_LOCATION, std140) uniform camera
 {
 	Camera camera;
 };
-layout(set = 0, binding = RANDOM_BUFFER_BINDING_LOCATION, std140) uniform randomBuffer
+layout(set = 0, binding = LIGHTS_BUFFER_BINDING_LOCATION, std140) readonly buffer lightBuffer
 {
-	vec2 random;
+	SphericalLightSource lights[];
+};
+layout(set = 0, binding = OTHER_DATA_BUFFER_BINDING_LOCATION, std140) uniform otherDataBuffer
+{
+	OtherData otherData;
 };
 
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV PrimaryRayPayload primaryPayload;
@@ -52,53 +56,60 @@ void main()
 	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
 	
-#if AO
-	// Advanced light data
-	vec3 lightCenter = vec3(0.0f, 20.0f, 0.0f);
-	float lightRadius = 5.0f;
-	vec3 lightColor = vec3(3.0f, 3.0f, 3.0f);
-	
-	// Sample a cone of directions given the vector from the isect point to the light and its radius
-	vec3 isectPointToLightCenter = lightCenter - isectPoint;
-	vec3 isectPointToLightCenterDir = normalize(isectPointToLightCenter);
-	float isectPointToLightCenterDist = length(isectPointToLightCenter);
-	float tangentDist = sqrt((isectPointToLightCenterDist * isectPointToLightCenterDist) - (lightRadius * lightRadius));
-	float cosThetaIsectPointLightTangent = tangentDist / isectPointToLightCenterDist;
-	float conePdf = ConePdf(cosThetaIsectPointLightTangent);
-	const int numOcclusionSteps = 10;
+#if AO	
+	int numOcclusionSteps = 10;
 	int totalOcclusionSamples = int(pow(numOcclusionSteps + 1, 2));
-	float lightContr = 0.0f;
-	for (int i = 0; i <= numOcclusionSteps; i++)
+	int totalOcclusionSamplesPerLight = totalOcclusionSamples / otherData.numSphericalLightSources;
+	int numOcclusionStepsPerLight = int(sqrt(totalOcclusionSamplesPerLight));
+	vec3 color = vec3(1.0f);
+	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
-		for (int j = 0; j <= numOcclusionSteps; j++)
+		// Extract light data
+		vec3 lightCenter = lights[l].centerAndRadius.xyz;
+		float lightRadius = lights[l].centerAndRadius.w;
+		vec3 lightEmittance = lights[l].emittance.rgb;
+	
+		// Sample a cone of directions given the vector from the isect point to the light and its radius
+		vec3 isectPointToLightCenter = lightCenter - isectPoint;
+		vec3 isectPointToLightCenterDir = normalize(isectPointToLightCenter);
+		float isectPointToLightCenterDist = length(isectPointToLightCenter);
+		float tangentDist = sqrt((isectPointToLightCenterDist * isectPointToLightCenterDist) - (lightRadius * lightRadius));
+		float cosThetaIsectPointLightTangent = tangentDist / isectPointToLightCenterDist;
+		float conePdf = ConePdf(cosThetaIsectPointLightTangent);
+		float lightContr = 0.0f;
+		for (int i = 0; i <= numOcclusionSteps; i++)
 		{
-			// Sample occlusion ray direction and trace
-			vec3 occlusionRayDir = SampleCone(isectPointToLightCenterDir, vec2(float(i) / float(numOcclusionSteps), float(j) / float(numOcclusionSteps)), cosThetaIsectPointLightTangent);
-			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
-			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-			
-			// Intersect spherical light
-			float lightDist = SphereIntersect(lightCenter, lightRadius, occlusionRay.origin, occlusionRay.dir, tMin, tMax);
-			
-			// Check for intersection with geometry before an intersection with the light
-			// 1) Did intersect the light
-			// 2) Either didn't hit some geometry or the distance to the isect is further
-			//    than the distance to the isect on the light
-			if ((lightDist >= 0.0f) && (secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= lightDist))
+			for (int j = 0; j <= numOcclusionSteps; j++)
 			{
-				lightContr += dot(isectNormal, occlusionRay.dir) / conePdf;
+				// Sample occlusion ray direction and trace
+				vec3 occlusionRayDir = SampleCone(isectPointToLightCenterDir, vec2(float(i) / float(numOcclusionSteps), float(j) / float(numOcclusionSteps)), cosThetaIsectPointLightTangent);
+				Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
+				traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+				
+				// Intersect spherical light
+				float lightDist = SphereIntersect(lightCenter, lightRadius, occlusionRay.origin, occlusionRay.dir, tMin, tMax);
+				
+				// Check for intersection with geometry before an intersection with the light
+				// 1) Did intersect the light
+				// 2) Either didn't hit some geometry or the distance to the isect is further
+				//    than the distance to the isect on the light
+				if ((lightDist >= 0.0f) && (secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= lightDist))
+				{
+					lightContr += dot(isectNormal, occlusionRay.dir) / conePdf;
+				}
 			}
 		}
+		
+		// Add light's contribution
+		color *= lightEmittance * (lightContr / float(totalOcclusionSamplesPerLight));
 	}
-	vec3 color = primaryPayload.materialColor.rgb * lightColor * (lightContr / float(totalOcclusionSamples));
-	//color = vec3(lightContr / float(totalOcclusionSamples));
+	color *= primaryPayload.materialColor.rgb;
 	
 	//Store
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
 #endif
 	
 #if HARD_SHADOWS
-	// Basic lighting data
 	vec3 lightPos = vec3(0.0f, 20.0f, 0.0f);
 	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
 	// Intersection-Light data

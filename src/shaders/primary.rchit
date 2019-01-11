@@ -10,11 +10,11 @@ layout(set = 1, binding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCA
 {
 	uint customIDToAttributeArrayIndex[];
 };
-layout(set = 1, binding = PER_MESH_ATTRIBUTES_BINDING_LOCATION, std430) readonly buffer perMeshAttributesBuffer
+layout(set = 1, binding = PER_MESH_ATTRIBUTES_BINDING_LOCATION, std140) readonly buffer perMeshAttributesBuffer
 {
 	MeshAttributes meshAttributes[];
 };
-layout(set = 1, binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION, std430) readonly buffer perVertexAttributesBuffer
+layout(set = 1, binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION, std140) readonly buffer perVertexAttributesBuffer
 {
 	VertexAttributes vertexAttributes[];
 };

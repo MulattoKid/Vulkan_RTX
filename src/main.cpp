@@ -3,7 +3,6 @@
 #include "glm/geometric.hpp"
 #include "glm/trigonometric.hpp"
 #include "glm/vec3.hpp"
-#include "RNG.h"
 #include "shaders/include/Defines.glsl"
 #include <stdlib.h>
 #include <string.h>
@@ -50,15 +49,30 @@ void RaytraceTriangle(const char* brhanFile)
 	vkApp.CreateDeviceBuffer(cameraBufferSize, (void*)(cameraData.data()), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &cameraBuffer, &cameraBufferMemory);
 	
 	////////////////////////////
-	///////////RANDOM///////////
+	///////////LIGHTS///////////
 	////////////////////////////
-	RNG rng;
-	float random[2];
-	rng.Uniform2D(random);
-	VkDeviceSize randomBufferSize = 2 * sizeof(float);
-	VkBuffer randomBuffer;
-	VkDeviceMemory randomBufferMemory;
-	vkApp.CreateHostVisibleBuffer(randomBufferSize, random, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &randomBuffer, &randomBufferMemory);
+	// See shaders/include/Datalayouts.glsl for structure layout
+	std::vector<float> lights = {
+		0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f,
+		-10.0f, 20.0f, -10.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f
+	};
+	VkDeviceSize lightsBufferSize = lights.size() * sizeof(float);
+	VkBuffer lightsBuffer;
+	VkDeviceMemory lightsBufferMemory;
+	vkApp.CreateDeviceBuffer(lightsBufferSize, (void*)(lights.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &lightsBuffer, &lightsBufferMemory);
+	
+	////////////////////////////
+	/////////OTHER DATA/////////
+	////////////////////////////
+	// See shaders/include/Datalayouts.glsl for structure layout
+	size_t otherDataNumBytes = sizeof(int);
+	char* otherData = new char[otherDataNumBytes];
+	*(int*)(otherData) = int(lights.size() / 8); // 8 floats describes on spherical light source
+	VkDeviceSize otherDataBufferSize = otherDataNumBytes;
+	VkBuffer otherDataBuffer;
+	VkDeviceMemory otherDataBufferMemory;
+	vkApp.CreateDeviceBuffer(otherDataBufferSize, (void*)(otherData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &otherDataBuffer, &otherDataBufferMemory);
+	delete[] otherData;
 	
 	////////////////////////////
 	//////////GEOMETRY//////////
@@ -231,12 +245,19 @@ void RaytraceTriangle(const char* brhanFile)
 	cameraDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	cameraDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& randomDescriptorSetLayoutBinding = descriptorSetLayoutBindings0[RANDOM_BUFFER_BINDING_LOCATION];
-	randomDescriptorSetLayoutBinding.binding = RANDOM_BUFFER_BINDING_LOCATION;
-	randomDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	randomDescriptorSetLayoutBinding.descriptorCount = 1;
-	randomDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	randomDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& lightsDescriptorSetLayoutBinding = descriptorSetLayoutBindings0[LIGHTS_BUFFER_BINDING_LOCATION];
+	lightsDescriptorSetLayoutBinding.binding = LIGHTS_BUFFER_BINDING_LOCATION;
+	lightsDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	lightsDescriptorSetLayoutBinding.descriptorCount = 1;
+	lightsDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	lightsDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
+	VkDescriptorSetLayoutBinding& otherDataDescriptorSetLayoutBinding = descriptorSetLayoutBindings0[OTHER_DATA_BUFFER_BINDING_LOCATION];
+	otherDataDescriptorSetLayoutBinding.binding = OTHER_DATA_BUFFER_BINDING_LOCATION;
+	otherDataDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	otherDataDescriptorSetLayoutBinding.descriptorCount = 1;
+	otherDataDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	otherDataDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
 	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo0 = descriptorSetLayoutInfos[0];
 	descriptorSetLayoutInfo0.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -391,8 +412,8 @@ void RaytraceTriangle(const char* brhanFile)
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, uint32_t(meshes.size() * numTexturesPerMesh) }
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
@@ -472,22 +493,39 @@ void RaytraceTriangle(const char* brhanFile)
     cameraWrite.pBufferInfo = &descriptorCameraInfo;
     cameraWrite.pTexelBufferView = NULL;
     
-    VkDescriptorBufferInfo descriptorRandomInfo = {};
-    descriptorRandomInfo.buffer = randomBuffer;
-    descriptorRandomInfo.offset = 0;
-    descriptorRandomInfo.range = randomBufferSize;
+    VkDescriptorBufferInfo descriptorLightsInfo = {};
+    descriptorLightsInfo.buffer = lightsBuffer;
+    descriptorLightsInfo.offset = 0;
+    descriptorLightsInfo.range = lightsBufferSize;
     
-    VkWriteDescriptorSet& randomWrite = descriptorSet0Writes[RANDOM_BUFFER_BINDING_LOCATION];
-    randomWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    randomWrite.pNext = NULL;
-    randomWrite.dstSet = descriptorSet0;
-    randomWrite.dstBinding = RANDOM_BUFFER_BINDING_LOCATION;
-    randomWrite.dstArrayElement = 0;
-    randomWrite.descriptorCount = 1;
-    randomWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    randomWrite.pImageInfo = NULL;
-    randomWrite.pBufferInfo = &descriptorRandomInfo;
-    randomWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& lightsWrite = descriptorSet0Writes[LIGHTS_BUFFER_BINDING_LOCATION];
+    lightsWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    lightsWrite.pNext = NULL;
+    lightsWrite.dstSet = descriptorSet0;
+    lightsWrite.dstBinding = LIGHTS_BUFFER_BINDING_LOCATION;
+    lightsWrite.dstArrayElement = 0;
+    lightsWrite.descriptorCount = 1;
+    lightsWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    lightsWrite.pImageInfo = NULL;
+    lightsWrite.pBufferInfo = &descriptorLightsInfo;
+    lightsWrite.pTexelBufferView = NULL;
+    
+    VkDescriptorBufferInfo descriptorOtherDataInfo = {};
+    descriptorOtherDataInfo.buffer = otherDataBuffer;
+    descriptorOtherDataInfo.offset = 0;
+    descriptorOtherDataInfo.range = otherDataBufferSize;
+    
+    VkWriteDescriptorSet& otherDataWrite = descriptorSet0Writes[OTHER_DATA_BUFFER_BINDING_LOCATION];
+    otherDataWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    otherDataWrite.pNext = NULL;
+    otherDataWrite.dstSet = descriptorSet0;
+    otherDataWrite.dstBinding = OTHER_DATA_BUFFER_BINDING_LOCATION;
+    otherDataWrite.dstArrayElement = 0;
+    otherDataWrite.descriptorCount = 1;
+    otherDataWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    otherDataWrite.pImageInfo = NULL;
+    otherDataWrite.pBufferInfo = &descriptorOtherDataInfo;
+    otherDataWrite.pTexelBufferView = NULL;
     
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet0Writes.size(), descriptorSet0Writes.data(), 0, NULL);
     
@@ -676,10 +714,6 @@ void RaytraceTriangle(const char* brhanFile)
 		glfwPollEvents();
 		vkApp.Render(graphicsQueueCommandBuffers.data());
 		//vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
-		
-		// Updates
-		rng.Uniform2D(random);
-		vkApp.UpdateHostVisibleBuffer(randomBufferSize, random, randomBufferMemory);
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);
 	
@@ -708,8 +742,10 @@ void RaytraceTriangle(const char* brhanFile)
 	vkDestroyBuffer(vkApp.vkDevice, perVertexAttributeBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, perMeshAttributeBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, perMeshAttributeBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, randomBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, randomBuffer, NULL);
+	vkFreeMemory(vkApp.vkDevice, otherDataBufferMemory, NULL);
+	vkDestroyBuffer(vkApp.vkDevice, otherDataBuffer, NULL);
+	vkFreeMemory(vkApp.vkDevice, lightsBufferMemory, NULL);
+	vkDestroyBuffer(vkApp.vkDevice, lightsBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, cameraBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);
 }
