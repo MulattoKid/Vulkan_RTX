@@ -4,6 +4,7 @@
 
 #include "Camera.glsl"
 #include "Defines.glsl"
+#include "Random.glsl"
 #include "Sample.glsl"
 #include "Sphere.glsl"
 
@@ -48,87 +49,149 @@ void main()
 	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
 	
-	
-	
-	
-	
-	// Basic lighting data
-	/*vec3 lightPos = vec3(0.0f, 50.0f, 0.0f);
-	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
-	// Intersection-Light data
-	vec3 isectPointToLight = lightPos - isectPoint;
-	vec3 isectPointToLightDir = normalize(isectPointToLight);
-	float isectPointToLightDist = length(isectPointToLight);
-	
-	// Trace shadow rays
-	Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
-	traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-    
-    // Check for geometry between intersection point and light
-    if (secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
-    {
-    	imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f, 0.0f, 0.0f, 1.0f));
-    	return;
-    }
-    
-	// Calculate light
-	float contribution = dot(isectNormal, isectPointToLightDir);
-	vec3 contributionColor = lightColor * contribution;
-	vec3 color = primaryPayload.materialColor.rgb * contributionColor;*/
-	
-	
-	
-	
-	
-	
 	// Advanced light data
-	vec3 lightCenter = vec3(0.0f, 50.0f, 0.0f);
+	vec3 lightCenter = vec3(0.0f, 20.0f, 0.0f);
 	float lightRadius = 5.0f;
-	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
+	vec3 lightColor = vec3(3.0f, 3.0f, 3.0f);
 	
-	const int numShadowRays = 100;
-	int numOccludedOrMiss = 0;
-	for (int i = 0; i < numShadowRays; i++)
+	// Sample random directions around hemisphere
+	/*const int numOcclusionRays = 100;
+	int numMissOrOccluded = 0;
+	for (int i = 0; i < numOcclusionRays; i++)
 	{
-		// Sample shadow ray direction and trace
-		vec3 shadowRayDir = SampleNormalHemisphere(isectNormal, random);
-		//shadowRayDir = normalize(lightCenter - isectPoint);
-		//shadowRayDir = vec3(0.0f, 1.0f, 0.0f);
-		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), shadowRayDir);
-		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-		
-		//imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(shadowRayDir, 1.0f));
-		//return;
+		// Sample occlusion ray direction and trace
+		vec3 occlusionRayDir = SampleNormalHemisphere(isectNormal, Random2D(random, i, numOcclusionRays, gl_LaunchIDNV.xy / gl_LaunchSizeNV.xy));
+		Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
+		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
 		
 		// Intersect spherical light
-		float lightDist = SphereIntersect(lightCenter, lightRadius, shadowRay.origin, shadowRay.dir, tMin, tMax);
-		/*if (lightDist < 0.0f)
-		{
-			imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			return;
-		}
-		else
-		{
-			imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f, 1.0f, 1.0f, 1.0f));
-			return;
-		}*/
+		float lightDist = SphereIntersect(lightCenter, lightRadius, occlusionRay.origin, occlusionRay.dir, tMin, tMax);
 		
 		// Check for intersection with geometry before an intersection with the light
-		// 1) The shadow ray hit some geometry
-		// 2) The shadow ray also intersects the light
-		// 3) The geometry intersection is closer than the light intersection
-		if ((secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < lightDist) || (lightDist < 0.0f))
+		// 1) Didn't intersect the light
+		// 2) Hit some geometry and the distance to the isect is closer than the distance to the isect on the light
+		if ((lightDist < 0.0f) || (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < lightDist))
 		{
-			numOccludedOrMiss++;
+			numMissOrOccluded++;
 		}
 	}
-	vec3 color = vec3(float((100 - numOccludedOrMiss)) / float(numShadowRays));
+	vec3 color = vec3(float((numOcclusionRays - numMissOrOccluded)) / float(numOcclusionRays));*/
 	
+	// Sample n pre-determined points around the hemisphere
+	/*const int numOcclusionSteps = 10;
+	int totalOcclusionSamples = int(pow(numOcclusionSteps + 1, 2));
+	int numMissOrOccluded = 0;
+	for (int phi = 0; phi <= numOcclusionSteps; phi++)
+	{
+		for (int theta = 0; theta <= numOcclusionSteps; theta++)
+		{
+			// Sample occlusion ray direction and trace
+			vec3 occlusionRayDir = SampleNormalHemisphere(isectNormal, vec2(float(phi) / float(numOcclusionSteps), float(theta) / float(numOcclusionSteps)));
+			//occlusionRayDir = SampleNormalHemisphere(isectNormal, vec2(0.25f, 1.0f));
+			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
+			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+			
+			// Intersect spherical light
+			float lightDist = SphereIntersect(lightCenter, lightRadius, occlusionRay.origin, occlusionRay.dir, tMin, tMax);
+			
+			// Check for intersection with geometry before an intersection with the light
+			// 1) Didn't intersect the light
+			// 2) Hit some geometry and the distance to the isect is closer than the distance to the isect on the light
+			if ((lightDist < 0.0f) || (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < lightDist))
+			{
+				numMissOrOccluded++;
+			}
+		}
+	}
+	vec3 color = vec3(float((numOcclusionSteps * numOcclusionSteps) - numMissOrOccluded) / float(numOcclusionSteps * numOcclusionSteps));
+	//color = vec3(numMissOrOccluded / (numOcclusionSteps * numOcclusionSteps));
+	color = vec3(numMissOrOccluded);
+	color = vec3(totalOcclusionSamples - numMissOrOccluded);
+	if (numMissOrOccluded == totalOcclusionSamples)
+	{
+		color = vec3(1.0f, 0.0f, 0.0f);
+	}
+	else
+	{
+		color = vec3(0.0f, 1.0f, 1.0f);
+	}*/
 	
-	
-	
-	
+	// Sample a cone of directions given the vector from the isect point to the light and its radius
+	vec3 isectPointToLightCenter = lightCenter - isectPoint;
+	vec3 isectPointToLightCenterDir = normalize(isectPointToLightCenter);
+	float isectPointToLightCenterDist = length(isectPointToLightCenter);
+	float tangentDist = sqrt((isectPointToLightCenterDist * isectPointToLightCenterDist) - (lightRadius * lightRadius));
+	float cosThetaIsectPointLightTangent = tangentDist / isectPointToLightCenterDist;
+	float conePdf = ConePdf(cosThetaIsectPointLightTangent);
+	const int numOcclusionSteps = 10;
+	int totalOcclusionSamples = int(pow(numOcclusionSteps + 1, 2));
+	float lightContr = 0.0f;
+	for (int i = 0; i <= numOcclusionSteps; i++)
+	{
+		for (int j = 0; j <= numOcclusionSteps; j++)
+		{
+			// Sample occlusion ray direction and trace
+			vec3 occlusionRayDir = SampleCone(isectPointToLightCenterDir, vec2(float(i) / float(numOcclusionSteps), float(j) / float(numOcclusionSteps)), cosThetaIsectPointLightTangent);
+			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
+			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+			
+			// Intersect spherical light
+			float lightDist = SphereIntersect(lightCenter, lightRadius, occlusionRay.origin, occlusionRay.dir, tMin, tMax);
+			
+			// Check for intersection with geometry before an intersection with the light
+			// 1) Did intersect the light
+			// 2) Either didn't hit some geometry or the distance to the isect is further
+			//    than the distance to the isect on the light
+			if ((lightDist >= 0.0f) && (secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= lightDist))
+			{
+				lightContr += dot(isectNormal, occlusionRay.dir) / conePdf;
+			}
+		}
+	}
+	vec3 color = primaryPayload.materialColor.rgb * lightColor * (lightContr / float(totalOcclusionSamples));
+	//color = vec3(lightContr / float(totalOcclusionSamples));
 	
 	//Store
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Basic lighting data
+/*vec3 lightPos = vec3(0.0f, 50.0f, 0.0f);
+vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
+// Intersection-Light data
+vec3 isectPointToLight = lightPos - isectPoint;
+vec3 isectPointToLightDir = normalize(isectPointToLight);
+float isectPointToLightDist = length(isectPointToLight);
+
+// Trace shadow rays
+Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
+traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+    
+// Check for geometry between intersection point and light
+if (secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
+{
+ 	imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f, 0.0f, 0.0f, 1.0f));
+   	return;
+}
+    
+// Calculate light
+float contribution = dot(isectNormal, isectPointToLightDir);
+vec3 contributionColor = lightColor * contribution;
+vec3 color = primaryPayload.materialColor.rgb * contributionColor;*/
