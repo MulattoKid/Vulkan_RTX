@@ -1,6 +1,13 @@
 #ifndef SHADER_SPHERE_H
 #define SHADER_SPHERE_H
 
+#define PI 3.1415926535897932f
+
+float SphereArea(float radius)
+{
+	return 4.0f * PI * radius * radius;
+}
+
 float SphereIntersect(vec3 sphereCenter, float sphereRadius, vec3 rayOrigin, vec3 rayDir, float tMin, float tMax)
 {
 	//t²dot(rayDir, rayDir) + 2tdot(rayDir, rayOrigin - sphereCenter) + dot(rayOrigin - sphereCenter, rayOrigin - sphereCenter) - sphereRadius² = 0

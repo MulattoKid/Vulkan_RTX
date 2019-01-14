@@ -3,6 +3,7 @@
 
 #define PI 3.1415926535897932f
 #define TWO_PI 6.2831853071795865f
+#define ONE_OVER_TWO_PI 0.1591549430918953f
 
 // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
 mat3 RotationToAlignAToB(vec3 a, vec3 b)
@@ -15,7 +16,12 @@ mat3 RotationToAlignAToB(vec3 a, vec3 b)
 	return rotation;
 }
 
-vec3 SampleNormalHemisphere(vec3 normal, vec2 rng)
+float HemispherePdf()
+{
+	return ONE_OVER_TWO_PI;
+}
+
+vec3 SampleHemisphere(vec3 normal, vec2 rng)
 {
 	float phi = TWO_PI * rng.x;
 	float theta = acos(rng.y);

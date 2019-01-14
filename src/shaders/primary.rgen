@@ -2,7 +2,8 @@
 #extension GL_NV_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 
-#define AO 1
+#define AO_CONE 0
+#define AO_HEMISPHERE_HARD 1
 #define HARD_SHADOWS 0
 
 #include "Camera.glsl"
@@ -56,7 +57,7 @@ void main()
 	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
 	
-#if AO	
+#if AO_CONE	
 	int numOcclusionSteps = 6;
 	int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
 	int totalOcclusionSamplesPerLight = totalOcclusionSamples / otherData.numSphericalLightSources;
@@ -65,7 +66,7 @@ void main()
 	int totalOcclusionSamplesPerLightGoingUp = numOcclusionStepsPerLighti * numOcclusionStepsPerLightj;
 	int remainingSamplesPerLight = totalOcclusionSamplesPerLight - totalOcclusionSamplesPerLightGoingUp;
 	numOcclusionStepsPerLighti += remainingSamplesPerLight / numOcclusionStepsPerLighti;
-	vec3 color = vec3(1.0f);
+	vec3 color = vec3(0.0f);
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
 		// Extract light data
@@ -99,46 +100,112 @@ void main()
 				//    than the distance to the isect on the light
 				if ((lightDist >= 0.0f) && (secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= lightDist))
 				{
-					lightContr += dot(isectNormal, occlusionRay.dir) / conePdf;
+					lightContr += dot(isectNormal, occlusionRay.dir);
 				}
 			}
 		}
 		
 		// Add light's contribution
-		color *= lightEmittance * (lightContr / float(totalOcclusionSamplesPerLight));
+		color += lightEmittance * lightContr / conePdf;
 	}
 	color *= primaryPayload.materialColor.rgb;
+	color /= numOcclusionStepsPerLighti * numOcclusionStepsPerLightj * otherData.numSphericalLightSources;
 	
-	//Store
+	// Store
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
-#endif
-	
-#if HARD_SHADOWS
-	vec3 lightPos = vec3(0.0f, 20.0f, 0.0f);
-	vec3 lightColor = vec3(1.0f, 1.0f, 1.0f);
-	// Intersection-Light data
-	vec3 isectPointToLight = lightPos - isectPoint;
-	vec3 isectPointToLightDir = normalize(isectPointToLight);
-	float isectPointToLightDist = length(isectPointToLight);
-
-	// Trace shadow rays
-	Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
-	traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-		
-	// Check for geometry between intersection point and light
-	if (secondaryPayload.hitDist.x > 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
+    
+#elif AO_HEMISPHERE_HARD
+	// Treats spherical light sources as point-lights, but use radius
+	// when checking the intersection distance
+	vec3 color = vec3(0.0f);
+	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
-	 	imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	   	return;
-	}
+		vec3 lightPos = lights[l].centerAndRadius.xyz;
+		float lightRadius = lights[l].centerAndRadius.w;
+		vec3 lightEmittance = lights[l].emittance.rgb;
+		// Intersection-Light data
+		vec3 isectPointToLight = lightPos - isectPoint;
+		vec3 isectPointToLightDir = normalize(isectPointToLight);
+		float isectPointToLightDist = length(isectPointToLight) - lightRadius;
+
+		// Trace shadow rays
+		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
+		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
 		
-	// Calculate light
-	float contribution = dot(isectNormal, isectPointToLightDir);
-	vec3 contributionColor = lightColor * contribution;
-	vec3 color = primaryPayload.materialColor.rgb * contributionColor;
+		// Check for geometry between intersection point and light
+		if (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
+		{
+		 	continue;
+		}
+			
+		// Calculate light
+		// Multiply with HemispherePdf as we only take one sample but this SINGLE sample represents the entire
+		// integration interval -> an infitnite number of samples are "in theory" taken.
+		color += lightEmittance * dot(isectNormal, isectPointToLightDir) * HemispherePdf();
+	}
+	color *= primaryPayload.materialColor.rgb;
+	color /= otherData.numSphericalLightSources;
+
+	int numOcclusionSteps = 6;
+	int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
+	// Sample hemisphere of directions given the normal at the intersection point
+	int numAO = 0;
+	for (int i = 0; i <= numOcclusionSteps; i++)
+	{
+		for (int j = 0; j <= numOcclusionSteps; j++)
+		{
+			// Sample occlusion ray direction and trace
+			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(float(i) / float(numOcclusionSteps), float(j) / float(numOcclusionSteps)));
+			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
+			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+				
+			// Check for intersection with geometry
+			if (secondaryPayload.hitDist.x >= 0.0f)
+			{
+				numAO++;
+			}
+		}
+	}
+	color *= float(totalOcclusionSamples - numAO) / float(totalOcclusionSamples);
 	
-	//Store
+	// Store
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+	
+#elif HARD_SHADOWS
+	// Treats spherical light sources as point-lights, but use radius
+	// when checking the intersection distance
+	vec3 color = vec3(0.0f);
+	for (int l = 0; l < otherData.numSphericalLightSources; l++)
+	{
+		vec3 lightPos = lights[l].centerAndRadius.xyz;
+		float lightRadius = lights[l].centerAndRadius.w;
+		vec3 lightEmittance = lights[l].emittance.rgb;
+		// Intersection-Light data
+		vec3 isectPointToLight = lightPos - isectPoint;
+		vec3 isectPointToLightDir = normalize(isectPointToLight);
+		float isectPointToLightDist = length(isectPointToLight) - lightRadius;
+
+		// Trace shadow rays
+		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
+		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+		
+		// Check for geometry between intersection point and light
+		if (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
+		{
+		 	continue;
+		}
+			
+		// Calculate light
+		// Multiply with HemispherePdf as we only take one sample but this SINGLE sample represents the entire
+		// integration interval -> an infitnite number of samples are "in theory" taken.
+		color += lightEmittance * dot(isectNormal, isectPointToLightDir) * HemispherePdf();
+	}
+	color *= primaryPayload.materialColor.rgb;
+	color /= otherData.numSphericalLightSources;
+	
+	// Store
+    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+
 #endif
 }
 
