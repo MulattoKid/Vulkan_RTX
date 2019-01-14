@@ -57,10 +57,14 @@ void main()
 	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
 	
 #if AO	
-	int numOcclusionSteps = 10;
-	int totalOcclusionSamples = int(pow(numOcclusionSteps + 1, 2));
+	int numOcclusionSteps = 6;
+	int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
 	int totalOcclusionSamplesPerLight = totalOcclusionSamples / otherData.numSphericalLightSources;
-	int numOcclusionStepsPerLight = int(sqrt(totalOcclusionSamplesPerLight));
+	int numOcclusionStepsPerLighti = int(sqrt(totalOcclusionSamplesPerLight));
+	int numOcclusionStepsPerLightj = numOcclusionStepsPerLighti;
+	int totalOcclusionSamplesPerLightGoingUp = numOcclusionStepsPerLighti * numOcclusionStepsPerLightj;
+	int remainingSamplesPerLight = totalOcclusionSamplesPerLight - totalOcclusionSamplesPerLightGoingUp;
+	numOcclusionStepsPerLighti += remainingSamplesPerLight / numOcclusionStepsPerLighti;
 	vec3 color = vec3(1.0f);
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
@@ -68,7 +72,7 @@ void main()
 		vec3 lightCenter = lights[l].centerAndRadius.xyz;
 		float lightRadius = lights[l].centerAndRadius.w;
 		vec3 lightEmittance = lights[l].emittance.rgb;
-	
+		
 		// Sample a cone of directions given the vector from the isect point to the light and its radius
 		vec3 isectPointToLightCenter = lightCenter - isectPoint;
 		vec3 isectPointToLightCenterDir = normalize(isectPointToLightCenter);
@@ -77,9 +81,9 @@ void main()
 		float cosThetaIsectPointLightTangent = tangentDist / isectPointToLightCenterDist;
 		float conePdf = ConePdf(cosThetaIsectPointLightTangent);
 		float lightContr = 0.0f;
-		for (int i = 0; i <= numOcclusionSteps; i++)
+		for (int i = 0; i <= numOcclusionStepsPerLighti; i++)
 		{
-			for (int j = 0; j <= numOcclusionSteps; j++)
+			for (int j = 0; j <= numOcclusionStepsPerLightj; j++)
 			{
 				// Sample occlusion ray direction and trace
 				vec3 occlusionRayDir = SampleCone(isectPointToLightCenterDir, vec2(float(i) / float(numOcclusionSteps), float(j) / float(numOcclusionSteps)), cosThetaIsectPointLightTangent);
