@@ -3,8 +3,13 @@
 
 layout(location=0) in vec2 fUV;
 
-layout(location = 0) out vec4 outColor;
+layout(set=0, binding=0) uniform sampler2D rayTracingImage;
+layout(set=0, binding=1) uniform sampler2D shadowImage;
 
-void main() {
-    outColor = vec4(1.0, 0.0, 0.0, 1.0);
+layout(location=0) out vec4 outColor;
+
+void main()
+{
+    //outColor = vec4(fUV, 0.0f, 1.0f);
+    outColor = texture(rayTracingImage, fUV).bgra;
 }

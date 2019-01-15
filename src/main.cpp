@@ -378,7 +378,7 @@ void RaytraceTriangle(const char* brhanFile)
 	imageInfo.mipLevels = 1;
 	imageInfo.arrayLayers = 1;
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	/* IGNORED
@@ -419,7 +419,6 @@ void RaytraceTriangle(const char* brhanFile)
     
     //Ray tracing SHADOW image
 	imageInfo.format = VK_FORMAT_R32_SFLOAT;
-	imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT;
 	VkImage rayTracingShadowImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingShadowImage))
 	
@@ -716,7 +715,317 @@ void RaytraceTriangle(const char* brhanFile)
     ////////////////////////////
 	/////GRAPHICS PIPELINE//////
 	////////////////////////////
+	VkShaderModule vertexShaderModule, fragmentShaderModule;
+	vkApp.CreateShaderModule("src/shaders/out/vert.spv", &vertexShaderModule);
+	vkApp.CreateShaderModule("src/shaders/out/frag.spv", &fragmentShaderModule);
+
+	// Vertex buffer
+	// UV coordinates are a bit weird as the image has to be flipped to
+	// be shown correctly when sampled (it's upside-down)
+	std::vector<float> vertexData = {
+		-1.0f, -1.0f,	0.0f, 0.0f,
+		-1.0f,  1.0f,	0.0f, 1.0f,
+		 1.0f,  1.0f,	1.0f, 1.0f,
+		 1.0f, -1.0f,	1.0f, 0.0f
+	};
+	VkDeviceSize vertexDataSize = vertexData.size() * sizeof(float);
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	vkApp.CreateDeviceBuffer(vertexDataSize, (void*)(vertexData.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vertexBuffer, &vertexBufferMemory);
+	// Index buffer
+	std::vector<uint32_t> indexData = {
+		0, 1, 2,
+		2, 3, 0
+	};
+	VkDeviceSize indexDataSize = indexData.size() * sizeof(uint32_t);
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+	vkApp.CreateDeviceBuffer(indexDataSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer, &indexBufferMemory);
+
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos(2);
+	shaderStageInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageInfos[0].pNext = NULL;
+	shaderStageInfos[0].flags = 0;
+	shaderStageInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	shaderStageInfos[0].module = vertexShaderModule;
+	shaderStageInfos[0].pName = "main";
+	shaderStageInfos[0].pSpecializationInfo = NULL;
+	shaderStageInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageInfos[1].pNext = NULL;
+	shaderStageInfos[1].flags = 0;
+	shaderStageInfos[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	shaderStageInfos[1].module = fragmentShaderModule;
+	shaderStageInfos[1].pName = "main";
+	shaderStageInfos[1].pSpecializationInfo = NULL;
+
+	VkVertexInputBindingDescription inputDesc = {};
+	inputDesc.binding = 0;
+	inputDesc.stride = 4 * sizeof(float);
+	inputDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	std::vector<VkVertexInputAttributeDescription> attributeDescs(2);
+	VkVertexInputAttributeDescription& vertexDesc = attributeDescs[0];
+	vertexDesc.location = 0;
+	vertexDesc.binding = 0;
+	vertexDesc.format = VK_FORMAT_R32G32_SFLOAT;
+	vertexDesc.offset = 0;
+	VkVertexInputAttributeDescription& uvDesc = attributeDescs[1];
+	uvDesc.location = 1;
+	uvDesc.binding = 0;
+	uvDesc.format = VK_FORMAT_R32G32_SFLOAT;
+	uvDesc.offset = 2 * sizeof(float);
+
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputInfo.pNext = NULL;
+	vertexInputInfo.flags = 0;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &inputDesc;
+	vertexInputInfo.vertexAttributeDescriptionCount = attributeDescs.size();
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescs.data();
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
+	inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyInfo.pNext = NULL;
+	inputAssemblyInfo.flags = 0;
+	inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+	VkViewport viewport = vkApp.GetDefaultViewport();
+	VkRect2D scissor = vkApp.GetDefaultScissor();
+	VkPipelineViewportStateCreateInfo viewportInfo = {};
+	viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportInfo.pNext = NULL;
+	viewportInfo.flags = 0;
+	viewportInfo.viewportCount = 1;
+	viewportInfo.pViewports = &viewport;
+	viewportInfo.scissorCount = 1;
+	viewportInfo.pScissors = &scissor;
+
+	VkPipelineRasterizationStateCreateInfo rasterizationInfo = {};
+	rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizationInfo.pNext = NULL;
+	rasterizationInfo.flags = 0;
+	rasterizationInfo.depthClampEnable = VK_FALSE;
+	rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
+	rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizationInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizationInfo.depthBiasEnable = VK_FALSE;
+	/* IGNORED
+	rasterization_info.depthBiasConstantFactor
+	rasterization_info.depthBiasClamp
+	rasterization_info.depthBiasSlopeFactor*/
+	rasterizationInfo.lineWidth = 1.0f;
+
+	VkPipelineMultisampleStateCreateInfo multisampleInfo = {};
+	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleInfo.pNext = NULL;
+	multisampleInfo.flags = 0;
+	multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleInfo.sampleShadingEnable = VK_FALSE;
+	/* IGNORED
+	multisample_info.minSampleShading
+	multisample_info.pSampleMask*/
+	multisampleInfo.alphaToCoverageEnable = VK_FALSE;
+	multisampleInfo.alphaToOneEnable = VK_FALSE;
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+	colorBlendAttachment.blendEnable = VK_FALSE;
+	/* IGNORED
+	color_blend_attachment.srcColorBlendFactor 
+	color_blend_attachment.dstColorBlendFactor
+	color_blend_attachment.colorBlendOp
+	color_blend_attachment.srcAlphaBlendFactor
+	color_blend_attachment.dstAlphaBlendFactor
+	color_blend_attachment.alphaBlendOp*/
+	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	VkPipelineColorBlendStateCreateInfo colorBlendInfo = {};
+	colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendInfo.pNext = NULL;
+	colorBlendInfo.flags = 0;
+	colorBlendInfo.logicOpEnable = VK_FALSE;
+	/* INGORED
+	color_blend_info.logicOp*/
+	colorBlendInfo.attachmentCount = 1;
+	colorBlendInfo.pAttachments = &colorBlendAttachment;
+	colorBlendInfo.blendConstants[0] = 0.0f;
+	colorBlendInfo.blendConstants[1] = 0.0f;
+	colorBlendInfo.blendConstants[2] = 0.0f;
+	colorBlendInfo.blendConstants[3] = 0.0f;
+
+	// Descriptor set etc. setup
+	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(2);
+	VkDescriptorSetLayoutBinding& rayTracingImageBinding = descriptorSetLayoutBindings[0];
+	rayTracingImageBinding.binding = 0;
+	rayTracingImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	rayTracingImageBinding.descriptorCount = 1;
+	rayTracingImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	rayTracingImageBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingShadowImageBinding = descriptorSetLayoutBindings[1];
+	rayTracingShadowImageBinding.binding = 1;
+	rayTracingShadowImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	rayTracingShadowImageBinding.descriptorCount = 1;
+	rayTracingShadowImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	rayTracingShadowImageBinding.pImmutableSamplers = NULL;
+
+	VkDescriptorSetLayoutCreateInfo descriptorSetInfoGraphics = {};
+	descriptorSetInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descriptorSetInfoGraphics.pNext = NULL;
+	descriptorSetInfoGraphics.flags = 0;
+	descriptorSetInfoGraphics.bindingCount = descriptorSetLayoutBindings.size();
+	descriptorSetInfoGraphics.pBindings = descriptorSetLayoutBindings.data();
+	VkDescriptorSetLayout descriptorSetLayoutGraphics;
+	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetInfoGraphics, NULL, &descriptorSetLayoutGraphics))
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfoGraphics = {};
+	pipelineLayoutInfoGraphics.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfoGraphics.pNext = NULL;
+	pipelineLayoutInfoGraphics.flags = 0;
+	pipelineLayoutInfoGraphics.setLayoutCount = 1;
+	pipelineLayoutInfoGraphics.pSetLayouts = &descriptorSetLayoutGraphics;
+	pipelineLayoutInfoGraphics.pushConstantRangeCount = 0;
+	pipelineLayoutInfoGraphics.pPushConstantRanges = NULL;
+	VkPipelineLayout pipelineLayoutGraphics;
+	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphics))
 	
+	std::vector<VkDescriptorPoolSize> poolSizesGraphics = {
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 }
+	};
+	VkDescriptorPoolCreateInfo descriptorPoolInfoGraphics = {};
+	descriptorPoolInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descriptorPoolInfoGraphics.pNext = NULL;
+	descriptorPoolInfoGraphics.flags = 0;
+	descriptorPoolInfoGraphics.maxSets = 1;
+	descriptorPoolInfoGraphics.poolSizeCount = poolSizesGraphics.size();
+	descriptorPoolInfoGraphics.pPoolSizes = poolSizesGraphics.data();
+	VkDescriptorPool descriptorPoolGraphics;
+	CHECK_VK_RESULT(vkCreateDescriptorPool(vkApp.vkDevice, &descriptorPoolInfoGraphics, NULL, &descriptorPoolGraphics))
+	
+	VkDescriptorSetAllocateInfo descriptorSetGraphicsAllocateInfo = {};
+	descriptorSetGraphicsAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptorSetGraphicsAllocateInfo.pNext = NULL;
+	descriptorSetGraphicsAllocateInfo.descriptorPool = descriptorPoolGraphics;
+	descriptorSetGraphicsAllocateInfo.descriptorSetCount = 1;
+	descriptorSetGraphicsAllocateInfo.pSetLayouts = &descriptorSetLayoutGraphics;
+	VkDescriptorSet descriptorSetGraphics;
+	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphics))
+	
+    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWrites(2);
+    // Ray tracing image
+	VkDescriptorImageInfo descriptorRayTracingImageInfoGraphics = {};
+    descriptorRayTracingImageInfoGraphics.sampler = defaultSampler;
+    descriptorRayTracingImageInfoGraphics.imageView = rayTracingImageView;
+    descriptorRayTracingImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWrites[0];
+    rayTracingImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingImageWriteGraphics.pNext = NULL;
+    rayTracingImageWriteGraphics.dstSet = descriptorSetGraphics;
+    rayTracingImageWriteGraphics.dstBinding = 0;
+    rayTracingImageWriteGraphics.dstArrayElement = 0;
+    rayTracingImageWriteGraphics.descriptorCount = 1;
+    rayTracingImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    rayTracingImageWriteGraphics.pImageInfo = &descriptorRayTracingImageInfoGraphics;
+    rayTracingImageWriteGraphics.pBufferInfo = NULL;
+    rayTracingImageWriteGraphics.pTexelBufferView = NULL;
+    // Shadow image
+    VkDescriptorImageInfo descriptorRayTracingShadowImageInfoGraphics = {};
+    descriptorRayTracingShadowImageInfoGraphics.sampler = defaultSampler;
+    descriptorRayTracingShadowImageInfoGraphics.imageView = rayTracingShadowImageView;
+    descriptorRayTracingShadowImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkWriteDescriptorSet& rayTracingShadowImageWriteGraphics = descriptorSetGraphicsWrites[1];
+    rayTracingShadowImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingShadowImageWriteGraphics.pNext = NULL;
+    rayTracingShadowImageWriteGraphics.dstSet = descriptorSetGraphics;
+    rayTracingShadowImageWriteGraphics.dstBinding = 1;
+    rayTracingShadowImageWriteGraphics.dstArrayElement = 0;
+    rayTracingShadowImageWriteGraphics.descriptorCount = 1;
+    rayTracingShadowImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    rayTracingShadowImageWriteGraphics.pImageInfo = &descriptorRayTracingShadowImageInfoGraphics;
+    rayTracingShadowImageWriteGraphics.pBufferInfo = NULL;
+    rayTracingShadowImageWriteGraphics.pTexelBufferView = NULL;
+    // Update
+    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWrites.size(), descriptorSetGraphicsWrites.data(), 0, NULL);
+
+	VkAttachmentDescription attachment = {};
+	attachment.flags = 0;
+	attachment.format = vkApp.GetDefaultFramebufferFormat();;
+	attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference colorAttachmentRef = {};
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass = {};
+	subpass.flags = 0;
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.inputAttachmentCount = 0;
+	subpass.pInputAttachments = NULL;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentRef;
+	subpass.pResolveAttachments = NULL;
+	subpass.pDepthStencilAttachment = NULL;
+	subpass.preserveAttachmentCount = 0;
+	subpass.pPreserveAttachments = NULL;
+
+	VkSubpassDependency subpassDependency = {};
+	subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	subpassDependency.dstSubpass = 0;
+	subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.srcAccessMask = 0;
+	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpassDependency.dependencyFlags = 0;
+
+	VkRenderPass renderPass;
+	VkRenderPassCreateInfo renderpassInfo = {};
+	renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderpassInfo.pNext = NULL;
+	renderpassInfo.flags = 0;
+	renderpassInfo.attachmentCount = 1;
+	renderpassInfo.pAttachments = &attachment;
+	renderpassInfo.subpassCount = 1;
+	renderpassInfo.pSubpasses = &subpass;
+	renderpassInfo.dependencyCount = 1;
+	renderpassInfo.pDependencies = &subpassDependency;
+	CHECK_VK_RESULT(vkCreateRenderPass(vkApp.vkDevice, &renderpassInfo, NULL, &renderPass))
+
+	VkPipeline graphicsPipeline;
+	VkGraphicsPipelineCreateInfo graphicsPipelineInfo = {};
+	graphicsPipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	graphicsPipelineInfo.pNext = NULL;
+	graphicsPipelineInfo.flags = 0;
+	graphicsPipelineInfo.stageCount = shaderStageInfos.size();
+	graphicsPipelineInfo.pStages = shaderStageInfos.data();
+	graphicsPipelineInfo.pVertexInputState = &vertexInputInfo;
+	graphicsPipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+	graphicsPipelineInfo.pTessellationState = NULL;
+	graphicsPipelineInfo.pViewportState = &viewportInfo;
+	graphicsPipelineInfo.pRasterizationState = &rasterizationInfo;
+	graphicsPipelineInfo.pMultisampleState = &multisampleInfo;
+	graphicsPipelineInfo.pDepthStencilState = NULL;
+	graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
+	graphicsPipelineInfo.pDynamicState = NULL;
+	graphicsPipelineInfo.layout = pipelineLayoutGraphics;
+	graphicsPipelineInfo.renderPass = renderPass;
+	graphicsPipelineInfo.subpass = 0;
+	graphicsPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	/* IGNORED
+	graphics_pipeline_info.basePipelineIndex*/
+	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, NULL, &graphicsPipeline))
+	
+	////////////////////////////
+	////////FRAMEBUFFERs////////
+	////////////////////////////
+	std::vector<VkFramebuffer> defaultFramebuffers;
+	vkApp.CreateDefaultFramebuffers(defaultFramebuffers, renderPass);
     
 	////////////////////////////
 	///////////RECORD///////////
@@ -741,43 +1050,34 @@ void RaytraceTriangle(const char* brhanFile)
 			shaderBindingTableBuffer, 1 * physicalDeviceRayTracingProperties.shaderGroupHandleSize, physicalDeviceRayTracingProperties.shaderGroupHandleSize,
 			 VK_NULL_HANDLE, 0, 0, vkApp.vkSurfaceExtent.width, vkApp.vkSurfaceExtent.height, 1);
 		
-		//Barrier - wait for ray tracing to finish
-		vkApp.TransitionImageLayoutInProgress(rayTracingShadowImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		//Barrier - wait for ray tracing to finish and transition images
+		vkApp.TransitionImageLayoutInProgress(rayTracingImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingShadowImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
 		
 		// Ambient occlusion
+		VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
+		VkClearValue clearValue = { clearColorValue };
+		VkRenderPassBeginInfo renderpassInfo = {};
+		renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderpassInfo.pNext = NULL;
+		renderpassInfo.renderPass = renderPass;
+		renderpassInfo.framebuffer = defaultFramebuffers[i];
+		renderpassInfo.renderArea.offset = { 0, 0 };
+		renderpassInfo.renderArea.extent = vkApp.vkSurfaceExtent;
+		renderpassInfo.clearValueCount = 1;
+		renderpassInfo.pClearValues = &clearValue;
+		vkCmdBeginRenderPass(graphicsQueueCommandBuffers[i], &renderpassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
+		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphics, 0, 1, &descriptorSetGraphics, 0, NULL);
+		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
+		vkCmdEndRenderPass(graphicsQueueCommandBuffers[i]);
 		
-		
-		//Barrier - wait for ambient occlusion to finish and transition rayTracingImage from GENERAL to TRANSFER_SRC
-		vkApp.TransitionImageLayoutInProgress(rayTracingImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT, graphicsQueueCommandBuffers[i]);
-		
-		//Transition swapchainImage from UNDEFINED to TRANSFER_DST
-		vkApp.TransitionImageLayoutInProgress(vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, graphicsQueueCommandBuffers[i]);
-		
-		//Copy data from rayTracingImage to swapchainImage
-		VkImageCopy imageCopyRegion = {};
-		imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageCopyRegion.srcSubresource.mipLevel = 0;
-		imageCopyRegion.srcSubresource.baseArrayLayer = 0;
-		imageCopyRegion.srcSubresource.layerCount = 1;
-		imageCopyRegion.srcOffset.x = 0;
-		imageCopyRegion.srcOffset.y = 0;
-		imageCopyRegion.srcOffset.z = 0;
-		imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageCopyRegion.dstSubresource.mipLevel = 0;
-		imageCopyRegion.dstSubresource.baseArrayLayer = 0;
-		imageCopyRegion.dstSubresource.layerCount = 1;
-		imageCopyRegion.dstOffset.x = 0;
-		imageCopyRegion.dstOffset.y = 0;
-		imageCopyRegion.dstOffset.z = 0;
-		imageCopyRegion.extent.width = vkApp.vkSurfaceExtent.width;
-		imageCopyRegion.extent.height = vkApp.vkSurfaceExtent.height;
-		imageCopyRegion.extent.depth = 1;
-		vkCmdCopyImage(graphicsQueueCommandBuffers[i], rayTracingImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopyRegion);
-		
-		//Barrier - wait for copy to finish and transition swapchainImage from TRANSFER_DST to PRESENT_SRC
-		vkApp.TransitionImageLayoutInProgress(vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
-		// Transition swapchainImage from TRANSFER_DST to PRESENT_SRC
-		vkApp.TransitionImageLayoutInProgress(rayTracingImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		//Barrier - wait for ambient occlusion to finish and transition images from SHADER_READ_ONLY to GENERAL
+		vkApp.TransitionImageLayoutInProgress(rayTracingImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingShadowImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
 		
 		CHECK_VK_RESULT(vkEndCommandBuffer(graphicsQueueCommandBuffers[i]))
 	}
@@ -792,6 +1092,8 @@ void RaytraceTriangle(const char* brhanFile)
 	vkDeviceWaitIdle(vkApp.vkDevice);
 	
 	// Cleanup
+	// Graphics pipeline stuff
+	
 	// Raytracing stuff
 	vkDestroyDescriptorPool(vkApp.vkDevice, descriptorPool, NULL);
 	vkDestroyImageView(vkApp.vkDevice, rayTracingShadowImageView, NULL);
