@@ -1,5 +1,6 @@
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shader.vert -Isrc/shaders/include -o src/shaders/out/vert.spv
-~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shader.frag -Isrc/shaders/include -o src/shaders/out/frag.spv
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderSubpass0.frag -Isrc/shaders/include -o src/shaders/out/fragSubpass0.spv
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderSubpass1.frag -Isrc/shaders/include -o src/shaders/out/fragSubpass1.spv
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/primary.rgen -Isrc/shaders/include -o src/shaders/out/primary_rgen.spv
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/primary.rchit -Isrc/shaders/include -o src/shaders/out/primary_rchit.spv
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/primary.rmiss -Isrc/shaders/include -o src/shaders/out/primary_rmiss.spv

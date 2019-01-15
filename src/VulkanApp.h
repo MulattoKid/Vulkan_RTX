@@ -183,7 +183,7 @@ public:
 	void TransitionImageLayoutInProgress(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags srcStage, VkAccessFlags srcAccessMask, VkPipelineStageFlags dstStage, VkAccessFlags dstAccessMask, VkCommandBuffer commandBuffer);
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t imageWidth, uint32_t imageHeight);
 	void CreateTexture(const char* filename, VkFormat format, VulkanTexture* texture);
-	void CreateDefaultSampler(VkSampler* sampler);
+	void CreateDefaultSampler(VkSampler* sampler, VkFilter filter, VkSamplerAddressMode addressMode);
 	void CreateDummyImage(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* imageView);
 	VkViewport GetDefaultViewport();
 	VkRect2D GetDefaultScissor();

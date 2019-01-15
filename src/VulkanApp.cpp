@@ -972,18 +972,18 @@ VulkanTexture::~VulkanTexture()
 	vkDestroyImage(device, image, NULL);
 }
 
-void VulkanApp::CreateDefaultSampler(VkSampler* sampler)
+void VulkanApp::CreateDefaultSampler(VkSampler* sampler, VkFilter filter, VkSamplerAddressMode addressMode) 
 {
 	VkSamplerCreateInfo samplerInfo = {};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	samplerInfo.pNext = NULL;
 	samplerInfo.flags = 0;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.magFilter = filter;
+	samplerInfo.minFilter = filter;
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeU = addressMode;
+	samplerInfo.addressModeV = addressMode;
+	samplerInfo.addressModeW = addressMode;
 	samplerInfo.mipLodBias = 1.0f;
 	samplerInfo.anisotropyEnable = VK_FALSE;
 	//samplerInfo.maxAnisotropy = IGNORED
