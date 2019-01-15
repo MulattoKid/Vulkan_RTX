@@ -2,9 +2,8 @@
 #extension GL_NV_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 
-#define AO_CONE 0
-#define AO_HEMISPHERE_HARD 1
-#define HARD_SHADOWS 0
+#define AO_CONE 1
+#define AO_HEMISPHERE_HARD 0
 
 #include "Camera.glsl"
 #include "DataLayouts.glsl"
@@ -14,6 +13,7 @@
 
 layout(set = 0, binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RESULT_IMAGE_BINDING_LOCATION, rgba8) uniform image2D resultImage;
+layout(set = 0, binding = SHADOW_IMAGE_BINDING_LOCATION, r32f) uniform image2D shadowImage;
 layout(set = 0, binding = CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
 {
 	Camera camera;
@@ -67,6 +67,7 @@ void main()
 	int remainingSamplesPerLight = totalOcclusionSamplesPerLight - totalOcclusionSamplesPerLightGoingUp;
 	numOcclusionStepsPerLighti += remainingSamplesPerLight / numOcclusionStepsPerLighti;
 	vec3 color = vec3(0.0f);
+	float shadow = 0.0f;
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
 		// Extract light data
@@ -106,12 +107,15 @@ void main()
 		}
 		
 		// Add light's contribution
+		shadow += lightContr / conePdf;
 		color += lightEmittance * lightContr / conePdf;
 	}
 	color *= primaryPayload.materialColor.rgb;
+	shadow /= numOcclusionStepsPerLighti * numOcclusionStepsPerLightj * otherData.numSphericalLightSources;
 	color /= numOcclusionStepsPerLighti * numOcclusionStepsPerLightj * otherData.numSphericalLightSources;
 	
 	// Store
+	imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow, 0.0f, 0.0f, 0.0f));
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
     
 #elif AO_HEMISPHERE_HARD
@@ -166,44 +170,11 @@ void main()
 			}
 		}
 	}
+	float shadow = float(totalOcclusionSamples - numAO) / float(totalOcclusionSamples);
 	color *= float(totalOcclusionSamples - numAO) / float(totalOcclusionSamples);
 	
 	// Store
-    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
-	
-#elif HARD_SHADOWS
-	// Treats spherical light sources as point-lights, but use radius
-	// when checking the intersection distance
-	vec3 color = vec3(0.0f);
-	for (int l = 0; l < otherData.numSphericalLightSources; l++)
-	{
-		vec3 lightPos = lights[l].centerAndRadius.xyz;
-		float lightRadius = lights[l].centerAndRadius.w;
-		vec3 lightEmittance = lights[l].emittance.rgb;
-		// Intersection-Light data
-		vec3 isectPointToLight = lightPos - isectPoint;
-		vec3 isectPointToLightDir = normalize(isectPointToLight);
-		float isectPointToLightDist = length(isectPointToLight) - lightRadius;
-
-		// Trace shadow rays
-		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
-		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-		
-		// Check for geometry between intersection point and light
-		if (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < isectPointToLightDist)
-		{
-		 	continue;
-		}
-			
-		// Calculate light
-		// Multiply with HemispherePdf as we only take one sample but this SINGLE sample represents the entire
-		// integration interval -> an infitnite number of samples are "in theory" taken.
-		color += lightEmittance * dot(isectNormal, isectPointToLightDir) * HemispherePdf();
-	}
-	color *= primaryPayload.materialColor.rgb;
-	color /= otherData.numSphericalLightSources;
-	
-	// Store
+    imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow, 0.0f, 0.0f, 0.0f));
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
 
 #endif
