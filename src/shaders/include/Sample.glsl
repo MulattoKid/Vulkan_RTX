@@ -16,6 +16,16 @@ mat3 RotationToAlignAToB(vec3 a, vec3 b)
 	return rotation;
 }
 
+float SameHemisphere(vec3 a, vec3 b)
+{
+	// Same
+	if (dot(a, b) > 0.0f)
+	{
+		return 1.0f;
+	}
+	return 0.0f;
+}
+
 float HemispherePdf()
 {
 	return ONE_OVER_TWO_PI;

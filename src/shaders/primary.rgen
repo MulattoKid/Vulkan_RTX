@@ -55,8 +55,8 @@ void main()
 	}
 	
 	// Intersection data
-	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	vec3 isectPoint = ray.origin + (ray.dir * primaryPayload.normalAndHitDistance.w);
+	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	
 #if AO_CONE	
 	int numOcclusionSteps = 6;
@@ -67,8 +67,11 @@ void main()
 	int totalOcclusionSamplesPerLightGoingUp = numOcclusionStepsPerLighti * numOcclusionStepsPerLightj;
 	int remainingSamplesPerLight = totalOcclusionSamplesPerLight - totalOcclusionSamplesPerLightGoingUp;
 	numOcclusionStepsPerLighti += remainingSamplesPerLight / numOcclusionStepsPerLighti;
+	int totalOcclusionStepsPerLight = numOcclusionStepsPerLighti * numOcclusionStepsPerLightj;
+	int totalOcclusionSteps = totalOcclusionStepsPerLight * otherData.numSphericalLightSources;
 	vec3 color = vec3(0.0f);
-	float shadow = 0.0f;
+	//float shadow = 0.0f;
+	vec3 shadow = vec3(0.0f);
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
 		// Extract light data
@@ -84,6 +87,7 @@ void main()
 		float cosThetaIsectPointLightTangent = tangentDist / isectPointToLightCenterDist;
 		float conePdf = ConePdf(cosThetaIsectPointLightTangent);
 		float lightContr = 0.0f;
+		int numSamplesInShadow = 0;
 		for (int i = 0; i <= numOcclusionStepsPerLighti; i++)
 		{
 			for (int j = 0; j <= numOcclusionStepsPerLightj; j++)
@@ -96,28 +100,34 @@ void main()
 				// Intersect spherical light
 				float lightDist = SphereIntersect(lightCenter, lightRadius, occlusionRay.origin, occlusionRay.dir, tMin, tMax);
 				
-				// Check for intersection with geometry before an intersection with the light
-				// 1) Did intersect the light
-				// 2) Either didn't hit some geometry or the distance to the isect is further
-				//    than the distance to the isect on the light
-				if ((lightDist >= 0.0f) && (secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= lightDist))
+				// Check for intersection with geometry before an intersection with the light:
+				//    Either didn't hit some geometry or the distance to the geometry isect is
+				//    further than the distance to the isect on the light
+				if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= lightDist))
 				{
 					lightContr += dot(isectNormal, occlusionRay.dir);
+				}
+				else
+				{
+					numSamplesInShadow++;
 				}
 			}
 		}
 		
 		// Add light's contribution
-		shadow += lightContr / conePdf;
-		color += lightEmittance * lightContr / conePdf;
+		lightContr = lightContr / conePdf;
+		color += lightEmittance * lightContr;
+		//shadow += lightContr;
+		shadow += lightEmittance * (totalOcclusionStepsPerLight - numSamplesInShadow) / totalOcclusionStepsPerLight;
 	}
-	shadow /= numOcclusionStepsPerLighti * numOcclusionStepsPerLightj * otherData.numSphericalLightSources;
-	color /= numOcclusionStepsPerLighti * numOcclusionStepsPerLightj * otherData.numSphericalLightSources;
+	color /= totalOcclusionSteps;
 	color *= primaryPayload.materialColor.rgb;
+	shadow /= totalOcclusionSteps;
 	
 	// Store
-	imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow, 0.0f, 0.0f, 0.0f));
-    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+    //imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow, 1.0f));
+	imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow, 0.0f));
     
 #elif AO_HEMISPHERE_HARD
 	// Treats spherical light sources as point-lights, but use radius
@@ -180,22 +190,3 @@ void main()
 
 #endif
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -520,7 +520,7 @@ VulkanApp::VulkanApp(const VulkanAppCreateInfo* createInfo)
 	windowWidth = createInfo->windowWidth;
 	windowHeight = createInfo->windowHeight;
 	window = glfwCreateWindow(windowWidth, windowHeight, createInfo->windowName, nullptr, nullptr);
-	printf("Successfully create GLFW window\n");
+	printf("Successfully created GLFW window\n");
 	
 	CHECK_VK_RESULT(volkInitialize())
 #ifdef VK_DEBUG
