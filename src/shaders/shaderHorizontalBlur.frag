@@ -68,7 +68,7 @@ layout(location=0) out vec4 outColor;
 void main()
 {
 	vec2 fragCoord = gl_FragCoord.xy;
-	float shadow;
+	vec3 shadow;
     
 #if BLUR_3x3
 	vec2 horizontalOffsetSmall = vec2(1.0f, 0.0f);
@@ -77,9 +77,9 @@ void main()
 		 fragCoord * pixelDelta,
 		(fragCoord + horizontalOffsetSmall) * pixelDelta
 	};
-	shadow  = texture(shadowImage, horizontalUVs[0]).r * FIRST_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[1]).r * CENTER_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[2]).r * FIRST_WEIGHT;
+	shadow  = texture(shadowImage, horizontalUVs[0]).rgb * FIRST_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[1]).rgb * CENTER_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[2]).rgb * FIRST_WEIGHT;
 #elif BLUR_5x5
 	vec2 horizontalOffsetSmall  = vec2(1.0f, 0.0f);
 	vec2 horizontalOffsetMedium = vec2(2.0f, 0.0f);
@@ -90,11 +90,11 @@ void main()
 		(fragCoord + horizontalOffsetSmall)  * pixelDelta,
 		(fragCoord + horizontalOffsetMedium) * pixelDelta
 	};
-	shadow  = texture(shadowImage, horizontalUVs[0]).r * FIRST_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[1]).r * SECOND_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[2]).r * CENTER_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[3]).r * SECOND_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[4]).r * FIRST_WEIGHT;
+	shadow  = texture(shadowImage, horizontalUVs[0]).rgb * FIRST_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[1]).rgb * SECOND_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[2]).rgb * CENTER_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[3]).rgb * SECOND_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[4]).rgb * FIRST_WEIGHT;
 #elif BLUR_7x7
 	vec2 horizontalOffsetSmall  = vec2(1.0f, 0.0f);
 	vec2 horizontalOffsetMedium = vec2(2.0f, 0.0f);
@@ -108,14 +108,14 @@ void main()
 		(fragCoord + horizontalOffsetMedium) * pixelDelta,
 		(fragCoord + horizontalOffsetLarge)  * pixelDelta
 	};
-	shadow  = texture(shadowImage, horizontalUVs[0]).r * FIRST_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[1]).r * SECOND_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[2]).r * THIRD_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[3]).r * CENTER_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[4]).r * THIRD_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[5]).r * SECOND_WEIGHT;
-	shadow += texture(shadowImage, horizontalUVs[6]).r * FIRST_WEIGHT;
+	shadow  = texture(shadowImage, horizontalUVs[0]).rgb * FIRST_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[1]).rgb * SECOND_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[2]).rgb * THIRD_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[3]).rgb * CENTER_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[4]).rgb * THIRD_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[5]).rgb * SECOND_WEIGHT;
+	shadow += texture(shadowImage, horizontalUVs[6]).rgb * FIRST_WEIGHT;
 #endif
 
-	outColor = vec4(shadow, 0.0f, 0.0f, 0.0f);
+	outColor = vec4(shadow, 1.0f);
 }

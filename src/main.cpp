@@ -32,7 +32,7 @@ void RaytraceTriangle(const char* brhanFile)
 	vkAppInfo.extensionCount = extensionNames.size();
 	vkAppInfo.extensionNames = extensionNames.data();
 	vkAppInfo.maxFramesInFlight = 2;
-	VulkanApp vkApp(&vkAppInfo);	
+	VulkanApp vkApp(&vkAppInfo);
 	
 	////////////////////////////
 	///////////CAMERA///////////
@@ -53,11 +53,17 @@ void RaytraceTriangle(const char* brhanFile)
 	////////////////////////////
 	// See shaders/include/Datalayouts.glsl for structure layout
 	std::vector<float> lights = {
-		0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 0.0f, 0.0f, 0.0f,
+		/*0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 0.0f, 0.0f, 0.0f,
 		-10.0f, 20.0f, -10.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f,
 		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 6.0f, 0.0f,
-		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,
-		0.0f, 20.0f, 0.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f
+		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,*/
+		//0.0f, 20.0f, 0.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f
+		
+		/*0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 0.0f, 0.0f, 0.0f,
+		-10.0f, 20.0f, -10.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f,
+		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 6.0f, 0.0f,
+		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,*/
+		0.0f, 20.0f, 0.0f, 5.0f, 0.9f, 0.9f, 0.9f, 0.0f
 	};
 	VkDeviceSize lightsBufferSize = lights.size() * sizeof(float);
 	VkBuffer lightsBuffer;
@@ -418,7 +424,7 @@ void RaytraceTriangle(const char* brhanFile)
 	vkApp.TransitionImageLayoutSingle(rayTracingImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
     
     //Ray tracing SHADOW image
-	imageInfo.format = VK_FORMAT_R32_SFLOAT;
+	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	VkImage rayTracingShadowImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingShadowImage))
 	
@@ -426,7 +432,7 @@ void RaytraceTriangle(const char* brhanFile)
 	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingShadowImage, &rayTracingShadowImageMemoryRequirements);
 	VkMemoryAllocateInfo rayTracingShadowImageAllocateInfo = {};
 	rayTracingShadowImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	rayTracingShadowImageAllocateInfo.allocationSize = rayTracingImageMemoryRequirements.size;
+	rayTracingShadowImageAllocateInfo.allocationSize = rayTracingShadowImageMemoryRequirements.size;
 	rayTracingShadowImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingShadowImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	VkDeviceMemory rayTracingShadowImageMemory;
 	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingShadowImageAllocateInfo, NULL, &rayTracingShadowImageMemory))
@@ -438,7 +444,7 @@ void RaytraceTriangle(const char* brhanFile)
     rayTracingShadowImageViewCreateInfo.flags = 0;
     rayTracingShadowImageViewCreateInfo.image = rayTracingShadowImage;
     rayTracingShadowImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    rayTracingShadowImageViewCreateInfo.format = VK_FORMAT_R32_SFLOAT;
+    rayTracingShadowImageViewCreateInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     rayTracingShadowImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	rayTracingShadowImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
 	rayTracingShadowImageViewCreateInfo.subresourceRange.levelCount = 1;
@@ -753,7 +759,7 @@ void RaytraceTriangle(const char* brhanFile)
 	vkApp.CreateDeviceBuffer(pixelDeltaBufferSize, (void*)(pixelDeltaData.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &pixelDeltaBuffer, &pixelDeltaBufferMemory);
 	
 	// Horizontal blur image
-	imageInfo.format = VK_FORMAT_R32_SFLOAT;
+	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	VkImage horizontalBlurImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &horizontalBlurImage))
@@ -772,7 +778,7 @@ void RaytraceTriangle(const char* brhanFile)
     horizontalBlurImageViewCreateInfo.flags = 0;
     horizontalBlurImageViewCreateInfo.image = horizontalBlurImage;
     horizontalBlurImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    horizontalBlurImageViewCreateInfo.format = VK_FORMAT_R32_SFLOAT;
+    horizontalBlurImageViewCreateInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     horizontalBlurImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	horizontalBlurImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
 	horizontalBlurImageViewCreateInfo.subresourceRange.levelCount = 1;
@@ -1036,7 +1042,7 @@ void RaytraceTriangle(const char* brhanFile)
 
 	std::vector<VkAttachmentDescription> attachments(2);
 	attachments[0].flags = 0;
-	attachments[0].format = VK_FORMAT_R32_SFLOAT;
+	attachments[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;

@@ -60,19 +60,19 @@ void main()
 	{
 		if (payload.otherData2.x == MATTE_MATERIAL)
 		{
-			payload.materialColor = meshAttributes[meshID].diffuseColor.bgra;
+			payload.materialColor = meshAttributes[meshID].diffuseColor;
 		}
 		else if (payload.otherData2.x == MIRROR_MATERIAL)
 		{
-			payload.materialColor = meshAttributes[meshID].specularColor.bgra;
+			payload.materialColor = meshAttributes[meshID].specularColor;
 		}
 		else if (payload.otherData2.x == WATER_MATERIAL)
 		{
-			payload.materialColor = meshAttributes[meshID].specularColor.bgra;
+			payload.materialColor = meshAttributes[meshID].specularColor;
 		}
 		else if (payload.otherData2.x == GLASS_MATERIAL)
 		{
-			payload.materialColor = meshAttributes[meshID].specularColor.bgra;
+			payload.materialColor = meshAttributes[meshID].specularColor;
 		}
 		else
 		{
@@ -83,19 +83,19 @@ void main()
 	{
 		if (payload.otherData2.x == MATTE_MATERIAL)
 		{
-			payload.materialColor = texture(diffuseTextures[nonuniformEXT(meshID)], uv).bgra;
+			payload.materialColor = texture(diffuseTextures[nonuniformEXT(meshID)], uv);
 		}
 		else if (payload.otherData2.x == MIRROR_MATERIAL)
 		{
-			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv).bgra;
+			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv);
 		}
 		else if (payload.otherData2.x == WATER_MATERIAL)
 		{
-			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv).bgra;
+			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv);
 		}
 		else if (payload.otherData2.x == GLASS_MATERIAL)
 		{
-			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv).bgra;
+			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv);
 		}
 	}
 }

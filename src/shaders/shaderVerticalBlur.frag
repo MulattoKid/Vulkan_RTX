@@ -68,7 +68,7 @@ layout(location=0) out vec4 outColor;
 void main()
 {
 	vec2 fragCoord = gl_FragCoord.xy;
-	float shadow;
+	vec3 shadow;
     
 #if BLUR_3x3
 	vec2 verticalOffset = vec2(0.0f, 1.0f);
@@ -77,9 +77,9 @@ void main()
 		fragCoord * pixelDelta,
 		(fragCoord + verticalOffset) * pixelDelta
 	};
-	shadow  = texture(horizontalBlurImage, verticalUVs[0]).r * FIRST_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[1]).r * CENTER_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[2]).r * FIRST_WEIGHT;
+	shadow  = texture(horizontalBlurImage, verticalUVs[0]).rgb * FIRST_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[1]).rgb * CENTER_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[2]).rgb * FIRST_WEIGHT;
 #elif BLUR_5x5
 	vec2 verticalOffsetSmall  = vec2(1.0f, 0.0f);
 	vec2 verticalOffsetMedium = vec2(2.0f, 0.0f);
@@ -90,11 +90,11 @@ void main()
 		(fragCoord + verticalOffsetSmall)  * pixelDelta,
 		(fragCoord + verticalOffsetMedium) * pixelDelta
 	};
-	shadow  = texture(horizontalBlurImage, verticalUVs[0]).r * FIRST_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[1]).r * SECOND_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[2]).r * CENTER_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[3]).r * SECOND_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[4]).r * FIRST_WEIGHT;
+	shadow  = texture(horizontalBlurImage, verticalUVs[0]).rgb * FIRST_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[1]).rgb * SECOND_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[2]).rgb * CENTER_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[3]).rgb * SECOND_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[4]).rgb * FIRST_WEIGHT;
 #elif BLUR_7x7
 	vec2 verticalOffsetSmall  = vec2(1.0f, 0.0f);
 	vec2 verticalOffsetMedium = vec2(2.0f, 0.0f);
@@ -108,17 +108,20 @@ void main()
 		(fragCoord + verticalOffsetMedium) * pixelDelta,
 		(fragCoord + verticalOffsetLarge)  * pixelDelta
 	};
-	shadow  = texture(horizontalBlurImage, verticalUVs[0]).r * FIRST_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[1]).r * SECOND_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[2]).r * THIRD_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[3]).r * CENTER_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[4]).r * THIRD_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[5]).r * SECOND_WEIGHT;
-	shadow += texture(horizontalBlurImage, verticalUVs[6]).r * FIRST_WEIGHT;
+	shadow  = texture(horizontalBlurImage, verticalUVs[0]).rgb * FIRST_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[1]).rgb * SECOND_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[2]).rgb * THIRD_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[3]).rgb * CENTER_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[4]).rgb * THIRD_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[5]).rgb * SECOND_WEIGHT;
+	shadow += texture(horizontalBlurImage, verticalUVs[6]).rgb * FIRST_WEIGHT;
 #endif
 
-	//outColor = vec4(vec3(texture(rayTracingImage, fUV).r), 1.0f);
+	// Remember to output BGRA8 as that's the format of the swapchain
 	outColor = texture(rayTracingImage, fUV).bgra;
-    //outColor = vec4(texture(rayTracingImage, fUV).bgr * shadow, 1.0f);
-    //outColor = vec4(shadow, 0.0f, 0.0f, 1.0f);
+    //outColor = vec4(shadow, 1.0f);
+    vec3 originalColor = texture(rayTracingImage, fUV).bgr;
+    vec3 differenceColor = originalColor - shadow;
+    vec3 changeColor = vec3(1.0f) - differenceColor;
+    //outColor = vec4(originalColor * changeColor, 1.0f);
 }
