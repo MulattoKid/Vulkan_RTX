@@ -2,9 +2,6 @@
 #extension GL_NV_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 
-#define AO_CONE 0
-#define AO_HEMISPHERE 1
-
 #include "Camera.glsl"
 #include "DataLayouts.glsl"
 #include "Defines.glsl"
@@ -50,7 +47,11 @@ void main()
 		const float red = mix(0.0f, 0.7f, y);
 		const float green = mix(0.65f, 0.9f, y);
 		imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(0.8f, green, red, 1.0f));
-		imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(1.0f));
+#if AO_CONE
+		imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(vec3(1.0f), 1.0f));
+#elif AO_HEMISPHERE
+		imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(vec3(DEFAULT_OCCLUSION), 1.0f));
+#endif
 		return;
 	}
 	
@@ -132,7 +133,7 @@ void main()
 	
 	// Store
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
-	imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow.rgb, 0.0f));
+	imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow.bgr, 0.0f));
     
     
     
@@ -142,77 +143,63 @@ void main()
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
 #elif AO_HEMISPHERE
-#define TIGHTEN 0.25f
-	// Treats spherical light sources as point-lights, but use radius
-	// when checking the intersection distance
 	vec3 color = vec3(0.0f);
+	int neverVisible = 1;
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
-		vec3 lightPos = lights[l].centerAndRadius.xyz;
+		vec3 lightCenter = lights[l].centerAndRadius.xyz;
 		float lightRadius = lights[l].centerAndRadius.w;
 		vec3 lightEmittance = lights[l].emittance.rgb;
-		vec3 isectPointToLight = lightPos - isectPoint;
-		vec3 isectPointToLightDir = normalize(isectPointToLight);
-		float isectPointToLightDist = length(isectPointToLight) - lightRadius;
+		vec3 isectPointToLightCenter = lightCenter - isectPoint;
+		vec3 isectPointToLightCenterDir = normalize(isectPointToLightCenter);
+		float isectPointToLightCenterDist = length(isectPointToLightCenter);
+		float isectPointToLightCenterClosestDist = isectPointToLightCenterDist - lightRadius;
 
 		// Trace shadow rays
-		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightDir);
+		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightCenterDir);
 		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
 		
 		// Check for intersection with geometry before an intersection with the light:
-		//    Either didn't hit some geometry or the distance to the geometry isect is
-		//    further than the distance to the isect on the light
-		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightDist))
+		//    Either didn't hit some geometry or
+		//    the distance to the geometry isect is further than the distance to the isect on the light
+		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
 		{
-			color += lightEmittance * dot(isectNormal, isectPointToLightDir);
+			neverVisible = 0;
 		}
+		color += lightEmittance * dot(isectNormal, isectPointToLightCenterDir);
 	}
 	color /= otherData.numSphericalLightSources;
 	color *= primaryPayload.materialColor.rgb;
 
-	int numOcclusionSteps = 6;
-	int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
-	// Sample hemisphere of directions given the normal at the intersection point
-	int numAO = 0;
-	const vec2 lerpMin = vec2(TIGHTEN);
-	const vec2 lerpMax = vec2(1.0f - TIGHTEN);
-	for (int i = 0; i <= numOcclusionSteps; i++)
+	float occlusion = DEFAULT_OCCLUSION;
+	if (neverVisible == 1)
 	{
-		for (int j = 0; j <= numOcclusionSteps; j++)
+		int numOcclusionSteps = 7;
+		int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
+		// Sample hemisphere of directions given the normal at the intersection point
+		int numAO = 0;
+		for (int i = 0; i <= totalOcclusionSamples; i++)
 		{
-			// Generate current sample numbers used for sampling the cone.
-			// Note: lerping (mix in GLSL) shrinks the domain of the sample numbers from e.g.
-			// [0, 1] -> [0.25, 0.75]. This will reduce the spread of the samples, resulting
-			// in more samples taken within a smaller domain. This should yield better AO.
-			vec2 samplePoints = mix(lerpMin, lerpMax, vec2(float(i) / float(numOcclusionSteps), float(j) / float(numOcclusionSteps)));
 			// Sample occlusion ray direction and trace
+			vec2 samplePoints = vec2(float(i % totalOcclusionSamples) / float(numOcclusionSteps), float(i) / float(totalOcclusionSamples));
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, samplePoints);
 			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
 			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-				
+					
 			// Check for intersection with geometry
 			if (secondaryPayload.hitDist.x >= 0.0f)
 			{
 				numAO++;
 			}
 		}
+		occlusion = float(numAO) / float(totalOcclusionSamples);
 	}
-	float shadow = float(totalOcclusionSamples - numAO) / float(totalOcclusionSamples);
-	color *= float(totalOcclusionSamples - numAO) / float(totalOcclusionSamples);
 	
 	// Store
-    imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(shadow, 0.0f, 0.0f, 0.0f));
     imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+    imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(occlusion, occlusion, occlusion, 0.0f));
 
 #endif
 }

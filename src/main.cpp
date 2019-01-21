@@ -53,17 +53,19 @@ void RaytraceTriangle(const char* brhanFile)
 	////////////////////////////
 	// See shaders/include/Datalayouts.glsl for structure layout
 	std::vector<float> lights = {
-		/*0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 0.0f, 0.0f, 0.0f,
+#if AO_CONE
+		0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 0.0f, 0.0f, 0.0f,
 		-10.0f, 20.0f, -10.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f,
 		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 6.0f, 0.0f,
-		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,*/
-		//0.0f, 20.0f, 0.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f
-		
-		/*0.0f, 20.0f, -10.0f, 5.0f, 6.0f, 0.0f, 0.0f, 0.0f,
-		-10.0f, 20.0f, -10.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f,
-		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 6.0f, 0.0f,
-		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,*/
-		0.0f, 20.0f, 0.0f, 5.0f, 0.9f, 0.9f, 0.9f, 0.0f
+		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,
+		0.0f, 20.0f, 0.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f
+#elif AO_HEMISPHERE
+		0.0f, 20.0f, -10.0f, 5.0f, 1.9f, 0.0f, 0.0f, 0.0f,
+		-10.0f, 20.0f, -10.0f, 5.0f, 0.0f, 1.9f, 0.0f, 0.0f,
+		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 1.9f, 0.0f,
+		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 1.9f, 1.9f, 0.0f,
+		0.0f, 20.0f, 0.0f, 5.0f, 1.9f, 1.9f, 1.9f, 0.0f
+#endif
 	};
 	VkDeviceSize lightsBufferSize = lights.size() * sizeof(float);
 	VkBuffer lightsBuffer;
