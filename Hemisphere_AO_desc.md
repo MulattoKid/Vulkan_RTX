@@ -26,6 +26,8 @@ float occlusion = float(numHitsAO) / float(totalSamples);
 
 This value can be post-processed, e.g. blurred (note that this will require separate render passes etc.).
 
+**Note:** as only pixels that are never visible from any of the lights have AO calculated, more lights in varying positions will result in the shadows becoming smaller. This issue *must* be dealt with before the algorithm can be called **"finished"**.
+
 ## Combine AO with color
 To combine the AO value into the color image, simply multiply the value with the color value, e.g.:
 ```

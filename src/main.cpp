@@ -60,9 +60,9 @@ void RaytraceTriangle(const char* brhanFile)
 		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 6.0f, 6.0f, 0.0f,
 		0.0f, 20.0f, 0.0f, 5.0f, 6.0f, 6.0f, 6.0f, 0.0f
 #elif AO_HEMISPHERE
-		0.0f, 20.0f, -10.0f, 5.0f, 1.9f, 0.0f, 0.0f, 0.0f,
+		/*0.0f, 20.0f, -10.0f, 5.0f, 1.9f, 0.0f, 0.0f, 0.0f,
 		-10.0f, 20.0f, -10.0f, 5.0f, 0.0f, 1.9f, 0.0f, 0.0f,
-		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 1.9f, 0.0f,
+		0.0f, 20.0f, 10.0f, 5.0f, 0.0f, 0.0f, 1.9f, 0.0f,*/
 		10.0f, 20.0f, 10.0f, 5.0f, 0.0f, 1.9f, 1.9f, 0.0f,
 		0.0f, 20.0f, 0.0f, 5.0f, 1.9f, 1.9f, 1.9f, 0.0f
 #endif
@@ -249,12 +249,12 @@ void RaytraceTriangle(const char* brhanFile)
 	rayTracingImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	rayTracingImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& rayTracingShadowImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings0[SHADOW_IMAGE_BINDING_LOCATION];
-	rayTracingShadowImageDescriptorSetLayoutBinding.binding = SHADOW_IMAGE_BINDING_LOCATION;
-	rayTracingShadowImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	rayTracingShadowImageDescriptorSetLayoutBinding.descriptorCount = 1;
-	rayTracingShadowImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingShadowImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingOcclusionImageDescriptorSetLayoutBinding = descriptorSetLayoutBindings0[OCCLUSION_IMAGE_BINDING_LOCATION];
+	rayTracingOcclusionImageDescriptorSetLayoutBinding.binding = OCCLUSION_IMAGE_BINDING_LOCATION;
+	rayTracingOcclusionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	rayTracingOcclusionImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingOcclusionImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingOcclusionImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
 	VkDescriptorSetLayoutBinding& cameraDescriptorSetLayoutBinding = descriptorSetLayoutBindings0[CAMERA_BUFFER_BINDING_LOCATION];
 	cameraDescriptorSetLayoutBinding.binding = CAMERA_BUFFER_BINDING_LOCATION;
@@ -425,39 +425,39 @@ void RaytraceTriangle(const char* brhanFile)
     //Transition ray tracing image layout
 	vkApp.TransitionImageLayoutSingle(rayTracingImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
     
-    //Ray tracing SHADOW image
+    //Ray tracing OCCLUSION image
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	VkImage rayTracingShadowImage;
-	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingShadowImage))
+	VkImage rayTracingOcclusionImage;
+	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingOcclusionImage))
 	
-	VkMemoryRequirements rayTracingShadowImageMemoryRequirements;
-	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingShadowImage, &rayTracingShadowImageMemoryRequirements);
-	VkMemoryAllocateInfo rayTracingShadowImageAllocateInfo = {};
-	rayTracingShadowImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	rayTracingShadowImageAllocateInfo.allocationSize = rayTracingShadowImageMemoryRequirements.size;
-	rayTracingShadowImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingShadowImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	VkDeviceMemory rayTracingShadowImageMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingShadowImageAllocateInfo, NULL, &rayTracingShadowImageMemory))
-	vkBindImageMemory(vkApp.vkDevice, rayTracingShadowImage, rayTracingShadowImageMemory, 0);
+	VkMemoryRequirements rayTracingOcclusionImageMemoryRequirements;
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingOcclusionImage, &rayTracingOcclusionImageMemoryRequirements);
+	VkMemoryAllocateInfo rayTracingOcclusionImageAllocateInfo = {};
+	rayTracingOcclusionImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	rayTracingOcclusionImageAllocateInfo.allocationSize = rayTracingOcclusionImageMemoryRequirements.size;
+	rayTracingOcclusionImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingOcclusionImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory rayTracingOcclusionImageMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingOcclusionImageAllocateInfo, NULL, &rayTracingOcclusionImageMemory))
+	vkBindImageMemory(vkApp.vkDevice, rayTracingOcclusionImage, rayTracingOcclusionImageMemory, 0);
     
-    VkImageViewCreateInfo rayTracingShadowImageViewCreateInfo;
-    rayTracingShadowImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    rayTracingShadowImageViewCreateInfo.pNext = NULL;
-    rayTracingShadowImageViewCreateInfo.flags = 0;
-    rayTracingShadowImageViewCreateInfo.image = rayTracingShadowImage;
-    rayTracingShadowImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    rayTracingShadowImageViewCreateInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    rayTracingShadowImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	rayTracingShadowImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-	rayTracingShadowImageViewCreateInfo.subresourceRange.levelCount = 1;
-	rayTracingShadowImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-	rayTracingShadowImageViewCreateInfo.subresourceRange.layerCount = 1;
-    rayTracingShadowImageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-	VkImageView rayTracingShadowImageView;
-    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &rayTracingShadowImageViewCreateInfo, NULL, &rayTracingShadowImageView))
+    VkImageViewCreateInfo rayTracingOcclusionImageViewCreateInfo;
+    rayTracingOcclusionImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    rayTracingOcclusionImageViewCreateInfo.pNext = NULL;
+    rayTracingOcclusionImageViewCreateInfo.flags = 0;
+    rayTracingOcclusionImageViewCreateInfo.image = rayTracingOcclusionImage;
+    rayTracingOcclusionImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    rayTracingOcclusionImageViewCreateInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    rayTracingOcclusionImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	rayTracingOcclusionImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+	rayTracingOcclusionImageViewCreateInfo.subresourceRange.levelCount = 1;
+	rayTracingOcclusionImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+	rayTracingOcclusionImageViewCreateInfo.subresourceRange.layerCount = 1;
+    rayTracingOcclusionImageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+	VkImageView rayTracingOcclusionImageView;
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &rayTracingOcclusionImageViewCreateInfo, NULL, &rayTracingOcclusionImageView))
     
-    //Transition ray tracing SHADOW image layout
-	vkApp.TransitionImageLayoutSingle(rayTracingShadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+    //Transition ray tracing OCCLUSION image layout
+	vkApp.TransitionImageLayoutSingle(rayTracingOcclusionImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
 	
 	//Descriptor pool
 	const uint32_t numTexturesPerMesh = 4;
@@ -528,22 +528,22 @@ void RaytraceTriangle(const char* brhanFile)
     rayTracingImageWrite.pBufferInfo = NULL;
     rayTracingImageWrite.pTexelBufferView = NULL;
     
-    VkDescriptorImageInfo descriptorRayTracingShadowImageInfo = {};
-    descriptorRayTracingShadowImageInfo.sampler = VK_NULL_HANDLE;
-    descriptorRayTracingShadowImageInfo.imageView = rayTracingShadowImageView;
-    descriptorRayTracingShadowImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VkDescriptorImageInfo descriptorRayTracingOcclusionImageInfo = {};
+    descriptorRayTracingOcclusionImageInfo.sampler = VK_NULL_HANDLE;
+    descriptorRayTracingOcclusionImageInfo.imageView = rayTracingOcclusionImageView;
+    descriptorRayTracingOcclusionImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
-    VkWriteDescriptorSet& rayTracingShadowImageWrite = descriptorSet0Writes[SHADOW_IMAGE_BINDING_LOCATION];
-    rayTracingShadowImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    rayTracingShadowImageWrite.pNext = NULL;
-    rayTracingShadowImageWrite.dstSet = descriptorSet0;
-    rayTracingShadowImageWrite.dstBinding = SHADOW_IMAGE_BINDING_LOCATION;
-    rayTracingShadowImageWrite.dstArrayElement = 0;
-    rayTracingShadowImageWrite.descriptorCount = 1;
-    rayTracingShadowImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    rayTracingShadowImageWrite.pImageInfo = &descriptorRayTracingShadowImageInfo;
-    rayTracingShadowImageWrite.pBufferInfo = NULL;
-    rayTracingShadowImageWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& rayTracingOcclusionImageWrite = descriptorSet0Writes[OCCLUSION_IMAGE_BINDING_LOCATION];
+    rayTracingOcclusionImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingOcclusionImageWrite.pNext = NULL;
+    rayTracingOcclusionImageWrite.dstSet = descriptorSet0;
+    rayTracingOcclusionImageWrite.dstBinding = OCCLUSION_IMAGE_BINDING_LOCATION;
+    rayTracingOcclusionImageWrite.dstArrayElement = 0;
+    rayTracingOcclusionImageWrite.descriptorCount = 1;
+    rayTracingOcclusionImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    rayTracingOcclusionImageWrite.pImageInfo = &descriptorRayTracingOcclusionImageInfo;
+    rayTracingOcclusionImageWrite.pBufferInfo = NULL;
+    rayTracingOcclusionImageWrite.pTexelBufferView = NULL;
     
     VkDescriptorBufferInfo descriptorCameraInfo = {};
     descriptorCameraInfo.buffer = cameraBuffer;
@@ -940,7 +940,7 @@ void RaytraceTriangle(const char* brhanFile)
     // Occlusion image
     VkDescriptorImageInfo descriptorRayTracingOcclusionImageInfoGraphics = {};
     descriptorRayTracingOcclusionImageInfoGraphics.sampler = defaultSampler;
-    descriptorRayTracingOcclusionImageInfoGraphics.imageView = rayTracingShadowImageView;
+    descriptorRayTracingOcclusionImageInfoGraphics.imageView = rayTracingOcclusionImageView;
     descriptorRayTracingOcclusionImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[1];
     rayTracingOcclusionImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1057,7 +1057,7 @@ void RaytraceTriangle(const char* brhanFile)
 		
 		//Barrier - wait for ray tracing to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(rayTracingImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
-		vkApp.TransitionImageLayoutInProgress(rayTracingShadowImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingOcclusionImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
 		
 		// Blur ambient occlusion result and combine with light result
 		VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -1083,7 +1083,7 @@ void RaytraceTriangle(const char* brhanFile)
 		
 		//Barrier - wait for ambient occlusion to finish and transition images from SHADER_READ_ONLY to GENERAL
 		vkApp.TransitionImageLayoutInProgress(rayTracingImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
-		vkApp.TransitionImageLayoutInProgress(rayTracingShadowImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingOcclusionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
 		
 		CHECK_VK_RESULT(vkEndCommandBuffer(graphicsQueueCommandBuffers[i]))
 	}
@@ -1102,7 +1102,7 @@ void RaytraceTriangle(const char* brhanFile)
 	
 	// Raytracing stuff
 	vkDestroyDescriptorPool(vkApp.vkDevice, descriptorPool, NULL);
-	vkDestroyImageView(vkApp.vkDevice, rayTracingShadowImageView, NULL);
+	vkDestroyImageView(vkApp.vkDevice, rayTracingOcclusionImageView, NULL);
 	vkDestroyImageView(vkApp.vkDevice, rayTracingImageView, NULL);
 	vkFreeMemory(vkApp.vkDevice, rayTracingImageMemory, NULL);
 	vkDestroyImage(vkApp.vkDevice, rayTracingImage, NULL);
@@ -1136,6 +1136,5 @@ void RaytraceTriangle(const char* brhanFile)
 int main(int argc, char** argv)
 {
 	RaytraceTriangle(argv[1]);
-
 	return EXIT_SUCCESS;
 }

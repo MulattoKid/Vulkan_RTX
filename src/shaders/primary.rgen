@@ -10,7 +10,7 @@
 
 layout(set = 0, binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RESULT_IMAGE_BINDING_LOCATION, rgba8) uniform image2D resultImage;
-layout(set = 0, binding = SHADOW_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D shadowImage;
+layout(set = 0, binding = OCCLUSION_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D shadowImage;
 layout(set = 0, binding = CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
 {
 	Camera camera;
@@ -146,7 +146,7 @@ void main()
 
 #elif AO_HEMISPHERE
 	vec3 color = vec3(0.0f);
-	int neverVisible = 1;
+	int numVisible = 0;
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
 	{
 		vec3 lightCenter = lights[l].centerAndRadius.xyz;
@@ -166,7 +166,7 @@ void main()
 		//    the distance to the geometry isect is further than the distance to the isect on the light
 		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
 		{
-			neverVisible = 0;
+			numVisible++;
 		}
 		color += lightEmittance * dot(isectNormal, isectPointToLightCenterDir);
 	}
@@ -174,7 +174,7 @@ void main()
 	color *= primaryPayload.materialColor.rgb;
 
 	float occlusion = DEFAULT_OCCLUSION;
-	if (neverVisible == 1)
+	if (numVisible < otherData.numSphericalLightSources)
 	{
 		int numOcclusionSteps = 7;
 		int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
@@ -195,6 +195,7 @@ void main()
 			}
 		}
 		occlusion = float(numAO) / float(totalOcclusionSamples);
+		occlusion *= (1.0f - (float(numVisible) / float(otherData.numSphericalLightSources)));
 	}
 	
 	// Store

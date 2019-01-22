@@ -24,7 +24,7 @@ void main()
 	sum      += textureOffset(occlusionImage, fUV, ivec2( 0,  1)).r;
 	sum      += textureOffset(occlusionImage, fUV, ivec2( 1,  1)).r;
 	float occlusion = sum / 9.0f;
-    occlusion = 1.0f - occlusion;
+    vec3 visibility = vec3(1.0f) - occlusion;
     vec3 originalColor = texture(rayTracingImage, fUV).bgr;
-    outColor = vec4(originalColor * occlusion, 1.0f);
+    outColor = vec4(originalColor * visibility, 1.0f);
 }
