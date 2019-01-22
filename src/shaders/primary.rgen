@@ -2,9 +2,9 @@
 #extension GL_NV_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 
+#include "Defines.glsl"
 #include "Camera.glsl"
 #include "DataLayouts.glsl"
-#include "Defines.glsl"
 #include "Sample.glsl"
 #include "Sphere.glsl"
 
@@ -26,6 +26,16 @@ layout(set = 0, binding = OTHER_DATA_BUFFER_BINDING_LOCATION, std140) uniform ot
 
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV PrimaryRayPayload primaryPayload;
 layout(location = SECONDARY_PAYLOAD_LOCATION) rayPayloadNV ShadowRayPayload secondaryPayload;
+
+// Tried linear and power - didn't work well
+float PolynomialAttenuation(float dist)
+{
+	// Convert from range [0, MAX_OCCLUSION_DIST] to [0, 1]
+	float x = min(dist, MAX_OCCLUSION_DIST) / MAX_OCCLUSION_DIST;
+	
+	// Function: y = POLYNONIAL_ATTENUATION_Y_MAX - x^POLYNOMIAL_ATTENUATION_POWER
+	return POLYNONIAL_AO_ATTENUATION_Y_MAX - pow(x, POLYNOMIAL_AO_ATTENUATION_POWER);
+}
 
 void main()
 {
@@ -168,7 +178,8 @@ void main()
 		{
 			numVisible++;
 		}
-		color += lightEmittance * dot(isectNormal, isectPointToLightCenterDir);
+		// https://en.wikipedia.org/wiki/Inverse-square_law
+		color += (lightEmittance * (1.0f / isectPointToLightCenterClosestDist)) * dot(isectNormal, isectPointToLightCenterDir);
 	}
 	color /= otherData.numSphericalLightSources;
 	color *= primaryPayload.materialColor.rgb;
@@ -180,6 +191,7 @@ void main()
 		int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
 		// Sample hemisphere of directions given the normal at the intersection point
 		int numAO = 0;
+		float attenuation = 0.0f;
 		for (int i = 0; i <= totalOcclusionSamples; i++)
 		{
 			// Sample occlusion ray direction and trace
@@ -191,11 +203,22 @@ void main()
 			// Check for intersection with geometry
 			if (secondaryPayload.hitDist.x >= 0.0f)
 			{
+				attenuation += PolynomialAttenuation(secondaryPayload.hitDist.x);
 				numAO++;
 			}
+			else
+			{
+				attenuation += POLYNONIAL_AO_ATTENUATION_Y_MAX;
+			}
 		}
+		// Calculate occlusion
 		occlusion = float(numAO) / float(totalOcclusionSamples);
 		occlusion *= (1.0f - (float(numVisible) / float(otherData.numSphericalLightSources)));
+		// Remember to scale totalOcclusionSamples with the maximum value that a single attenuation sample can give
+		attenuation /= (float(totalOcclusionSamples) * POLYNONIAL_AO_ATTENUATION_Y_MAX);
+		// Factor in attenuation
+		occlusion *= attenuation;
+		occlusion = min(occlusion, 1.0f);
 	}
 	
 	// Store

@@ -26,6 +26,24 @@ float occlusion = float(numHitsAO) / float(totalSamples);
 
 This value can be post-processed, e.g. blurred (note that this will require separate render passes etc.).
 
+## AO attenuation
+To try and give an emphasis to points that are occluded by geometry close to the point, using the distance as a parameter to a attenuation/"weight" function is possible.
+
+Steps:
+1) For each occlusion sample that hit some geometry, extract the hit distance
+
+	a) If the sample didn't hit, set attenuatoin to its maximum value: ```float att = POLYNONIAL_AO_ATTENUATION_Y_MAX```
+
+2) Get attenuation form function: ```float att = func(hitDist)```
+
+3) Store all att's from all samples: ```totalAtt += att```
+
+4) Average: ```totalAtt /= numSamples```
+
+5) Combine into occlusion: ```occlusion *= totalAtt```
+
+6) Limit occlusion to range [0,1]: ```occlusion = min(occlusion, 1.0f)```
+
 ## Combine AO with color
 To combine the AO value into the color image, simply multiply the value with the color value, e.g.:
 ```

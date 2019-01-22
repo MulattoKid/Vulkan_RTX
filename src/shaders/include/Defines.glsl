@@ -35,63 +35,14 @@
 #define WATER_MATERIAL 4.0f
 #define GLASS_MATERIAL 8.0f
 
-// Internal shader defines
+// State
 #define AO_CONE 0
 #define AO_HEMISPHERE 1
 
-#define BLUR_3x3 0
-#define BLUR_5x5 0
-#define BLUR_7x7 1
-
-#define SIGMA_07 0
-#define SIGMA_1 0
-#define SIGMA_4 1
-
-// http://dev.theomader.com/gaussian-kernel-calculator/
-#if BLUR_3x3
-	#if SIGMA_07
-		#define FIRST_WEIGHT  0.228814f
-		#define CENTER_WEIGHT 0.542373f
-	#elif SIGMA_1
-		#define FIRST_WEIGHT  0.27901f
-		#define CENTER_WEIGHT 0.44198f
-	#elif SIGMA_4
-		#define FIRST_WEIGHT  0.329861f
-		#define CENTER_WEIGHT 0.340277f
-	#endif
-#elif BLUR_5x5
-	#if SIGMA_07
-		#define FIRST_WEIGHT  0.015890f
-		#define SECOND_WEIGHT 0.221542f
-		#define CENTER_WEIGHT 0.525136f
-	#elif SIGMA_1
-		#define FIRST_WEIGHT  0.061360f
-		#define SECOND_WEIGHT 0.244770f
-		#define CENTER_WEIGHT 0.387740f
-	#elif SIGMA_4
-		#define FIRST_WEIGHT  0.187691f
-		#define SECOND_WEIGHT 0.206038f
-		#define CENTER_WEIGHT 0.212543f
-	#endif
-#elif BLUR_7x7
-	#if SIGMA_07
-		#define FIRST_WEIGHT  0.000177f
-		#define SECOND_WEIGHT 0.015885f
-		#define THIRD_WEIGHT  0.221463f
-		#define CENTER_WEIGHT 0.524950f
-	#elif SIGMA_1
-		#define FIRST_WEIGHT  0.005980f
-		#define SECOND_WEIGHT 0.060626f
-		#define THIRD_WEIGHT  0.241843f
-		#define CENTER_WEIGHT 0.383103f
-	#elif SIGMA_4
-		#define FIRST_WEIGHT  0.121597f
-		#define SECOND_WEIGHT 0.142046f
-		#define THIRD_WEIGHT  0.155931f
-		#define CENTER_WEIGHT 0.160854f
-	#endif
-#endif
-
+// Shader-ONLY values
+#define MAX_OCCLUSION_DIST 1.0f
+#define POLYNONIAL_AO_ATTENUATION_Y_MAX 4.0f
+#define POLYNOMIAL_AO_ATTENUATION_POWER 40
 #define DEFAULT_OCCLUSION 0.0f
 
 #endif
