@@ -1,6 +1,8 @@
 #include "BrhanFile.h"
 #include "glm/gtc/constants.hpp"
 #include "glm/geometric.hpp"
+#include "glm/gtc/constants.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "glm/trigonometric.hpp"
 #include "glm/vec3.hpp"
 #include "shaders/include/Defines.glsl"
@@ -8,6 +10,99 @@
 #include <string.h>
 #include <vector>
 #include "VulkanApp.h"
+
+VulkanApp* vulkanApp;
+
+void MouseCallback(GLFWwindow * window, double xpos, double ypos)
+{
+	const double horizontalRotationSpeed = glm::two_pi<double>() / 2.0;
+	const double verticalRotationSpeed = glm::two_pi<double>() / 2.0;
+	// Center xpos and ypos as they are relative to the top-left window corner
+	// Range goes from [0,1] to [-0.5, 0.5]
+	xpos = xpos / double(vulkanApp->camera.filmWidth) - 0.5;
+	ypos = ypos / double(vulkanApp->camera.filmHeight) - 0.5;
+	
+	// Get rotation for camera's view direction around Y-axis according to difference
+	// in x-position
+	double diff = xpos - vulkanApp->lastMouseX;
+	glm::mat4x4 rot = glm::rotate(glm::mat4(1.0f), float(diff * horizontalRotationSpeed), glm::vec3(0.0f, -1.0f, 0.0f));
+	// Get rotation for camera's view direction around X-axis according to difference
+	// in y-position
+	diff = ypos - vulkanApp->lastMouseY;
+	rot = glm::rotate(rot, float(diff * verticalRotationSpeed), glm::vec3(1.0f, 0.0f, 0.0f));
+	
+	// Update camera's view direction
+	vulkanApp->camera.viewDir = glm::normalize(glm::vec3(rot * glm::vec4(vulkanApp->camera.viewDir, 1.0f)));
+	
+	vulkanApp->lastMouseX = xpos;
+	vulkanApp->lastMouseY = ypos;
+}
+
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	glm::vec3 cameraRight = glm::normalize(glm::cross(vulkanApp->camera.viewDir, vulkanApp->camera.up));
+	glm::vec3 cameraOriginDelta(0.0f);
+	glm::vec3 cameraViewDirDelta(0.0f);
+	switch (key)
+	{
+		case GLFW_KEY_W:
+			switch (action)
+			{
+				case GLFW_PRESS:
+    				cameraOriginDelta += 0.1f * vulkanApp->camera.viewDir;
+					break;
+				case GLFW_REPEAT:
+    				cameraOriginDelta += 0.1f * vulkanApp->camera.viewDir;
+					break;
+				default:
+					break;
+			}
+			break;
+		case GLFW_KEY_S:
+			switch (action)
+			{
+				case GLFW_PRESS:
+    				cameraOriginDelta -= 0.1f * vulkanApp->camera.viewDir;
+					break;
+				case GLFW_REPEAT:
+    				cameraOriginDelta -= 0.1f * vulkanApp->camera.viewDir;
+					break;
+				default:
+					break;
+			}
+			break;
+		case GLFW_KEY_D:
+			switch (action)
+			{
+				case GLFW_PRESS:
+					cameraOriginDelta += 0.1f * cameraRight;
+					break;
+				case GLFW_REPEAT:
+					cameraOriginDelta += 0.1f * cameraRight;
+					break;
+				default:
+					break;
+			}
+			break;
+		case GLFW_KEY_A:
+			switch (action)
+			{
+				case GLFW_PRESS:
+					cameraOriginDelta -= 0.1f * cameraRight;
+					break;
+				case GLFW_REPEAT:
+					cameraOriginDelta -= 0.1f * cameraRight;
+					break;
+				default:
+					break;
+			}
+			break;
+		default:
+			break;
+	}
+    
+    vulkanApp->camera.origin += cameraOriginDelta;
+}
 
 void RaytraceTriangle(const char* brhanFile)
 {
@@ -32,21 +127,29 @@ void RaytraceTriangle(const char* brhanFile)
 	vkAppInfo.extensionCount = extensionNames.size();
 	vkAppInfo.extensionNames = extensionNames.data();
 	vkAppInfo.maxFramesInFlight = 2;
-	VulkanApp vkApp(&vkAppInfo);
+	vulkanApp = new VulkanApp(&vkAppInfo);
+	VulkanApp& vkApp = *vulkanApp;
+	
+	////////////////////////////
+	///////////MOUSE////////////
+	////////////////////////////
+	vkApp.lastMouseX = 0.0;
+	vkApp.lastMouseY = 0.0;
 	
 	////////////////////////////
 	///////////CAMERA///////////
 	////////////////////////////
+	vkApp.camera = Camera(sceneFile.filmWidth, sceneFile.filmHeight, sceneFile.cameraVerticalFOV, sceneFile.cameraOrigin, sceneFile.cameraViewDir);
 	std::vector<float> cameraData = {
-		sceneFile.cameraOrigin.x, sceneFile.cameraOrigin.y, sceneFile.cameraOrigin.z, 0.0f,
-		sceneFile.cameraTopLeftCorner.x, sceneFile.cameraTopLeftCorner.y, sceneFile.cameraTopLeftCorner.z, 0.0f,
-		sceneFile.cameraHorizontalEnd.x, sceneFile.cameraHorizontalEnd.y, sceneFile.cameraHorizontalEnd.z, 0.0f,
-		sceneFile.cameraVerticalEnd.x, sceneFile.cameraVerticalEnd.y, sceneFile.cameraVerticalEnd.z, 0.0f
+		vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z, 0.0f,
+		vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z, 0.0f,
+		vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
+		vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f
 	};
 	VkDeviceSize cameraBufferSize = cameraData.size() * sizeof(float);
 	VkBuffer cameraBuffer;
 	VkDeviceMemory cameraBufferMemory;
-	vkApp.CreateDeviceBuffer(cameraBufferSize, (void*)(cameraData.data()), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &cameraBuffer, &cameraBufferMemory);
+	vkApp.CreateHostVisibleBuffer(cameraBufferSize, (void*)(cameraData.data()), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &cameraBuffer, &cameraBufferMemory);
 	
 	////////////////////////////
 	///////////LIGHTS///////////
@@ -1089,9 +1192,25 @@ void RaytraceTriangle(const char* brhanFile)
 	}
 	
 	// Render
+	glfwSetCursorPosCallback(vkApp.window, MouseCallback);
+	glfwSetInputMode(vkApp.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetKeyCallback(vkApp.window, KeyCallback);
 	while (!glfwWindowShouldClose(vkApp.window))
 	{
 		glfwPollEvents();
+		vkApp.camera.Update();
+		cameraData = {
+			vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z, 0.0f,
+			vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z, 0.0f,
+			vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
+			vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f
+		};
+		/*printf("\n");
+		printf("%f %f %f\n", vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z);
+		printf("%f %f %f\n", vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z);
+		printf("%f %f %f\n", vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z);
+		printf("%f %f %f\n", vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z);*/
+		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.Render(graphicsQueueCommandBuffers.data());
 		//vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
 	}

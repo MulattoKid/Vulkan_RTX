@@ -4,14 +4,14 @@
 #include "Ray.glsl"
 #include "DataLayouts.glsl"
 
-Ray GenerateRayFromCamera(Camera camera)
-{
-	const vec2 uv = vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy - 1);
-    const vec3 direction = camera.topLeftCorner.xyz + (uv.x * camera.horizontalEnd.xyz) + (uv.y * camera.verticalEnd.xyz) - camera.origin.xyz;
-    
+Ray GenerateRayFromCamera(CameraShader camera)
+{	
     Ray r;
-    r.origin = camera.origin.xyz;
-    r.dir = direction;
+    r.origin = camera.origin.xyz;	
+	
+	const vec2 uv = vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy - 1);
+    r.dir = normalize(camera.topLeftCorner.xyz + (uv.x * camera.horizontalEnd.xyz) + (uv.y * camera.verticalEnd.xyz) - r.origin);
+    
     return r;
 }
 

@@ -13,7 +13,7 @@ layout(set = 0, binding = RESULT_IMAGE_BINDING_LOCATION, rgba8) uniform image2D 
 layout(set = 0, binding = OCCLUSION_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D shadowImage;
 layout(set = 0, binding = CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
 {
-	Camera camera;
+	CameraShader camera;
 };
 layout(set = 0, binding = LIGHTS_BUFFER_BINDING_LOCATION, std140) readonly buffer lightBuffer
 {
@@ -28,7 +28,7 @@ layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV PrimaryRayPayload prima
 layout(location = SECONDARY_PAYLOAD_LOCATION) rayPayloadNV ShadowRayPayload secondaryPayload;
 
 // Tried linear and power - didn't work well
-float PolynomialAttenuation(float dist)
+float PolynomialAOAttenuation(float dist)
 {
 	// Convert from range [0, MAX_OCCLUSION_DIST] to [0, 1]
 	float x = min(dist, MAX_OCCLUSION_DIST) / MAX_OCCLUSION_DIST;
@@ -203,7 +203,7 @@ void main()
 			// Check for intersection with geometry
 			if (secondaryPayload.hitDist.x >= 0.0f)
 			{
-				attenuation += PolynomialAttenuation(secondaryPayload.hitDist.x);
+				attenuation += PolynomialAOAttenuation(secondaryPayload.hitDist.x);
 				numAO++;
 			}
 			else

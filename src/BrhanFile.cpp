@@ -12,10 +12,8 @@ void BrhanFile::LoadCamera(const std::string& line)
 	glm::vec3 position(0.0f);
 	bool foundPosition = false;
 	static const std::string viewDirectionStr = "view_direction";
-	glm::vec3 viewDirection(0.0f);
 	bool foundViewDirection = false;
 	static const std::string verticalFOVStr = "vertical_fov";
-	float verticalFOV = 0.0f;
 	bool foundVerticalFOV = false;
 	static const std::string widthStr = "width";
 	bool foundWidth = false;
@@ -44,9 +42,10 @@ void BrhanFile::LoadCamera(const std::string& line)
 			{
 				unsigned int end = index + 1;
 				while (line[end] != ' ' && line[end] != ']') { end++; }
-				viewDirection[i] = std::stof(line.substr(index, end - index));
+				cameraViewDir[i] = std::stof(line.substr(index, end - index));
 				index = end + 1; //+1 to eat space
 			}
+			cameraViewDir = glm::normalize(cameraViewDir);
 			foundViewDirection = true;
 		}
 		else if (line.compare(index, verticalFOVStr.length(), verticalFOVStr) == 0)
@@ -54,7 +53,7 @@ void BrhanFile::LoadCamera(const std::string& line)
 			index += 13; //Eat "view_direction["
 			unsigned int end = index + 1;
 			while (line[end] != ']') { end++; }
-			verticalFOV = std::stof(line.substr(index, end - index));
+			cameraVerticalFOV = std::stof(line.substr(index, end - index));
 			index = end + 1; //+1 to eat space
 			foundVerticalFOV = true;
 		}
@@ -104,21 +103,21 @@ void BrhanFile::LoadCamera(const std::string& line)
 	//Assign camera properties
 	cameraOrigin = position;
 	float cameraAspectRatio = filmWidth / float(filmHeight);
-	float theta = (verticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
+	float theta = (cameraVerticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
 	float lensHeight = glm::tan(theta);
 	float lensWidth = lensHeight * cameraAspectRatio;
 	float lensHalfWidth = lensWidth / 2.0f;
 	float lensHalfHeight = lensHeight / 2.0f;
 	//Calculate the three vectors that define the camera	
 	glm::vec3 baseUp(0.0f, 1.0f, 0.0f);
-	glm::vec3 cameraRight = glm::normalize(glm::cross(viewDirection, baseUp));
-	glm::vec3 cameraUp = glm::normalize(glm::cross(cameraRight, viewDirection));
+	glm::vec3 cameraRight = glm::normalize(glm::cross(cameraViewDir, baseUp));
+	glm::vec3 cameraUp = glm::normalize(glm::cross(cameraRight, cameraViewDir));
 	//Calculate top_left_corner
 	//1) Start at camera's position
 	//2) Go lens_half_width along the camera's left (-right) axis
 	//3) Go lens_half_height along the camera's up axis
 	//4) Go 1 unit along the camera's view_direction axis
-	cameraTopLeftCorner = position + (lensHalfWidth * (-cameraRight)) + (lensHalfHeight * cameraUp) + viewDirection;
+	cameraTopLeftCorner = position + (lensHalfWidth * (-cameraRight)) + (lensHalfHeight * cameraUp) + cameraViewDir;
 	//Go width of lense along the camera's right axis
 	cameraHorizontalEnd = lensWidth * cameraRight;
 	//Go height of lense along the camera's down (-up) axis

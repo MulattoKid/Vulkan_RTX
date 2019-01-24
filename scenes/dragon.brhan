@@ -1,4 +1,4 @@
-Camera position[0.0 4.0 12] view_direction[0.0 -0.2 -1.0] vertical_fov[60] width[1920] height[1080]
+Camera position[0 4 12] view_direction[0.0 -0.2 -1.0] vertical_fov[70] width[1920] height[1080]
 
 Model file[data/dragon/dragon.obj] translate[0 -1.5 0] rotate[-140 15 -100] scale[0.03 0.03 0.03] material[matte] diffuse[0.9 0.5 0.5]
 Model file[data/dragon/plane.obj]

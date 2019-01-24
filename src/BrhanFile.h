@@ -38,9 +38,11 @@ struct SphereFromFile
 
 struct BrhanFile
 {
-	glm::vec3 cameraOrigin;
 	unsigned int filmWidth;
 	unsigned int filmHeight;
+	float cameraVerticalFOV;
+	glm::vec3 cameraOrigin;
+	glm::vec3 cameraViewDir;
 	glm::vec3 cameraTopLeftCorner;
 	glm::vec3 cameraHorizontalEnd;
 	glm::vec3 cameraVerticalEnd;

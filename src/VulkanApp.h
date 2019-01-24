@@ -6,6 +6,7 @@
 
 #include "volk/volk.h"
 #include "GLFW/glfw3.h"
+#include "Camera.h"
 #include <chrono>
 #include "BrhanFile.h"
 #include <stdio.h>
@@ -164,9 +165,14 @@ struct VulkanApp
 	std::vector<VkSemaphore> vkRenderFinishedSemaphores;
 	std::vector<VkFence> vkInFlightFences;
 	uint32_t currentFrame = 0;
+	
+	// Other data
+	Camera camera;
+	double lastMouseX, lastMouseY;
 
 	//Functions
 public:
+	VulkanApp() {}
 	VulkanApp(const VulkanAppCreateInfo* createInfo);
 	~VulkanApp();
 	std::chrono::high_resolution_clock::time_point GetTime();
