@@ -47,6 +47,8 @@ void main()
 	
 	// Trace primary ray
 	Ray ray = GenerateRayFromCamera(camera);
+	//imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(ray.dir, 1.0f));
+	//return;
     traceNV(scene, rayFlags, cullMask, PRIMARY_CHIT_IDX, sbtRecordStride, PRIMARY_MISS_IDX, ray.origin, tMin, ray.dir, tMax, PRIMARY_PAYLOAD_LOCATION);
     
     // Early exit - no geometry hit

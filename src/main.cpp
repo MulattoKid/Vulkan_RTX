@@ -22,14 +22,15 @@ void MouseCallback(GLFWwindow * window, double xpos, double ypos)
 	xpos = xpos / double(vulkanApp->camera.filmWidth) - 0.5;
 	ypos = ypos / double(vulkanApp->camera.filmHeight) - 0.5;
 	
+	glm::vec3 cameraRight = glm::normalize(glm::cross(vulkanApp->camera.viewDir, vulkanApp->camera.up));
 	// Get rotation for camera's view direction around Y-axis according to difference
 	// in x-position
 	double diff = xpos - vulkanApp->lastMouseX;
-	glm::mat4x4 rot = glm::rotate(glm::mat4(1.0f), float(diff * horizontalRotationSpeed), glm::vec3(0.0f, -1.0f, 0.0f));
+	glm::mat4x4 rot = glm::rotate(glm::mat4(1.0f), float(diff * horizontalRotationSpeed), -vulkanApp->camera.up);
 	// Get rotation for camera's view direction around X-axis according to difference
 	// in y-position
 	diff = ypos - vulkanApp->lastMouseY;
-	rot = glm::rotate(rot, float(diff * verticalRotationSpeed), glm::vec3(1.0f, 0.0f, 0.0f));
+	rot = glm::rotate(rot, float(diff * verticalRotationSpeed), cameraRight);
 	
 	// Update camera's view direction
 	vulkanApp->camera.viewDir = glm::normalize(glm::vec3(rot * glm::vec4(vulkanApp->camera.viewDir, 1.0f)));
@@ -155,6 +156,7 @@ void RaytraceTriangle(const char* brhanFile)
 	///////////LIGHTS///////////
 	////////////////////////////
 	// See shaders/include/Datalayouts.glsl for structure layout
+	const int numFloatsPerLight = 8;
 	std::vector<float> lights = {
 #if AO_CONE
 		0.0f, 20.0f, -10.0f, 0.1f, 6.0f, 0.0f, 0.0f, 0.0f,
@@ -173,7 +175,7 @@ void RaytraceTriangle(const char* brhanFile)
 	VkDeviceSize lightsBufferSize = lights.size() * sizeof(float);
 	VkBuffer lightsBuffer;
 	VkDeviceMemory lightsBufferMemory;
-	vkApp.CreateDeviceBuffer(lightsBufferSize, (void*)(lights.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &lightsBuffer, &lightsBufferMemory);
+	vkApp.CreateHostVisibleBuffer(lightsBufferSize, (void*)(lights.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &lightsBuffer, &lightsBufferMemory);
 	
 	////////////////////////////
 	/////////OTHER DATA/////////
@@ -181,7 +183,7 @@ void RaytraceTriangle(const char* brhanFile)
 	// See shaders/include/Datalayouts.glsl for structure layout
 	size_t otherDataNumBytes = sizeof(int);
 	char* otherData = new char[otherDataNumBytes];
-	*(int*)(otherData) = int(lights.size() / 8); // 8 floats describes on spherical light source
+	*(int*)(otherData) = int(lights.size() / numFloatsPerLight);
 	VkDeviceSize otherDataBufferSize = otherDataNumBytes;
 	VkBuffer otherDataBuffer;
 	VkDeviceMemory otherDataBufferMemory;
@@ -1198,6 +1200,7 @@ void RaytraceTriangle(const char* brhanFile)
 	while (!glfwWindowShouldClose(vkApp.window))
 	{
 		glfwPollEvents();
+		// Camera
 		vkApp.camera.Update();
 		cameraData = {
 			vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z, 0.0f,
@@ -1205,11 +1208,10 @@ void RaytraceTriangle(const char* brhanFile)
 			vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
 			vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f
 		};
-		/*printf("\n");
-		printf("%f %f %f\n", vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z);
-		printf("%f %f %f\n", vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z);
-		printf("%f %f %f\n", vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z);
-		printf("%f %f %f\n", vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z);*/
+		// Lights
+		int numLights = lights.size() / numFloatsPerLight;
+		// Update
+		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.Render(graphicsQueueCommandBuffers.data());
 		//vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
