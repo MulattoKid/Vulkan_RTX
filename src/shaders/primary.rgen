@@ -189,7 +189,7 @@ void main()
 	float occlusion = DEFAULT_OCCLUSION;
 	if (numVisible < otherData.numSphericalLightSources)
 	{
-		int numOcclusionSteps = 7;
+		int numOcclusionSteps = 5;
 		int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
 		// Sample hemisphere of directions given the normal at the intersection point
 		int numAO = 0;

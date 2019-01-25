@@ -15,28 +15,49 @@ void main()
 {
 	// https://developer.nvidia.com/gpugems/GPUGems/gpugems_ch11.html
 #if AO_CONE
-	vec3 sum  = textureOffset(occlusionImage, fUV, ivec2(-1, -1)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2( 0, -1)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2( 1, -1)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2(-1,  0)).rgb;
+	vec3 sum  = textureOffset(occlusionImage, fUV, ivec2(-2, -2)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2( 0, -2)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2( 2, -2)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2(-2,  0)).rgb;
 	sum      += textureOffset(occlusionImage, fUV, ivec2( 0,  0)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2( 1,  0)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2(-1,  1)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2( 0,  1)).rgb;
-	sum      += textureOffset(occlusionImage, fUV, ivec2( 1,  1)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2( 2,  0)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2(-2,  2)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2( 0,  2)).rgb;
+	sum      += textureOffset(occlusionImage, fUV, ivec2( 2,  2)).rgb;
 	vec3 occlusion = sum / 9.0f;
     vec3 visibility = vec3(1.0f) - occlusion;
 #elif AO_HEMISPHERE
-	float sum  = textureOffset(occlusionImage, fUV, ivec2(-1, -1)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2( 0, -1)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2( 1, -1)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2(-1,  0)).r;
+	float sum  = textureOffset(occlusionImage, fUV, ivec2(-4, -4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-2, -4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 0, -4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 2, -4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 4, -4)).r;
+	
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-4, -2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-2, -2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 0, -2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 2, -2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 4, -2)).r;
+	
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-4,  0)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-2,  0)).r;
 	sum       += textureOffset(occlusionImage, fUV, ivec2( 0,  0)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2( 1,  0)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2(-1,  1)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2( 0,  1)).r;
-	sum       += textureOffset(occlusionImage, fUV, ivec2( 1,  1)).r;
-	float occlusion = sum / 9.0f;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 2,  0)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 4,  0)).r;
+	
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-4,  2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-2,  2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 0,  2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 2,  2)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 4,  2)).r;
+	
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-4,  4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2(-2,  4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 0,  4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 2,  4)).r;
+	sum       += textureOffset(occlusionImage, fUV, ivec2( 4,  4)).r;
+	
+	float occlusion = sum / 25.0f;
     vec3 visibility = vec3(1.0f - occlusion);
 #endif
 	
