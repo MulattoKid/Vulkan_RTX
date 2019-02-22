@@ -519,6 +519,7 @@ VulkanApp::VulkanApp(const VulkanAppCreateInfo* createInfo)
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	windowWidth = createInfo->windowWidth;
 	windowHeight = createInfo->windowHeight;
+	//window = glfwCreateWindow(windowWidth, windowHeight, createInfo->windowName, glfwGetPrimaryMonitor(), nullptr);
 	window = glfwCreateWindow(windowWidth, windowHeight, createInfo->windowName, nullptr, nullptr);
 	printf("Successfully created GLFW window\n");
 	

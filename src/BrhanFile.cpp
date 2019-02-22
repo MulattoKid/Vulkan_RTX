@@ -463,6 +463,73 @@ void BrhanFile::AddModel(const std::string& line)
 	spheres.push_back(sphere);
 }*/
 
+void BrhanFile::AddSphericalLight(const std::string& line)
+{
+	SphericalLightFromFile sL;
+	static const std::string centerStr = "center";
+	bool foundCenter = false;
+	static const std::string radiusStr = "radius";
+	bool foundRadius = false;
+	static const std::string emittanceStr = "emittance";
+	bool foundEmittance = false;
+	
+	unsigned int index = 15; //Eat "SphericalLight "
+	while (index < line.length())
+	{
+		if (line.compare(index, centerStr.length(), centerStr) == 0)
+		{
+			index += 7; //Eat "center["
+			for (int i = 0; i < 3; i++)
+			{
+				unsigned int end = index + 1;
+				while (line[end] != ' ' && line[end] != ']') { end++; }
+				sL.centerAndRadius[i] = std::stof(line.substr(index, end - index));
+				index = end + 1; //+1 to eat space
+			}
+			foundCenter = true;
+		}
+		else if (line.compare(index, radiusStr.length(), radiusStr) == 0)
+		{
+			index += 7; //Eat "radius["
+			unsigned int end = index + 1;
+			while (line[end] != ']') { end++; }
+			sL.centerAndRadius[3] = std::stof(line.substr(index, end - index));
+			index = end + 1; //+1 to eat space
+			foundRadius = true;
+		}
+		else if (line.compare(index, emittanceStr.length(), emittanceStr) == 0)
+		{
+			index += 10; //Eat "emittance["
+			for (int i = 0; i < 3; i++)
+			{
+				unsigned int end = index + 1;
+				while (line[end] != ' ' && line[end] != ']') { end++; }
+				sL.emittance[i] = std::stof(line.substr(index, end - index));
+				index = end + 1; //+1 to eat space
+			}
+			sL.emittance[3] = 0.0f;
+			foundEmittance = true;
+		}
+		
+		index++;
+	}
+	
+	if (!foundCenter)
+	{
+		LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find center for spherical light source");
+	}
+	if (!foundRadius)
+	{
+		LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find radius for spherical light source");
+	}
+	if (!foundEmittance)
+	{
+		LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Failed to find emittance for spherical light source");
+	}
+	
+	sphericalLights.push_back(sL);
+}
+
 BrhanFile::BrhanFile(const char* brhanFile)
 {
 	if (strcmp(brhanFile, "") == 0)
@@ -482,6 +549,7 @@ BrhanFile::BrhanFile(const char* brhanFile)
   	bool foundCamera = false;
   	static const std::string modelStr = "Model";
   	static const std::string sphereStr = "Sphere";
+  	static const std::string sphericalLightStr = "SphericalLight";
   	
   	std::string line;
   	while (std::getline(file, line))
@@ -499,6 +567,10 @@ BrhanFile::BrhanFile(const char* brhanFile)
   		else if (line.compare(0, sphereStr.length(), sphereStr) == 0)
   		{
   			//AddSphere(line);
+  		}
+  		else if (line.compare(0, sphericalLightStr.length(), sphericalLightStr) == 0)
+  		{
+  			AddSphericalLight(line);
   		}
   	}
   	

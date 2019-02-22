@@ -46,6 +46,22 @@ vec3 SampleHemisphere(vec3 normal, vec2 rng)
 	return normalize(rotation * sampledDir);
 }
 
+vec3 SampleHemisphereVaryingZ(vec3 normal, vec2 rng)
+{
+	float phi = TWO_PI * rng.x;
+	float theta = acos(rng.y);
+	vec3 sampledDir = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), rng.y + (sin(phi * TWO_PI) * 0.1));
+	sampledDir = normalize(sampledDir);
+	
+	//This is the sampled direction's hemisphere normal because:
+	// x's domain is [-1,1]
+	// y's domain is [-1,1]
+	// z's domain is [0,1]
+	vec3 sampleSpaceNormal = vec3(0.0f, 0.0f, 1.0f);
+	mat3 rotation = RotationToAlignAToB(sampleSpaceNormal, normal);
+	return normalize(rotation * sampledDir);
+}
+
 // p.781
 float ConePdf(float cosThetaMax)
 {

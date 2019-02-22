@@ -12,6 +12,7 @@
 #include "VulkanApp.h"
 
 VulkanApp* vulkanApp;
+uint32_t blurVariable;
 
 void MouseCallback(GLFWwindow * window, double xpos, double ypos)
 {
@@ -98,6 +99,15 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 					break;
 			}
 			break;
+		case GLFW_KEY_B:
+			switch (action)
+			{
+				case GLFW_PRESS:
+					blurVariable ^= 1;
+					break;
+				default:
+					break;
+			}
 		default:
 			break;
 	}
@@ -157,21 +167,18 @@ void RaytraceTriangle(const char* brhanFile)
 	////////////////////////////
 	// See shaders/include/Datalayouts.glsl for structure layout
 	const int numFloatsPerLight = 8;
-	std::vector<float> lights = {
-#if AO_CONE
-		0.0f, 20.0f, -10.0f, 0.1f, 6.0f, 0.0f, 0.0f, 0.0f,
-		-10.0f, 20.0f, -10.0f, 0.1f, 0.0f, 6.0f, 0.0f, 0.0f,
-		0.0f, 20.0f, 10.0f, 0.1f, 0.0f, 0.0f, 6.0f, 0.0f,
-		10.0f, 20.0f, 10.0f, 0.1f, 0.0f, 6.0f, 6.0f, 0.0f,
-		0.0f, 20.0f, 0.0f, 0.1f, 6.0f, 6.0f, 6.0f, 0.0f
-#elif AO_HEMISPHERE
-		/*0.0f, 20.0f, -10.0f, 0.1f, 10.0f, 0.0f, 0.0f, 0.0f,
-		-10.0f, 20.0f, -10.0f, 0.1f, 0.0f, 10.0f, 0.0f, 0.0f,
-		0.0f, 20.0f, 10.0f, 0.1f, 0.0f, 0.0f, 10.0f, 0.0f,*/
-		10.0f, 20.0f, 10.0f, 0.1f, 0.0f, 15.0f, 15.0f, 0.0f,
-		0.0f, 20.0f, 0.0f, 0.1f, 15.0f, 15.0f, 15.0f, 0.0f
-#endif
-	};
+	std::vector<float> lights;
+	for (SphericalLightFromFile sL : sceneFile.sphericalLights)
+	{
+		lights.push_back(sL.centerAndRadius.x);
+		lights.push_back(sL.centerAndRadius.y);
+		lights.push_back(sL.centerAndRadius.z);
+		lights.push_back(sL.centerAndRadius.w);
+		lights.push_back(sL.emittance.x);
+		lights.push_back(sL.emittance.y);
+		lights.push_back(sL.emittance.z);
+		lights.push_back(sL.emittance.w);
+	}
 	VkDeviceSize lightsBufferSize = lights.size() * sizeof(float);
 	VkBuffer lightsBuffer;
 	VkDeviceMemory lightsBufferMemory;
@@ -854,6 +861,12 @@ void RaytraceTriangle(const char* brhanFile)
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 	vkApp.CreateDeviceBuffer(indexBufferSize, (void*)(indexData.data()), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer, &indexBufferMemory);
+	// Blur buffer
+	blurVariable = 0;
+	VkDeviceSize blurBufferSize = sizeof(uint32_t);
+	VkBuffer blurBuffer;
+	VkDeviceMemory blurBufferMemory;
+	vkApp.CreateHostVisibleBuffer(blurBufferSize, (void*)(&blurVariable), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &blurBuffer, &blurBufferMemory);
 
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfosRenderPass0(2);
 	shaderStageInfosRenderPass0[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -969,7 +982,7 @@ void RaytraceTriangle(const char* brhanFile)
 	colorBlendInfo.blendConstants[3] = 0.0f;
 
 	// Descriptors setup
-	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsRenderPass0(2);
+	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsRenderPass0(3);
 	VkDescriptorSetLayoutBinding& rayTracingImageBinding = descriptorSetLayoutBindingsRenderPass0[0];
 	rayTracingImageBinding.binding = 0;
 	rayTracingImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -982,6 +995,12 @@ void RaytraceTriangle(const char* brhanFile)
 	rayTracingOcclusionImageBinding.descriptorCount = 1;
 	rayTracingOcclusionImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	rayTracingOcclusionImageBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& blurUniformBinding = descriptorSetLayoutBindingsRenderPass0[2];
+	blurUniformBinding.binding = 2;
+	blurUniformBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	blurUniformBinding.descriptorCount = 1;
+	blurUniformBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	blurUniformBinding.pImmutableSamplers = NULL;
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetInfoGraphics = {};
 	descriptorSetInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1004,7 +1023,8 @@ void RaytraceTriangle(const char* brhanFile)
 	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsRenderPass0))
 	
 	std::vector<VkDescriptorPoolSize> poolSizesGraphics = {
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfoGraphics = {};
 	descriptorPoolInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1025,7 +1045,7 @@ void RaytraceTriangle(const char* brhanFile)
 	VkDescriptorSet descriptorSetGraphicsRenderPass0;
 	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphicsRenderPass0))
 	
-    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass0(2);
+    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass0(3);
     // Color image
 	VkDescriptorImageInfo descriptorRayTracingImageInfoGraphics = {};
     descriptorRayTracingImageInfoGraphics.sampler = defaultSampler;
@@ -1058,6 +1078,22 @@ void RaytraceTriangle(const char* brhanFile)
     rayTracingOcclusionImageWriteGraphics.pImageInfo = &descriptorRayTracingOcclusionImageInfoGraphics;
     rayTracingOcclusionImageWriteGraphics.pBufferInfo = NULL;
     rayTracingOcclusionImageWriteGraphics.pTexelBufferView = NULL;
+    // Blur variable uniform
+    VkDescriptorBufferInfo blurBufferInfoGraphics = {};
+    blurBufferInfoGraphics.buffer = blurBuffer;
+    blurBufferInfoGraphics.offset = 0;
+    blurBufferInfoGraphics.range = VK_WHOLE_SIZE;
+    VkWriteDescriptorSet& blurBufferWriteGraphics = descriptorSetGraphicsWritesRenderPass0[2];
+    blurBufferWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    blurBufferWriteGraphics.pNext = NULL;
+    blurBufferWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
+    blurBufferWriteGraphics.dstBinding = 2;
+    blurBufferWriteGraphics.dstArrayElement = 0;
+    blurBufferWriteGraphics.descriptorCount = 1;
+    blurBufferWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    blurBufferWriteGraphics.pImageInfo = NULL;
+    blurBufferWriteGraphics.pBufferInfo = &blurBufferInfoGraphics;
+    blurBufferWriteGraphics.pTexelBufferView = NULL;
     // Update render pass 0
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWritesRenderPass0.size(), descriptorSetGraphicsWritesRenderPass0.data(), 0, NULL);
 
@@ -1213,6 +1249,8 @@ void RaytraceTriangle(const char* brhanFile)
 		// Update
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
+		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
+		
 		vkApp.Render(graphicsQueueCommandBuffers.data());
 		//vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
 	}

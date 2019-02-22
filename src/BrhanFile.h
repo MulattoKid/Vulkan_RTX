@@ -36,6 +36,12 @@ struct SphereFromFile
 	glm::vec3 transmittance;
 };
 
+struct SphericalLightFromFile
+{
+	glm::vec4 centerAndRadius;
+	glm::vec4 emittance;
+};
+
 struct BrhanFile
 {
 	unsigned int filmWidth;
@@ -48,10 +54,12 @@ struct BrhanFile
 	glm::vec3 cameraVerticalEnd;
 	std::vector<ModelFromFile> models;
 	std::vector<SphereFromFile> spheres;
+	std::vector<SphericalLightFromFile> sphericalLights;
 	
 	BrhanFile(const char* brhanFile);
 	void LoadCamera(const std::string& line);
 	void AddModel(const std::string& line);
+	void AddSphericalLight(const std::string& line);
 	//void AddSphere(const std::string& line);
 };
 

@@ -35,10 +35,6 @@
 #define WATER_MATERIAL 4.0f
 #define GLASS_MATERIAL 8.0f
 
-// State
-#define AO_CONE 0
-#define AO_HEMISPHERE 1
-
 // Shader-ONLY values
 #define MAX_OCCLUSION_DIST 1.0f
 #define POLYNONIAL_AO_ATTENUATION_Y_MAX 4.0f

@@ -1,5 +1,3 @@
-Camera position[0.0 1.0 6.58] view_direction[0.0 0.0 -1.0] vertical_fov[19.5] width[1024] height[1024]
-
-Integrator type[path] spp[512] max_depth[4]
+Camera position[0.0 1.0 6.58] view_direction[0.0 0.0 -1.0] vertical_fov[19.5] width[1920] height[1080]
 
 Model file[data/cornell/CornellBox-Original.obj] translate[0 0 0] rotate[0 0 0]
