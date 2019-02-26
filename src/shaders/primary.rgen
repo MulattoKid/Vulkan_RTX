@@ -139,6 +139,7 @@ void main()
 					
 			// Check for intersection with geometry
 			if (secondaryPayload.hitDist.x >= 0.0f)
+			//if (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < 1.0f)
 			{
 				attenuation += PolynomialAOAttenuation(secondaryPayload.hitDist.x);
 				numAO++;

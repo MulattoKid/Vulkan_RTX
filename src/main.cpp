@@ -540,6 +540,8 @@ void Raytrace(const char* brhanFile)
     
     //Ray tracing OCCLUSION image
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
+	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
 	VkImage rayTracingOcclusionImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingOcclusionImage))
 	

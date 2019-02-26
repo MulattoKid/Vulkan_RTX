@@ -100,8 +100,40 @@ void main()
 			occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  2)).r;
 			
 			occlusion /= 25.0f;
-			//outColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);
 		}*/
+		
+		// Blur 5x5
+		occlusion  = textureOffset(occlusionImage, fUV, ivec2(-2, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  2)).r;
+		
+		occlusion /= 25.0f;
 		
 		// Blur skipping 7x7
 		/*occlusion  = textureOffset(occlusionImage, fUV, ivec2(-3, -3)).r;
@@ -139,7 +171,7 @@ void main()
 		occlusion /= 25.0f;*/
 		
 		// Blur skipping 9x9
-		occlusion  = textureOffset(occlusionImage, fUV, ivec2(-4, -4)).r;
+		/*occlusion  = textureOffset(occlusionImage, fUV, ivec2(-4, -4)).r;
 		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4, -2)).r;
 		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4,  0)).r;
 		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4,  2)).r;
@@ -189,7 +221,7 @@ void main()
 		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4,  2)).r;
 		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4,  4)).r;
 		
-		occlusion /= 41.0f;
+		occlusion /= 41.0f;*/
 	}
 	else
 	{
@@ -198,9 +230,8 @@ void main()
 	
 	// Out
     vec3 visibility = vec3(1.0f - occlusion);
-    //outColor = vec4(originalColor * visibility, 1.0f);
-    //outColor = vec4(visibility, 1.0f);
-    outColor = vec4(originalColor, 1.0f);
+    outColor = vec4(originalColor * visibility, 1.0f);
+    outColor = vec4(visibility, 1.0f);
 }
 
 
