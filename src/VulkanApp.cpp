@@ -327,22 +327,22 @@ void VulkanApp::ChooseSwapChainFormat()
 	//Free to choose any format
 	if (vkSupportedSurfaceFormats.size() == 1 && vkSupportedSurfaceFormats[0].format == VK_FORMAT_UNDEFINED)
 	{
-		vkSurfaceFormat = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+		vkSurfaceFormat = { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 	}
 	else
 	{
-		//Check if B8G8R8A8_UNORM is available
-		bool foundBGRA = false;
+		//Check if R8G8B8A8_UNORM is available
+		bool foundRGBA = false;
 		for (auto& surfaceFormat : vkSupportedSurfaceFormats)
 		{
-			if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_UNORM && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+			if (surfaceFormat.format == VK_FORMAT_R8G8B8A8_UNORM && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 			{
-				vkSurfaceFormat = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-				foundBGRA = true;
+				vkSurfaceFormat = { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+				foundRGBA = true;
 				break;
 			}
 		}
-		if (!foundBGRA)
+		if (!foundRGBA)
 		{
 			vkSurfaceFormat = { vkSupportedSurfaceFormats[0].format, vkSupportedSurfaceFormats[0].colorSpace };
 		}

@@ -1,6 +1,6 @@
-Camera position[0 4 12] view_direction[0.0 -0.2 -1.0] vertical_fov[45] width[1920] height[1080]
+Camera position[0 4 12] view_direction[0.0 -0.75 -1.0] vertical_fov[45] width[1920] height[1080]
 
 Model file[data/dragon/dragon.obj] translate[0 -1.5 0] rotate[-140 15 -100] scale[0.03 0.03 0.03] material[matte] diffuse[0.9 0.5 0.5]
 Model file[data/dragon/plane.obj]
-SphericalLight center[5 10 5] radius[0.1] emittance[0 10 10]
-SphericalLight center[-5 10 -5] radius[0.1] emittance[10 10 10]
+SphericalLight center[5 10 5] radius[2] emittance[10 10 0]
+SphericalLight center[-5 10 -5] radius[2] emittance[10 10 10]

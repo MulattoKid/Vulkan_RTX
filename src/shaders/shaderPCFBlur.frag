@@ -15,20 +15,10 @@ layout(set=0, binding=2, std140) uniform blurVariableBuffer
 
 layout(location=0) out vec4 outColor;
 
-#define TOP_LEFT 0.150342f
-#define TOP_CENTER 0.094907f
-#define TOP_RIGHT 0.023792f
-#define CENTER_LEFT 0.094907f
-#define CENTER_CENTER 0.059912f
-#define CENTER_RIGHT 0.015019f
-#define BOTTOM_LEFT 0.023792f
-#define BOTTOM_CENTER 0.015019f
-#define BOTTOM_RIGHT 0.003765f
-
 // https://developer.nvidia.com/gpugems/GPUGems/gpugems_ch11.html
 void main()
 {
-	vec3 originalColor = texture(rayTracingImage, fUV).bgr;
+	vec3 originalColor = texture(rayTracingImage, fUV).rgb;
 	float occlusion = DEFAULT_OCCLUSION;
 	
 	if (blurVariable == 1)
@@ -72,8 +62,9 @@ void main()
 		sum       += textureOffset(occlusionImage, fUV, ivec2( 4,  4)).r;
 		occlusion = sum / 25.0f;*/
 	
-		// Testing
-		float centerOcclusion  = textureOffset(occlusionImage, fUV, ivec2(0, 0)).r;
+		// Sample 3x3 first and check the average value against the center texel's value
+		// If the delta is large, sample 5x5 and average
+		/*float centerOcclusion  = textureOffset(occlusionImage, fUV, ivec2(0, 0)).r;
 		float borderOcclusion  = textureOffset(occlusionImage, fUV, ivec2(-1, -1)).r;
 		borderOcclusion       += textureOffset(occlusionImage, fUV, ivec2(-1,  0)).r;
 		borderOcclusion       += textureOffset(occlusionImage, fUV, ivec2(-1,  1)).r;
@@ -110,12 +101,95 @@ void main()
 			
 			occlusion /= 25.0f;
 			//outColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);
-		}
-		else
-		{
-			//outColor = vec4(0.0f, 0.0f, 1.0f, 1.0f);
-		}
-		//return;
+		}*/
+		
+		// Blur skipping 7x7
+		/*occlusion  = textureOffset(occlusionImage, fUV, ivec2(-3, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  2)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3,  3)).r;
+		
+		occlusion /= 25.0f;*/
+		
+		// Blur skipping 9x9
+		occlusion  = textureOffset(occlusionImage, fUV, ivec2(-4, -4)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4,  2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-4,  4)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-3,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2, -4)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-2,  4)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2(-1,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0, -4)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 0,  4)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 1,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2, -4)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 2,  4)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3, -3)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3, -1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3,  1)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 3,  3)).r;
+		
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4, -4)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4, -2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4,  0)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4,  2)).r;
+		occlusion += textureOffset(occlusionImage, fUV, ivec2( 4,  4)).r;
+		
+		occlusion /= 41.0f;
 	}
 	else
 	{
@@ -124,8 +198,9 @@ void main()
 	
 	// Out
     vec3 visibility = vec3(1.0f - occlusion);
-    outColor = vec4(originalColor * visibility, 1.0f);
+    //outColor = vec4(originalColor * visibility, 1.0f);
     //outColor = vec4(visibility, 1.0f);
+    outColor = vec4(originalColor, 1.0f);
 }
 
 

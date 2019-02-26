@@ -115,7 +115,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     vulkanApp->camera.origin += cameraOriginDelta;
 }
 
-void RaytraceTriangle(const char* brhanFile)
+void Raytrace(const char* brhanFile)
 {
 	BrhanFile sceneFile(brhanFile);
 
@@ -166,6 +166,7 @@ void RaytraceTriangle(const char* brhanFile)
 	///////////LIGHTS///////////
 	////////////////////////////
 	// See shaders/include/Datalayouts.glsl for structure layout
+	assert(sceneFile.sphericalLights.size() > 0);
 	const int numFloatsPerLight = 8;
 	std::vector<float> lights;
 	for (SphericalLightFromFile sL : sceneFile.sphericalLights)
@@ -1294,6 +1295,6 @@ void RaytraceTriangle(const char* brhanFile)
 
 int main(int argc, char** argv)
 {
-	RaytraceTriangle(argv[1]);
+	Raytrace(argv[1]);
 	return EXIT_SUCCESS;
 }
