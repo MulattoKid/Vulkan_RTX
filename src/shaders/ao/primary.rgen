@@ -1,0 +1,82 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include "Defines.glsl"
+#include "Camera.glsl"
+#include "DataLayouts.glsl"
+#include "Sample.glsl"
+#include "Sphere.glsl"
+
+layout(set = 0, binding = RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
+layout(set = 0, binding = RT1_POSITION_IMAGE_BINDING_LOCATION) uniform sampler2D positionImage;
+layout(set = 0, binding = RT1_NORMAL_IMAGE_BINDING_LOCATION) uniform sampler2D normalImage;
+layout(set = 0, binding = RT1_AO_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D aoImage;
+
+layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV PrimaryRayPayload primaryPayload;
+
+// Tried linear and power - didn't work well
+float PolynomialAOAttenuation(float dist)
+{
+	// Convert from range [0, MAX_OCCLUSION_DIST] to [0, 1]
+	float x = min(dist, MAX_OCCLUSION_DIST) / MAX_OCCLUSION_DIST;
+	
+	// Function: y = POLYNONIAL_ATTENUATION_Y_MAX - x^POLYNOMIAL_ATTENUATION_POWER
+	return POLYNONIAL_AO_ATTENUATION_Y_MAX - pow(x, POLYNOMIAL_AO_ATTENUATION_POWER);
+}
+
+void main()
+{
+	const uint rayFlags = gl_RayFlagsNoneNV;
+    const uint cullMask = 0xFF;
+    const uint sbtRecordStride = 0;
+    const float tMin = 0.0f;
+    const float tMax = 100.0f;
+	
+	// Intersection data
+	vec3 isectNormal = texture(normalImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy)).xyz;
+	vec3 isectPoint = texture(positionImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy)).xyz;
+
+	/*// AO calculations
+	float occlusion = DEFAULT_OCCLUSION;
+	if (numVisible < otherData.numSphericalLightSources)
+	{
+		int numOcclusionSteps = 5;
+		int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
+		// Sample hemisphere of directions given the normal at the intersection point
+		int numAO = 0;
+		float attenuation = 0.0f;
+		for (int i = 0; i <= totalOcclusionSamples; i++)
+		{
+			// Sample occlusion ray direction and trace
+			vec2 samplePoints = vec2(float(i) / float(numOcclusionSteps), float(i) / float(totalOcclusionSamples));
+			
+			// Through simple testing with few numOcclusionSteps (e.g. 5), there is very little difference
+			// between using SampleHemisphere and SampleHemisphereVaryingZ...
+			//vec3 occlusionRayDir = SampleHemisphere(isectNormal, samplePoints);
+			vec3 occlusionRayDir = SampleHemisphereVaryingZ(isectNormal, samplePoints);
+			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
+			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+					
+			// Check for intersection with geometry
+			if (secondaryPayload.hitDist.x >= 0.0f)
+			//if (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < 1.0f)
+			{
+				attenuation += PolynomialAOAttenuation(secondaryPayload.hitDist.x);
+				numAO++;
+			}
+			else
+			{
+				attenuation += POLYNONIAL_AO_ATTENUATION_Y_MAX;
+			}
+		}
+		// Calculate occlusion
+		occlusion = float(numAO) / float(totalOcclusionSamples);
+		occlusion *= (1.0f - (float(numVisible) / float(otherData.numSphericalLightSources)));
+		// Remember to scale totalOcclusionSamples with the maximum value that a single attenuation sample can give
+		attenuation /= float(totalOcclusionSamples) * POLYNONIAL_AO_ATTENUATION_Y_MAX;
+		// Factor in attenuation
+		occlusion *= attenuation;
+		occlusion = min(occlusion, 1.0f);
+	}*/
+}

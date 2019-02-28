@@ -6,15 +6,15 @@
 #include "DataLayouts.glsl"
 #include "Defines.glsl"
 
-layout(set = 1, binding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION, std430) readonly buffer customIDToAttributeArrayIndexBuffer
+layout(set = 1, binding = RT0_CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION, std430) readonly buffer customIDToAttributeArrayIndexBuffer
 {
 	uint customIDToAttributeArrayIndex[];
 };
-layout(set = 1, binding = PER_MESH_ATTRIBUTES_BINDING_LOCATION, std140) readonly buffer perMeshAttributesBuffer
+layout(set = 1, binding = RT0_PER_MESH_ATTRIBUTES_BINDING_LOCATION, std140) readonly buffer perMeshAttributesBuffer
 {
 	MeshAttributes meshAttributes[];
 };
-layout(set = 1, binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION, std140) readonly buffer perVertexAttributesBuffer
+layout(set = 1, binding = RT0_PER_VERTEX_ATTRIBUTES_BINDING_LOCATION, std140) readonly buffer perVertexAttributesBuffer
 {
 	VertexAttributes vertexAttributes[];
 };

@@ -227,48 +227,55 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	rtpd->numDescriptorSets = 2;
 	rtpd->descriptorSetLayoutInfos.resize(rtpd->numDescriptorSets);
 	rtpd->descriptorSetLayoutBindings.resize(rtpd->numDescriptorSets);
-	rtpd->descriptorSetLayoutBindings[0].resize(DESCRIPTOR_SET_0_NUM_BINDINGS);
-	rtpd->descriptorSetLayoutBindings[1].resize(DESCRIPTOR_SET_1_NUM_BINDINGS);
+	rtpd->descriptorSetLayoutBindings[0].resize(RT0_DESCRIPTOR_SET_0_NUM_BINDINGS);
+	rtpd->descriptorSetLayoutBindings[1].resize(RT0_DESCRIPTOR_SET_1_NUM_BINDINGS);
 	rtpd->rayTracingPipelineDescriptorSetLayouts.resize(rtpd->numDescriptorSets);
 	
 	//Desriptor set 0
-	VkDescriptorSetLayoutBinding& accelerationStructureDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
-	accelerationStructureDescriptorSetLayoutBinding.binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& accelerationStructureDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
+	accelerationStructureDescriptorSetLayoutBinding.binding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
 	accelerationStructureDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
 	accelerationStructureDescriptorSetLayoutBinding.descriptorCount = 1;
 	accelerationStructureDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	accelerationStructureDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& rayTracingImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RESULT_IMAGE_BINDING_LOCATION];
-	rayTracingImageDescriptorSetLayoutBinding.binding = RESULT_IMAGE_BINDING_LOCATION;
-	rayTracingImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	rayTracingImageDescriptorSetLayoutBinding.descriptorCount = 1;
-	rayTracingImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingColorImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_COLOR_IMAGE_BINDING_LOCATION];
+	rayTracingColorImageDescriptorSetLayoutBinding.binding = RT0_COLOR_IMAGE_BINDING_LOCATION;
+	rayTracingColorImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	rayTracingColorImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingColorImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingColorImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& rayTracingOcclusionImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][OCCLUSION_IMAGE_BINDING_LOCATION];
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.binding = OCCLUSION_IMAGE_BINDING_LOCATION;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.descriptorCount = 1;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingPositionImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_POSITION_IMAGE_BINDING_LOCATION];
+	rayTracingPositionImageDescriptorSetLayoutBinding.binding = RT0_POSITION_IMAGE_BINDING_LOCATION;
+	rayTracingPositionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	rayTracingPositionImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingPositionImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingPositionImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& cameraDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][CAMERA_BUFFER_BINDING_LOCATION];
-	cameraDescriptorSetLayoutBinding.binding = CAMERA_BUFFER_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& rayTracingNormalImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_NORMAL_IMAGE_BINDING_LOCATION];
+	rayTracingNormalImageDescriptorSetLayoutBinding.binding = RT0_NORMAL_IMAGE_BINDING_LOCATION;
+	rayTracingNormalImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	rayTracingNormalImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingNormalImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingNormalImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
+	VkDescriptorSetLayoutBinding& cameraDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_CAMERA_BUFFER_BINDING_LOCATION];
+	cameraDescriptorSetLayoutBinding.binding = RT0_CAMERA_BUFFER_BINDING_LOCATION;
 	cameraDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	cameraDescriptorSetLayoutBinding.descriptorCount = 1;
 	cameraDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	cameraDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& lightsDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][LIGHTS_BUFFER_BINDING_LOCATION];
-	lightsDescriptorSetLayoutBinding.binding = LIGHTS_BUFFER_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& lightsDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_LIGHTS_BUFFER_BINDING_LOCATION];
+	lightsDescriptorSetLayoutBinding.binding = RT0_LIGHTS_BUFFER_BINDING_LOCATION;
 	lightsDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	lightsDescriptorSetLayoutBinding.descriptorCount = 1;
 	lightsDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	lightsDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& otherDataDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][OTHER_DATA_BUFFER_BINDING_LOCATION];
-	otherDataDescriptorSetLayoutBinding.binding = OTHER_DATA_BUFFER_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& otherDataDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_OTHER_DATA_BUFFER_BINDING_LOCATION];
+	otherDataDescriptorSetLayoutBinding.binding = RT0_OTHER_DATA_BUFFER_BINDING_LOCATION;
 	otherDataDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	otherDataDescriptorSetLayoutBinding.descriptorCount = 1;
 	otherDataDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
@@ -283,22 +290,22 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetLayoutInfo0, NULL, &rtpd->rayTracingPipelineDescriptorSetLayouts[0]))
 	
 	//Descriptor set 1
-	VkDescriptorSetLayoutBinding& customIDToAttributeArrayIndexDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION];
-	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.binding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& customIDToAttributeArrayIndexDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][RT0_CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION];
+	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.binding = RT0_CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION;
 	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.descriptorCount = 1;
 	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& perMeshAttributesDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][PER_MESH_ATTRIBUTES_BINDING_LOCATION];
-	perMeshAttributesDescriptorSetLayoutBinding.binding = PER_MESH_ATTRIBUTES_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& perMeshAttributesDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][RT0_PER_MESH_ATTRIBUTES_BINDING_LOCATION];
+	perMeshAttributesDescriptorSetLayoutBinding.binding = RT0_PER_MESH_ATTRIBUTES_BINDING_LOCATION;
 	perMeshAttributesDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	perMeshAttributesDescriptorSetLayoutBinding.descriptorCount = 1;
 	perMeshAttributesDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 	perMeshAttributesDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& perVertexAttributesDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][PER_VERTEX_ATTRIBUTES_BINDING_LOCATION];
-	perVertexAttributesDescriptorSetLayoutBinding.binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& perVertexAttributesDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][RT0_PER_VERTEX_ATTRIBUTES_BINDING_LOCATION];
+	perVertexAttributesDescriptorSetLayoutBinding.binding = RT0_PER_VERTEX_ATTRIBUTES_BINDING_LOCATION;
 	perVertexAttributesDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	perVertexAttributesDescriptorSetLayoutBinding.descriptorCount = 1;
 	perVertexAttributesDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
@@ -354,14 +361,14 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	vkApp.CreateDeviceBuffer(rtpd->shaderBindingTableBufferSize, (void*)(rtpd->shaderGroupHandles.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &rtpd->shaderBindingTableBuffer, &rtpd->shaderBindindTableBufferMemory);
 }
 
-void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingImageView, VkImageView& rayTracingOcclusionImageView, RayTracingPipelineData* rtpd)
+void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingColorImageView, VkImageView& rayTracingPositionImageView, VkImageView rayTracingNormalImageView, RayTracingPipelineData* rtpd)
 {
 	//Descriptor sets
 	rtpd->descriptorSets.resize(rtpd->numDescriptorSets);
 	
 	//Descriptor set 0
 	VkDescriptorSet& descriptorSet0 = rtpd->descriptorSets[0];
-    std::vector<VkWriteDescriptorSet> descriptorSet0Writes(DESCRIPTOR_SET_0_NUM_BINDINGS);
+    std::vector<VkWriteDescriptorSet> descriptorSet0Writes(RT0_DESCRIPTOR_SET_0_NUM_BINDINGS);
     
 	VkDescriptorSetAllocateInfo descriptorSet0AllocateInfo = {};
 	descriptorSet0AllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -377,11 +384,11 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
     descriptorAccelerationStructureInfo.pAccelerationStructures = &accStruct.topAccStruct.accelerationStructure;
 
-    VkWriteDescriptorSet& accelerationStructureWrite = descriptorSet0Writes[ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
+    VkWriteDescriptorSet& accelerationStructureWrite = descriptorSet0Writes[RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
     accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo; // Notice that pNext is assigned here!
     accelerationStructureWrite.dstSet = descriptorSet0;
-    accelerationStructureWrite.dstBinding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
+    accelerationStructureWrite.dstBinding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
     accelerationStructureWrite.dstArrayElement = 0;
     accelerationStructureWrite.descriptorCount = 1;
     accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
@@ -389,50 +396,67 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     accelerationStructureWrite.pBufferInfo = NULL;
     accelerationStructureWrite.pTexelBufferView = NULL;
     
-    VkDescriptorImageInfo descriptorRayTracingImageInfo = {};
-    descriptorRayTracingImageInfo.sampler = VK_NULL_HANDLE;
-    descriptorRayTracingImageInfo.imageView = rayTracingImageView;
-    descriptorRayTracingImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VkDescriptorImageInfo descriptorRayTracingColorImageInfo = {};
+    descriptorRayTracingColorImageInfo.sampler = VK_NULL_HANDLE;
+    descriptorRayTracingColorImageInfo.imageView = rayTracingColorImageView;
+    descriptorRayTracingColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
-    VkWriteDescriptorSet& rayTracingImageWrite = descriptorSet0Writes[RESULT_IMAGE_BINDING_LOCATION];
-    rayTracingImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    rayTracingImageWrite.pNext = NULL;
-    rayTracingImageWrite.dstSet = descriptorSet0;
-    rayTracingImageWrite.dstBinding = RESULT_IMAGE_BINDING_LOCATION;
-    rayTracingImageWrite.dstArrayElement = 0;
-    rayTracingImageWrite.descriptorCount = 1;
-    rayTracingImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    rayTracingImageWrite.pImageInfo = &descriptorRayTracingImageInfo;
-    rayTracingImageWrite.pBufferInfo = NULL;
-    rayTracingImageWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& rayTracingColorImageWrite = descriptorSet0Writes[RT0_COLOR_IMAGE_BINDING_LOCATION];
+    rayTracingColorImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingColorImageWrite.pNext = NULL;
+    rayTracingColorImageWrite.dstSet = descriptorSet0;
+    rayTracingColorImageWrite.dstBinding = RT0_COLOR_IMAGE_BINDING_LOCATION;
+    rayTracingColorImageWrite.dstArrayElement = 0;
+    rayTracingColorImageWrite.descriptorCount = 1;
+    rayTracingColorImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    rayTracingColorImageWrite.pImageInfo = &descriptorRayTracingColorImageInfo;
+    rayTracingColorImageWrite.pBufferInfo = NULL;
+    rayTracingColorImageWrite.pTexelBufferView = NULL;
     
-    VkDescriptorImageInfo descriptorRayTracingOcclusionImageInfo = {};
-    descriptorRayTracingOcclusionImageInfo.sampler = VK_NULL_HANDLE;
-    descriptorRayTracingOcclusionImageInfo.imageView = rayTracingOcclusionImageView;
-    descriptorRayTracingOcclusionImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VkDescriptorImageInfo descriptorRayTracingPositionImageInfo = {};
+    descriptorRayTracingPositionImageInfo.sampler = VK_NULL_HANDLE;
+    descriptorRayTracingPositionImageInfo.imageView = rayTracingPositionImageView;
+    descriptorRayTracingPositionImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
-    VkWriteDescriptorSet& rayTracingOcclusionImageWrite = descriptorSet0Writes[OCCLUSION_IMAGE_BINDING_LOCATION];
-    rayTracingOcclusionImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    rayTracingOcclusionImageWrite.pNext = NULL;
-    rayTracingOcclusionImageWrite.dstSet = descriptorSet0;
-    rayTracingOcclusionImageWrite.dstBinding = OCCLUSION_IMAGE_BINDING_LOCATION;
-    rayTracingOcclusionImageWrite.dstArrayElement = 0;
-    rayTracingOcclusionImageWrite.descriptorCount = 1;
-    rayTracingOcclusionImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    rayTracingOcclusionImageWrite.pImageInfo = &descriptorRayTracingOcclusionImageInfo;
-    rayTracingOcclusionImageWrite.pBufferInfo = NULL;
-    rayTracingOcclusionImageWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& rayTracingPositionImageWrite = descriptorSet0Writes[RT0_POSITION_IMAGE_BINDING_LOCATION];
+    rayTracingPositionImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingPositionImageWrite.pNext = NULL;
+    rayTracingPositionImageWrite.dstSet = descriptorSet0;
+    rayTracingPositionImageWrite.dstBinding = RT0_POSITION_IMAGE_BINDING_LOCATION;
+    rayTracingPositionImageWrite.dstArrayElement = 0;
+    rayTracingPositionImageWrite.descriptorCount = 1;
+    rayTracingPositionImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    rayTracingPositionImageWrite.pImageInfo = &descriptorRayTracingPositionImageInfo;
+    rayTracingPositionImageWrite.pBufferInfo = NULL;
+    rayTracingPositionImageWrite.pTexelBufferView = NULL;
+    
+    VkDescriptorImageInfo descriptorRayTracingNormalImageInfo = {};
+    descriptorRayTracingNormalImageInfo.sampler = VK_NULL_HANDLE;
+    descriptorRayTracingNormalImageInfo.imageView = rayTracingNormalImageView;
+    descriptorRayTracingNormalImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    
+    VkWriteDescriptorSet& rayTracingNormalImageWrite = descriptorSet0Writes[RT0_NORMAL_IMAGE_BINDING_LOCATION];
+    rayTracingNormalImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingNormalImageWrite.pNext = NULL;
+    rayTracingNormalImageWrite.dstSet = descriptorSet0;
+    rayTracingNormalImageWrite.dstBinding = RT0_NORMAL_IMAGE_BINDING_LOCATION;
+    rayTracingNormalImageWrite.dstArrayElement = 0;
+    rayTracingNormalImageWrite.descriptorCount = 1;
+    rayTracingNormalImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    rayTracingNormalImageWrite.pImageInfo = &descriptorRayTracingNormalImageInfo;
+    rayTracingNormalImageWrite.pBufferInfo = NULL;
+    rayTracingNormalImageWrite.pTexelBufferView = NULL;
     
     VkDescriptorBufferInfo descriptorCameraInfo = {};
     descriptorCameraInfo.buffer = cameraBuffer;
     descriptorCameraInfo.offset = 0;
     descriptorCameraInfo.range = cameraBufferSize;
     
-    VkWriteDescriptorSet& cameraWrite = descriptorSet0Writes[CAMERA_BUFFER_BINDING_LOCATION];
+    VkWriteDescriptorSet& cameraWrite = descriptorSet0Writes[RT0_CAMERA_BUFFER_BINDING_LOCATION];
     cameraWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     cameraWrite.pNext = NULL;
     cameraWrite.dstSet = descriptorSet0;
-    cameraWrite.dstBinding = CAMERA_BUFFER_BINDING_LOCATION;
+    cameraWrite.dstBinding = RT0_CAMERA_BUFFER_BINDING_LOCATION;
     cameraWrite.dstArrayElement = 0;
     cameraWrite.descriptorCount = 1;
     cameraWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -445,11 +469,11 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     descriptorLightsInfo.offset = 0;
     descriptorLightsInfo.range = lightsBufferSize;
     
-    VkWriteDescriptorSet& lightsWrite = descriptorSet0Writes[LIGHTS_BUFFER_BINDING_LOCATION];
+    VkWriteDescriptorSet& lightsWrite = descriptorSet0Writes[RT0_LIGHTS_BUFFER_BINDING_LOCATION];
     lightsWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     lightsWrite.pNext = NULL;
     lightsWrite.dstSet = descriptorSet0;
-    lightsWrite.dstBinding = LIGHTS_BUFFER_BINDING_LOCATION;
+    lightsWrite.dstBinding = RT0_LIGHTS_BUFFER_BINDING_LOCATION;
     lightsWrite.dstArrayElement = 0;
     lightsWrite.descriptorCount = 1;
     lightsWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -462,11 +486,11 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     descriptorOtherDataInfo.offset = 0;
     descriptorOtherDataInfo.range = otherDataBufferSize;
     
-    VkWriteDescriptorSet& otherDataWrite = descriptorSet0Writes[OTHER_DATA_BUFFER_BINDING_LOCATION];
+    VkWriteDescriptorSet& otherDataWrite = descriptorSet0Writes[RT0_OTHER_DATA_BUFFER_BINDING_LOCATION];
     otherDataWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     otherDataWrite.pNext = NULL;
     otherDataWrite.dstSet = descriptorSet0;
-    otherDataWrite.dstBinding = OTHER_DATA_BUFFER_BINDING_LOCATION;
+    otherDataWrite.dstBinding = RT0_OTHER_DATA_BUFFER_BINDING_LOCATION;
     otherDataWrite.dstArrayElement = 0;
     otherDataWrite.descriptorCount = 1;
     otherDataWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -478,7 +502,7 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     
     //Descriptor set 1
 	VkDescriptorSet& descriptorSet1 = rtpd->descriptorSets[1];
-    std::vector<VkWriteDescriptorSet> descriptorSet1Writes(DESCRIPTOR_SET_1_NUM_BINDINGS);
+    std::vector<VkWriteDescriptorSet> descriptorSet1Writes(RT0_DESCRIPTOR_SET_1_NUM_BINDINGS);
     
 	VkDescriptorSetAllocateInfo descriptorSet1AllocateInfo = {};
 	descriptorSet1AllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -493,11 +517,11 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     descriptorCustomIDToAttributeArrayIndexInfo.offset = 0;
     descriptorCustomIDToAttributeArrayIndexInfo.range = customIDToAttributeArrayIndexBufferSize;
     
-    VkWriteDescriptorSet& customIDToAttributeArrayIndexWrite = descriptorSet1Writes[CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION];
+    VkWriteDescriptorSet& customIDToAttributeArrayIndexWrite = descriptorSet1Writes[RT0_CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION];
     customIDToAttributeArrayIndexWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     customIDToAttributeArrayIndexWrite.pNext = NULL;
     customIDToAttributeArrayIndexWrite.dstSet = descriptorSet1;
-    customIDToAttributeArrayIndexWrite.dstBinding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION;
+    customIDToAttributeArrayIndexWrite.dstBinding = RT0_CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION;
     customIDToAttributeArrayIndexWrite.dstArrayElement = 0;
     customIDToAttributeArrayIndexWrite.descriptorCount = 1;
     customIDToAttributeArrayIndexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -510,11 +534,11 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     descriptorPerMeshAttributesInfo.offset = 0;
     descriptorPerMeshAttributesInfo.range = perMeshAttributeBufferSize;
     
-    VkWriteDescriptorSet& perMeshAttributesWrite = descriptorSet1Writes[PER_MESH_ATTRIBUTES_BINDING_LOCATION];
+    VkWriteDescriptorSet& perMeshAttributesWrite = descriptorSet1Writes[RT0_PER_MESH_ATTRIBUTES_BINDING_LOCATION];
     perMeshAttributesWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     perMeshAttributesWrite.pNext = NULL;
     perMeshAttributesWrite.dstSet = descriptorSet1;
-    perMeshAttributesWrite.dstBinding = PER_MESH_ATTRIBUTES_BINDING_LOCATION;
+    perMeshAttributesWrite.dstBinding = RT0_PER_MESH_ATTRIBUTES_BINDING_LOCATION;
     perMeshAttributesWrite.dstArrayElement = 0;
     perMeshAttributesWrite.descriptorCount = 1;
     perMeshAttributesWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -527,11 +551,11 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     descriptorperVertexAttributesInfo.offset = 0;
     descriptorperVertexAttributesInfo.range = perVertexAttributeBufferSize;
     
-    VkWriteDescriptorSet& perVerexAttributesWrite = descriptorSet1Writes[PER_VERTEX_ATTRIBUTES_BINDING_LOCATION];
+    VkWriteDescriptorSet& perVerexAttributesWrite = descriptorSet1Writes[RT0_PER_VERTEX_ATTRIBUTES_BINDING_LOCATION];
     perVerexAttributesWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     perVerexAttributesWrite.pNext = NULL;
     perVerexAttributesWrite.dstSet = descriptorSet1;
-    perVerexAttributesWrite.dstBinding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION;
+    perVerexAttributesWrite.dstBinding = RT0_PER_VERTEX_ATTRIBUTES_BINDING_LOCATION;
     perVerexAttributesWrite.dstArrayElement = 0;
     perVerexAttributesWrite.descriptorCount = 1;
     perVerexAttributesWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -544,18 +568,14 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
 
 void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData* rtpd)
 {
-	const uint32_t numShaders = 5;
+	const uint32_t numShaders = 3;
 	rtpd->shaderModules.resize(numShaders);
 	const uint32_t rayGenShaderIndex = 0;
 	const uint32_t primaryCHitShaderIndex = 1;
-	const uint32_t secondaryCHitShaderIndex = 2;
-	const uint32_t primaryMissShaderIndex = 3;
-	const uint32_t secondaryMissShaderIndex = 4;
-	vkApp.CreateShaderModule("src/shaders/out/color_position/primary_rgen.spv", &rtpd->shaderModules[rayGenShaderIndex]);
-	vkApp.CreateShaderModule("src/shaders/out/color_position/primary_rchit.spv", &rtpd->shaderModules[primaryCHitShaderIndex]);
-	vkApp.CreateShaderModule("src/shaders/out/color_position/secondary_rchit.spv", &rtpd->shaderModules[secondaryCHitShaderIndex]);
-	vkApp.CreateShaderModule("src/shaders/out/color_position/primary_rmiss.spv", &rtpd->shaderModules[primaryMissShaderIndex]);
-	vkApp.CreateShaderModule("src/shaders/out/color_position/secondary_rmiss.spv", &rtpd->shaderModules[secondaryMissShaderIndex]);
+	const uint32_t primaryMissShaderIndex = 2;
+	vkApp.CreateShaderModule("src/shaders/out/ao/primary_rgen.spv", &rtpd->shaderModules[rayGenShaderIndex]);
+	vkApp.CreateShaderModule("src/shaders/out/ao/primary_rchit.spv", &rtpd->shaderModules[primaryCHitShaderIndex]);
+	vkApp.CreateShaderModule("src/shaders/out/ao/primary_rmiss.spv", &rtpd->shaderModules[primaryMissShaderIndex]);
 	
 	rtpd->rayTracingShaderStageInfos.resize(numShaders);
 	rtpd->rayTracingShaderStageInfos[rayGenShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -572,13 +592,6 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	rtpd->rayTracingShaderStageInfos[primaryCHitShaderIndex].module = rtpd->shaderModules[primaryCHitShaderIndex];
 	rtpd->rayTracingShaderStageInfos[primaryCHitShaderIndex].pName = "main";
 	rtpd->rayTracingShaderStageInfos[primaryCHitShaderIndex].pSpecializationInfo = NULL;
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].pNext = NULL;
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].flags = 0;
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].module = rtpd->shaderModules[secondaryCHitShaderIndex];
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].pName = "main";
-	rtpd->rayTracingShaderStageInfos[secondaryCHitShaderIndex].pSpecializationInfo = NULL;
 	rtpd->rayTracingShaderStageInfos[primaryMissShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	rtpd->rayTracingShaderStageInfos[primaryMissShaderIndex].pNext = NULL;
 	rtpd->rayTracingShaderStageInfos[primaryMissShaderIndex].flags = 0;
@@ -586,13 +599,6 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	rtpd->rayTracingShaderStageInfos[primaryMissShaderIndex].module = rtpd->shaderModules[primaryMissShaderIndex];
 	rtpd->rayTracingShaderStageInfos[primaryMissShaderIndex].pName = "main";
 	rtpd->rayTracingShaderStageInfos[primaryMissShaderIndex].pSpecializationInfo = NULL;
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].pNext = NULL;
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].flags = 0;
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].stage = VK_SHADER_STAGE_MISS_BIT_NV;
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].module = rtpd->shaderModules[secondaryMissShaderIndex];
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].pName = "main";
-	rtpd->rayTracingShaderStageInfos[secondaryMissShaderIndex].pSpecializationInfo = NULL;
 	
 	rtpd->rayTracingGroupInfos.resize(numShaders);
 	rtpd->rayTracingGroupInfos[0].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
@@ -612,74 +618,45 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	rtpd->rayTracingGroupInfos[2].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
 	rtpd->rayTracingGroupInfos[2].pNext = NULL;
 	rtpd->rayTracingGroupInfos[2].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
-	rtpd->rayTracingGroupInfos[2].generalShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[2].closestHitShader = secondaryCHitShaderIndex;
+	rtpd->rayTracingGroupInfos[2].generalShader = primaryMissShaderIndex;
+	rtpd->rayTracingGroupInfos[2].closestHitShader = VK_SHADER_UNUSED_NV;
 	rtpd->rayTracingGroupInfos[2].anyHitShader = VK_SHADER_UNUSED_NV;
 	rtpd->rayTracingGroupInfos[2].intersectionShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[3].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
-	rtpd->rayTracingGroupInfos[3].pNext = NULL;
-	rtpd->rayTracingGroupInfos[3].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
-	rtpd->rayTracingGroupInfos[3].generalShader = primaryMissShaderIndex;
-	rtpd->rayTracingGroupInfos[3].closestHitShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[3].anyHitShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[3].intersectionShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[4].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
-	rtpd->rayTracingGroupInfos[4].pNext = NULL;
-	rtpd->rayTracingGroupInfos[4].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
-	rtpd->rayTracingGroupInfos[4].generalShader = secondaryMissShaderIndex;
-	rtpd->rayTracingGroupInfos[4].closestHitShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[4].anyHitShader = VK_SHADER_UNUSED_NV;
-	rtpd->rayTracingGroupInfos[4].intersectionShader = VK_SHADER_UNUSED_NV;
 	
-	rtpd->numDescriptorSets = 2;
+	rtpd->numDescriptorSets = 1;
 	rtpd->descriptorSetLayoutInfos.resize(rtpd->numDescriptorSets);
 	rtpd->descriptorSetLayoutBindings.resize(rtpd->numDescriptorSets);
-	rtpd->descriptorSetLayoutBindings[0].resize(DESCRIPTOR_SET_0_NUM_BINDINGS);
-	rtpd->descriptorSetLayoutBindings[1].resize(DESCRIPTOR_SET_1_NUM_BINDINGS);
+	rtpd->descriptorSetLayoutBindings[0].resize(RT1_DESCRIPTOR_SET_NUM_BINDINGS);
 	rtpd->rayTracingPipelineDescriptorSetLayouts.resize(rtpd->numDescriptorSets);
 	
 	//Desriptor set 0
-	VkDescriptorSetLayoutBinding& accelerationStructureDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
-	accelerationStructureDescriptorSetLayoutBinding.binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
+	VkDescriptorSetLayoutBinding& accelerationStructureDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
+	accelerationStructureDescriptorSetLayoutBinding.binding = RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
 	accelerationStructureDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
 	accelerationStructureDescriptorSetLayoutBinding.descriptorCount = 1;
 	accelerationStructureDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	accelerationStructureDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& rayTracingImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RESULT_IMAGE_BINDING_LOCATION];
-	rayTracingImageDescriptorSetLayoutBinding.binding = RESULT_IMAGE_BINDING_LOCATION;
-	rayTracingImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	rayTracingImageDescriptorSetLayoutBinding.descriptorCount = 1;
-	rayTracingImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingPositionImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT1_POSITION_IMAGE_BINDING_LOCATION];
+	rayTracingPositionImageDescriptorSetLayoutBinding.binding = RT1_POSITION_IMAGE_BINDING_LOCATION;
+	rayTracingPositionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	rayTracingPositionImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingPositionImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingPositionImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& rayTracingOcclusionImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][OCCLUSION_IMAGE_BINDING_LOCATION];
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.binding = OCCLUSION_IMAGE_BINDING_LOCATION;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.descriptorCount = 1;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingOcclusionImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingNormalImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT1_NORMAL_IMAGE_BINDING_LOCATION];
+	rayTracingNormalImageDescriptorSetLayoutBinding.binding = RT1_NORMAL_IMAGE_BINDING_LOCATION;
+	rayTracingNormalImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	rayTracingNormalImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingNormalImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingNormalImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& cameraDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][CAMERA_BUFFER_BINDING_LOCATION];
-	cameraDescriptorSetLayoutBinding.binding = CAMERA_BUFFER_BINDING_LOCATION;
-	cameraDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	cameraDescriptorSetLayoutBinding.descriptorCount = 1;
-	cameraDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	cameraDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutBinding& lightsDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][LIGHTS_BUFFER_BINDING_LOCATION];
-	lightsDescriptorSetLayoutBinding.binding = LIGHTS_BUFFER_BINDING_LOCATION;
-	lightsDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	lightsDescriptorSetLayoutBinding.descriptorCount = 1;
-	lightsDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	lightsDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutBinding& otherDataDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][OTHER_DATA_BUFFER_BINDING_LOCATION];
-	otherDataDescriptorSetLayoutBinding.binding = OTHER_DATA_BUFFER_BINDING_LOCATION;
-	otherDataDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	otherDataDescriptorSetLayoutBinding.descriptorCount = 1;
-	otherDataDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	otherDataDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& rayTracingAOImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT1_AO_IMAGE_BINDING_LOCATION];
+	rayTracingAOImageDescriptorSetLayoutBinding.binding = RT1_AO_IMAGE_BINDING_LOCATION;
+	rayTracingAOImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	rayTracingAOImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingAOImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingAOImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
 	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo0 = rtpd->descriptorSetLayoutInfos[0];
 	descriptorSetLayoutInfo0.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -688,36 +665,6 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	descriptorSetLayoutInfo0.bindingCount = rtpd->descriptorSetLayoutBindings[0].size();
 	descriptorSetLayoutInfo0.pBindings = rtpd->descriptorSetLayoutBindings[0].data();
 	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetLayoutInfo0, NULL, &rtpd->rayTracingPipelineDescriptorSetLayouts[0]))
-	
-	//Descriptor set 1
-	VkDescriptorSetLayoutBinding& customIDToAttributeArrayIndexDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION];
-	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.binding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION;
-	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.descriptorCount = 1;
-	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	customIDToAttributeArrayIndexDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutBinding& perMeshAttributesDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][PER_MESH_ATTRIBUTES_BINDING_LOCATION];
-	perMeshAttributesDescriptorSetLayoutBinding.binding = PER_MESH_ATTRIBUTES_BINDING_LOCATION;
-	perMeshAttributesDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	perMeshAttributesDescriptorSetLayoutBinding.descriptorCount = 1;
-	perMeshAttributesDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	perMeshAttributesDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutBinding& perVertexAttributesDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[1][PER_VERTEX_ATTRIBUTES_BINDING_LOCATION];
-	perVertexAttributesDescriptorSetLayoutBinding.binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION;
-	perVertexAttributesDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	perVertexAttributesDescriptorSetLayoutBinding.descriptorCount = 1;
-	perVertexAttributesDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-	perVertexAttributesDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
-	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo1 = rtpd->descriptorSetLayoutInfos[1];
-	descriptorSetLayoutInfo1.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	descriptorSetLayoutInfo1.pNext = NULL;
-	descriptorSetLayoutInfo1.flags = 0;
-	descriptorSetLayoutInfo1.bindingCount = rtpd->descriptorSetLayoutBindings[1].size();
-	descriptorSetLayoutInfo1.pBindings = rtpd->descriptorSetLayoutBindings[1].data();
-	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetLayoutInfo1, NULL, &rtpd->rayTracingPipelineDescriptorSetLayouts[1]))
 	
 	//Pipeline
 	VkPipelineLayoutCreateInfo rayTracingPipelineLayoutInfo = {};
@@ -761,14 +708,14 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	vkApp.CreateDeviceBuffer(rtpd->shaderBindingTableBufferSize, (void*)(rtpd->shaderGroupHandles.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &rtpd->shaderBindingTableBuffer, &rtpd->shaderBindindTableBufferMemory);
 }
 
-void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingImageView, VkImageView& rayTracingOcclusionImageView, RayTracingPipelineData* rtpd)
+void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkImageView& rayTracingPositionImageView, VkImageView& rayTracingNormalImageView, VkSampler& sampler, VkImageView& rayTracingAOImageView, RayTracingPipelineData* rtpd)
 {
 	//Descriptor sets
 	rtpd->descriptorSets.resize(rtpd->numDescriptorSets);
 	
 	//Descriptor set 0
 	VkDescriptorSet& descriptorSet0 = rtpd->descriptorSets[0];
-    std::vector<VkWriteDescriptorSet> descriptorSet0Writes(DESCRIPTOR_SET_0_NUM_BINDINGS);
+    std::vector<VkWriteDescriptorSet> descriptorSet0Writes(RT1_DESCRIPTOR_SET_NUM_BINDINGS);
     
 	VkDescriptorSetAllocateInfo descriptorSet0AllocateInfo = {};
 	descriptorSet0AllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -784,11 +731,11 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
     descriptorAccelerationStructureInfo.pAccelerationStructures = &accStruct.topAccStruct.accelerationStructure;
 
-    VkWriteDescriptorSet& accelerationStructureWrite = descriptorSet0Writes[ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
+    VkWriteDescriptorSet& accelerationStructureWrite = descriptorSet0Writes[RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION];
     accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo; // Notice that pNext is assigned here!
     accelerationStructureWrite.dstSet = descriptorSet0;
-    accelerationStructureWrite.dstBinding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
+    accelerationStructureWrite.dstBinding = RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION;
     accelerationStructureWrite.dstArrayElement = 0;
     accelerationStructureWrite.descriptorCount = 1;
     accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
@@ -796,157 +743,58 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     accelerationStructureWrite.pBufferInfo = NULL;
     accelerationStructureWrite.pTexelBufferView = NULL;
     
-    VkDescriptorImageInfo descriptorRayTracingImageInfo = {};
-    descriptorRayTracingImageInfo.sampler = VK_NULL_HANDLE;
-    descriptorRayTracingImageInfo.imageView = rayTracingImageView;
-    descriptorRayTracingImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VkDescriptorImageInfo descriptorRayTracingPositionImageInfo = {};
+    descriptorRayTracingPositionImageInfo.sampler = sampler;
+    descriptorRayTracingPositionImageInfo.imageView = rayTracingPositionImageView;
+    descriptorRayTracingPositionImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
-    VkWriteDescriptorSet& rayTracingImageWrite = descriptorSet0Writes[RESULT_IMAGE_BINDING_LOCATION];
-    rayTracingImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    rayTracingImageWrite.pNext = NULL;
-    rayTracingImageWrite.dstSet = descriptorSet0;
-    rayTracingImageWrite.dstBinding = RESULT_IMAGE_BINDING_LOCATION;
-    rayTracingImageWrite.dstArrayElement = 0;
-    rayTracingImageWrite.descriptorCount = 1;
-    rayTracingImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    rayTracingImageWrite.pImageInfo = &descriptorRayTracingImageInfo;
-    rayTracingImageWrite.pBufferInfo = NULL;
-    rayTracingImageWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& rayTracingPositionImageWrite = descriptorSet0Writes[RT1_POSITION_IMAGE_BINDING_LOCATION];
+    rayTracingPositionImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingPositionImageWrite.pNext = NULL;
+    rayTracingPositionImageWrite.dstSet = descriptorSet0;
+    rayTracingPositionImageWrite.dstBinding = RT1_POSITION_IMAGE_BINDING_LOCATION;
+    rayTracingPositionImageWrite.dstArrayElement = 0;
+    rayTracingPositionImageWrite.descriptorCount = 1;
+    rayTracingPositionImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    rayTracingPositionImageWrite.pImageInfo = &descriptorRayTracingPositionImageInfo;
+    rayTracingPositionImageWrite.pBufferInfo = NULL;
+    rayTracingPositionImageWrite.pTexelBufferView = NULL;
     
-    VkDescriptorImageInfo descriptorRayTracingOcclusionImageInfo = {};
-    descriptorRayTracingOcclusionImageInfo.sampler = VK_NULL_HANDLE;
-    descriptorRayTracingOcclusionImageInfo.imageView = rayTracingOcclusionImageView;
-    descriptorRayTracingOcclusionImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VkDescriptorImageInfo descriptorRayTracingNormalImageInfo = {};
+    descriptorRayTracingNormalImageInfo.sampler = sampler;
+    descriptorRayTracingNormalImageInfo.imageView = rayTracingNormalImageView;
+    descriptorRayTracingNormalImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
-    VkWriteDescriptorSet& rayTracingOcclusionImageWrite = descriptorSet0Writes[OCCLUSION_IMAGE_BINDING_LOCATION];
-    rayTracingOcclusionImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    rayTracingOcclusionImageWrite.pNext = NULL;
-    rayTracingOcclusionImageWrite.dstSet = descriptorSet0;
-    rayTracingOcclusionImageWrite.dstBinding = OCCLUSION_IMAGE_BINDING_LOCATION;
-    rayTracingOcclusionImageWrite.dstArrayElement = 0;
-    rayTracingOcclusionImageWrite.descriptorCount = 1;
-    rayTracingOcclusionImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    rayTracingOcclusionImageWrite.pImageInfo = &descriptorRayTracingOcclusionImageInfo;
-    rayTracingOcclusionImageWrite.pBufferInfo = NULL;
-    rayTracingOcclusionImageWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& rayTracingNormalImageWrite = descriptorSet0Writes[RT1_NORMAL_IMAGE_BINDING_LOCATION];
+    rayTracingNormalImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingNormalImageWrite.pNext = NULL;
+    rayTracingNormalImageWrite.dstSet = descriptorSet0;
+    rayTracingNormalImageWrite.dstBinding = RT1_NORMAL_IMAGE_BINDING_LOCATION;
+    rayTracingNormalImageWrite.dstArrayElement = 0;
+    rayTracingNormalImageWrite.descriptorCount = 1;
+    rayTracingNormalImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    rayTracingNormalImageWrite.pImageInfo = &descriptorRayTracingNormalImageInfo;
+    rayTracingNormalImageWrite.pBufferInfo = NULL;
+    rayTracingNormalImageWrite.pTexelBufferView = NULL;
     
-    VkDescriptorBufferInfo descriptorCameraInfo = {};
-    descriptorCameraInfo.buffer = cameraBuffer;
-    descriptorCameraInfo.offset = 0;
-    descriptorCameraInfo.range = cameraBufferSize;
+    VkDescriptorImageInfo descriptorRayTracingAOImageInfo = {};
+    descriptorRayTracingAOImageInfo.sampler = VK_NULL_HANDLE;
+    descriptorRayTracingAOImageInfo.imageView = rayTracingAOImageView;
+    descriptorRayTracingAOImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
-    VkWriteDescriptorSet& cameraWrite = descriptorSet0Writes[CAMERA_BUFFER_BINDING_LOCATION];
-    cameraWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    cameraWrite.pNext = NULL;
-    cameraWrite.dstSet = descriptorSet0;
-    cameraWrite.dstBinding = CAMERA_BUFFER_BINDING_LOCATION;
-    cameraWrite.dstArrayElement = 0;
-    cameraWrite.descriptorCount = 1;
-    cameraWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    cameraWrite.pImageInfo = NULL;
-    cameraWrite.pBufferInfo = &descriptorCameraInfo;
-    cameraWrite.pTexelBufferView = NULL;
-    
-    VkDescriptorBufferInfo descriptorLightsInfo = {};
-    descriptorLightsInfo.buffer = lightsBuffer;
-    descriptorLightsInfo.offset = 0;
-    descriptorLightsInfo.range = lightsBufferSize;
-    
-    VkWriteDescriptorSet& lightsWrite = descriptorSet0Writes[LIGHTS_BUFFER_BINDING_LOCATION];
-    lightsWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    lightsWrite.pNext = NULL;
-    lightsWrite.dstSet = descriptorSet0;
-    lightsWrite.dstBinding = LIGHTS_BUFFER_BINDING_LOCATION;
-    lightsWrite.dstArrayElement = 0;
-    lightsWrite.descriptorCount = 1;
-    lightsWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    lightsWrite.pImageInfo = NULL;
-    lightsWrite.pBufferInfo = &descriptorLightsInfo;
-    lightsWrite.pTexelBufferView = NULL;
-    
-    VkDescriptorBufferInfo descriptorOtherDataInfo = {};
-    descriptorOtherDataInfo.buffer = otherDataBuffer;
-    descriptorOtherDataInfo.offset = 0;
-    descriptorOtherDataInfo.range = otherDataBufferSize;
-    
-    VkWriteDescriptorSet& otherDataWrite = descriptorSet0Writes[OTHER_DATA_BUFFER_BINDING_LOCATION];
-    otherDataWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    otherDataWrite.pNext = NULL;
-    otherDataWrite.dstSet = descriptorSet0;
-    otherDataWrite.dstBinding = OTHER_DATA_BUFFER_BINDING_LOCATION;
-    otherDataWrite.dstArrayElement = 0;
-    otherDataWrite.descriptorCount = 1;
-    otherDataWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    otherDataWrite.pImageInfo = NULL;
-    otherDataWrite.pBufferInfo = &descriptorOtherDataInfo;
-    otherDataWrite.pTexelBufferView = NULL;
+    VkWriteDescriptorSet& rayTracingAOImageWrite = descriptorSet0Writes[RT1_AO_IMAGE_BINDING_LOCATION];
+    rayTracingAOImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingAOImageWrite.pNext = NULL;
+    rayTracingAOImageWrite.dstSet = descriptorSet0;
+    rayTracingAOImageWrite.dstBinding = RT1_AO_IMAGE_BINDING_LOCATION;
+    rayTracingAOImageWrite.dstArrayElement = 0;
+    rayTracingAOImageWrite.descriptorCount = 1;
+    rayTracingAOImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    rayTracingAOImageWrite.pImageInfo = &descriptorRayTracingAOImageInfo;
+    rayTracingAOImageWrite.pBufferInfo = NULL;
+    rayTracingAOImageWrite.pTexelBufferView = NULL;
     
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet0Writes.size(), descriptorSet0Writes.data(), 0, NULL);
-    
-    //Descriptor set 1
-	VkDescriptorSet& descriptorSet1 = rtpd->descriptorSets[1];
-    std::vector<VkWriteDescriptorSet> descriptorSet1Writes(DESCRIPTOR_SET_1_NUM_BINDINGS);
-    
-	VkDescriptorSetAllocateInfo descriptorSet1AllocateInfo = {};
-	descriptorSet1AllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptorSet1AllocateInfo.pNext = NULL;
-	descriptorSet1AllocateInfo.descriptorPool = descriptorPool;
-	descriptorSet1AllocateInfo.descriptorSetCount = 1;
-	descriptorSet1AllocateInfo.pSetLayouts = &rtpd->rayTracingPipelineDescriptorSetLayouts[1];
-	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSet1AllocateInfo, &descriptorSet1))
-    
-    VkDescriptorBufferInfo descriptorCustomIDToAttributeArrayIndexInfo = {};
-    descriptorCustomIDToAttributeArrayIndexInfo.buffer = customIDToAttributeArrayIndexBuffer;
-    descriptorCustomIDToAttributeArrayIndexInfo.offset = 0;
-    descriptorCustomIDToAttributeArrayIndexInfo.range = customIDToAttributeArrayIndexBufferSize;
-    
-    VkWriteDescriptorSet& customIDToAttributeArrayIndexWrite = descriptorSet1Writes[CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION];
-    customIDToAttributeArrayIndexWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    customIDToAttributeArrayIndexWrite.pNext = NULL;
-    customIDToAttributeArrayIndexWrite.dstSet = descriptorSet1;
-    customIDToAttributeArrayIndexWrite.dstBinding = CUSTOM_ID_TO_ATTRIBUTE_ARRAY_INDEX_BUFFER_BINDING_LOCATION;
-    customIDToAttributeArrayIndexWrite.dstArrayElement = 0;
-    customIDToAttributeArrayIndexWrite.descriptorCount = 1;
-    customIDToAttributeArrayIndexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    customIDToAttributeArrayIndexWrite.pImageInfo = NULL;
-    customIDToAttributeArrayIndexWrite.pBufferInfo = &descriptorCustomIDToAttributeArrayIndexInfo;
-    customIDToAttributeArrayIndexWrite.pTexelBufferView = NULL;
-    
-    VkDescriptorBufferInfo descriptorPerMeshAttributesInfo = {};
-    descriptorPerMeshAttributesInfo.buffer = perMeshAttributeBuffer;
-    descriptorPerMeshAttributesInfo.offset = 0;
-    descriptorPerMeshAttributesInfo.range = perMeshAttributeBufferSize;
-    
-    VkWriteDescriptorSet& perMeshAttributesWrite = descriptorSet1Writes[PER_MESH_ATTRIBUTES_BINDING_LOCATION];
-    perMeshAttributesWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    perMeshAttributesWrite.pNext = NULL;
-    perMeshAttributesWrite.dstSet = descriptorSet1;
-    perMeshAttributesWrite.dstBinding = PER_MESH_ATTRIBUTES_BINDING_LOCATION;
-    perMeshAttributesWrite.dstArrayElement = 0;
-    perMeshAttributesWrite.descriptorCount = 1;
-    perMeshAttributesWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    perMeshAttributesWrite.pImageInfo = NULL;
-    perMeshAttributesWrite.pBufferInfo = &descriptorPerMeshAttributesInfo;
-    perMeshAttributesWrite.pTexelBufferView = NULL;
-    
-    VkDescriptorBufferInfo descriptorperVertexAttributesInfo = {};
-    descriptorperVertexAttributesInfo.buffer = perVertexAttributeBuffer;
-    descriptorperVertexAttributesInfo.offset = 0;
-    descriptorperVertexAttributesInfo.range = perVertexAttributeBufferSize;
-    
-    VkWriteDescriptorSet& perVerexAttributesWrite = descriptorSet1Writes[PER_VERTEX_ATTRIBUTES_BINDING_LOCATION];
-    perVerexAttributesWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    perVerexAttributesWrite.pNext = NULL;
-    perVerexAttributesWrite.dstSet = descriptorSet1;
-    perVerexAttributesWrite.dstBinding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION;
-    perVerexAttributesWrite.dstArrayElement = 0;
-    perVerexAttributesWrite.descriptorCount = 1;
-    perVerexAttributesWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    perVerexAttributesWrite.pImageInfo = NULL;
-    perVerexAttributesWrite.pBufferInfo = &descriptorperVertexAttributesInfo;
-    perVerexAttributesWrite.pTexelBufferView = NULL;
-    
-    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet1Writes.size(), descriptorSet1Writes.data(), 0, NULL);
 }
 
 void Raytrace(const char* brhanFile)
@@ -1070,12 +918,11 @@ void Raytrace(const char* brhanFile)
 	customIDToAttributeArrayIndex.resize(0);
 	
 	////////////////////////////
-	//////////TEXTURE///////////
+	//////////SAMPLER///////////
 	////////////////////////////
-	VkSampler defaultSampler;
-	vkApp.CreateDefaultSampler(&defaultSampler, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-	VulkanTexture dummyTexture;
-	vkApp.CreateDummyImage(&dummyTexture.image, &dummyTexture.imageMemory, &dummyTexture.imageView);
+	VkSampler nearestSampler, linearSampler;
+	vkApp.CreateDefaultSampler(&nearestSampler, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+	vkApp.CreateDefaultSampler(&linearSampler, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 	
 	////////////////////////////
 	///ACCELERATION STRUCTURE///
@@ -1085,13 +932,16 @@ void Raytrace(const char* brhanFile)
 	vkApp.BuildAccelerationStructure(accStruct);
 	geometryData.resize(0);
 	
-	////////////////////////////
-	////RAY TRACING PIPELINE////
-	////////////////////////////
+	/////////////////////////////
+	////RAY TRACING PIPELINES////
+	/////////////////////////////
 	RayTracingPipelineData rtpdColorPosition, rtpdAO;
 	CreateRayTracingColorPositionPipelineAndData(vkApp, &rtpdColorPosition);
 	CreateRayTracingAOPipelineAndData(vkApp, &rtpdAO);
 	
+	//////////////////////////
+	////RAY TRACING IMAGES////
+	//////////////////////////
 	//Ray tracing COLOR image
 	VkImageCreateInfo imageInfo = {};
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1122,29 +972,79 @@ void Raytrace(const char* brhanFile)
 	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingColorImageAllocateInfo, NULL, &rayTracingColorImageMemory))
 	vkBindImageMemory(vkApp.vkDevice, rayTracingColorImage, rayTracingColorImageMemory, 0);
 	
-	VkImageViewCreateInfo rayTracingImageViewCreateInfo;
-    rayTracingImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    rayTracingImageViewCreateInfo.pNext = NULL;
-    rayTracingImageViewCreateInfo.flags = 0;
-    rayTracingImageViewCreateInfo.image = rayTracingColorImage;
-    rayTracingImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    rayTracingImageViewCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    rayTracingImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	rayTracingImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-	rayTracingImageViewCreateInfo.subresourceRange.levelCount = 1;
-	rayTracingImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-	rayTracingImageViewCreateInfo.subresourceRange.layerCount = 1;
-    rayTracingImageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+	VkImageViewCreateInfo imageViewInfo;
+    imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewInfo.pNext = NULL;
+    imageViewInfo.flags = 0;
+    imageViewInfo.image = rayTracingColorImage;
+    imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageViewInfo.subresourceRange.baseMipLevel = 0;
+	imageViewInfo.subresourceRange.levelCount = 1;
+	imageViewInfo.subresourceRange.baseArrayLayer = 0;
+	imageViewInfo.subresourceRange.layerCount = 1;
+    imageViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
 	VkImageView rayTracingColorImageView;
-    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &rayTracingImageViewCreateInfo, NULL, &rayTracingColorImageView))
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &rayTracingColorImageView))
     
     //Transition ray tracing COLOR image layout
 	vkApp.TransitionImageLayoutSingle(rayTracingColorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
     
-    //Ray tracing AO image
+    //Ray tracing POSITION image
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
 	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
+	VkImage rayTracingPositionImage;
+	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingPositionImage))
+	
+	VkMemoryRequirements rayTracingPositionImageMemoryRequirements;
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingPositionImage, &rayTracingPositionImageMemoryRequirements);
+	VkMemoryAllocateInfo rayTracingPositionImageAllocateInfo = {};
+	rayTracingPositionImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	rayTracingPositionImageAllocateInfo.allocationSize = rayTracingPositionImageMemoryRequirements.size;
+	rayTracingPositionImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingPositionImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory rayTracingPositionImageMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingPositionImageAllocateInfo, NULL, &rayTracingPositionImageMemory))
+	vkBindImageMemory(vkApp.vkDevice, rayTracingPositionImage, rayTracingPositionImageMemory, 0);
+    
+    imageViewInfo.image = rayTracingPositionImage;
+    imageViewInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	VkImageView rayTracingPositionImageView;
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &rayTracingPositionImageView))
+    
+    //Transition ray tracing POSITION image layout
+	vkApp.TransitionImageLayoutSingle(rayTracingPositionImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+	
+	//Ray tracing NORMAL image
+	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
+	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
+	VkImage rayTracingNormalImage;
+	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingNormalImage))
+	
+	VkMemoryRequirements rayTracingNormalImageMemoryRequirements;
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingNormalImage, &rayTracingNormalImageMemoryRequirements);
+	VkMemoryAllocateInfo rayTracingNormalImageAllocateInfo = {};
+	rayTracingNormalImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	rayTracingNormalImageAllocateInfo.allocationSize = rayTracingNormalImageMemoryRequirements.size;
+	rayTracingNormalImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingNormalImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory rayTracingNormalImageMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingNormalImageAllocateInfo, NULL, &rayTracingNormalImageMemory))
+	vkBindImageMemory(vkApp.vkDevice, rayTracingNormalImage, rayTracingNormalImageMemory, 0);
+    
+    imageViewInfo.image = rayTracingNormalImage;
+    imageViewInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	VkImageView rayTracingNormalImageView;
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &rayTracingNormalImageView))
+    
+    //Transition ray tracing NORMAL image layout
+	vkApp.TransitionImageLayoutSingle(rayTracingNormalImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+    
+    //Ray tracing AO image
+	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	imageInfo.extent.width = vkApp.vkSurfaceExtent.width / 2;
+	imageInfo.extent.height = vkApp.vkSurfaceExtent.height / 2;
 	VkImage rayTracingAOImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingAOImage))
 	
@@ -1158,44 +1058,35 @@ void Raytrace(const char* brhanFile)
 	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingAOImageAllocateInfo, NULL, &rayTracingAOImageMemory))
 	vkBindImageMemory(vkApp.vkDevice, rayTracingAOImage, rayTracingAOImageMemory, 0);
     
-    VkImageViewCreateInfo rayTracingAOImageViewCreateInfo;
-    rayTracingAOImageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    rayTracingAOImageViewCreateInfo.pNext = NULL;
-    rayTracingAOImageViewCreateInfo.flags = 0;
-    rayTracingAOImageViewCreateInfo.image = rayTracingAOImage;
-    rayTracingAOImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    rayTracingAOImageViewCreateInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    rayTracingAOImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	rayTracingAOImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-	rayTracingAOImageViewCreateInfo.subresourceRange.levelCount = 1;
-	rayTracingAOImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-	rayTracingAOImageViewCreateInfo.subresourceRange.layerCount = 1;
-    rayTracingAOImageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+    imageViewInfo.image = rayTracingAOImage;
+    imageViewInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	VkImageView rayTracingAOImageView;
-    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &rayTracingAOImageViewCreateInfo, NULL, &rayTracingAOImageView))
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &rayTracingAOImageView))
     
-    //Transition ray tracing OCCLUSION image layout
+    //Transition ray tracing AO image layout
 	vkApp.TransitionImageLayoutSingle(rayTracingAOImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
 	
 	//Descriptor pool
-	const uint32_t numTexturesPerMesh = 4;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
-		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 1 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2 },
+		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 2 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptorPoolInfo.pNext = NULL;
 	descriptorPoolInfo.flags = 0;
-	descriptorPoolInfo.maxSets = rtpdColorPosition.numDescriptorSets;
+	descriptorPoolInfo.maxSets = rtpdColorPosition.numDescriptorSets + rtpdAO.numDescriptorSets;
 	descriptorPoolInfo.poolSizeCount = poolSizes.size();
 	descriptorPoolInfo.pPoolSizes = poolSizes.data();
 	VkDescriptorPool descriptorPool;
 	CHECK_VK_RESULT(vkCreateDescriptorPool(vkApp.vkDevice, &descriptorPoolInfo, NULL, &descriptorPool))
 	
-	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingAOImageView, &rtpdColorPosition);
+	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
+	
+	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, &rtpdAO);
     
     ////////////////////////////
 	/////GRAPHICS PIPELINE//////
@@ -1413,7 +1304,7 @@ void Raytrace(const char* brhanFile)
     std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass0(3);
     // Color image
 	VkDescriptorImageInfo descriptorRayTracingImageInfoGraphics = {};
-    descriptorRayTracingImageInfoGraphics.sampler = defaultSampler;
+    descriptorRayTracingImageInfoGraphics.sampler = linearSampler;
     descriptorRayTracingImageInfoGraphics.imageView = rayTracingColorImageView;
     descriptorRayTracingImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[0];
@@ -1427,9 +1318,9 @@ void Raytrace(const char* brhanFile)
     rayTracingImageWriteGraphics.pImageInfo = &descriptorRayTracingImageInfoGraphics;
     rayTracingImageWriteGraphics.pBufferInfo = NULL;
     rayTracingImageWriteGraphics.pTexelBufferView = NULL;
-    // Occlusion image
+    // AO image
     VkDescriptorImageInfo descriptorRayTracingOcclusionImageInfoGraphics = {};
-    descriptorRayTracingOcclusionImageInfoGraphics.sampler = defaultSampler;
+    descriptorRayTracingOcclusionImageInfoGraphics.sampler = linearSampler;
     descriptorRayTracingOcclusionImageInfoGraphics.imageView = rayTracingAOImageView;
     descriptorRayTracingOcclusionImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[1];
@@ -1638,7 +1529,8 @@ void Raytrace(const char* brhanFile)
 	{
 		vkDestroyDescriptorSetLayout(vkApp.vkDevice, descriptorSetLayout, NULL);
 	}
-	vkDestroySampler(vkApp.vkDevice, defaultSampler, NULL);
+	vkDestroySampler(vkApp.vkDevice, linearSampler, NULL);
+	vkDestroySampler(vkApp.vkDevice, nearestSampler, NULL);
 	for (VkShaderModule& shaderModule : shaderModules)
 	{
 		vkDestroyShaderModule(vkApp.vkDevice, shaderModule, NULL);

@@ -6,7 +6,9 @@
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/color_position/secondary.rmiss -Isrc/shaders/include -o src/shaders/out/color_position/secondary_rmiss.spv
 
 # AO shaders
-
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/ao/primary.rgen -Isrc/shaders/include -o src/shaders/out/ao/primary_rgen.spv
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/ao/primary.rchit -Isrc/shaders/include -o src/shaders/out/ao/primary_rchit.spv
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/ao/primary.rmiss -Isrc/shaders/include -o src/shaders/out/ao/primary_rmiss.spv
 
 # Rasterization shaders
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shader.vert -Isrc/shaders/include -o src/shaders/out/vert.spv

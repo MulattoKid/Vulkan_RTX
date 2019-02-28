@@ -8,18 +8,19 @@
 #include "Sample.glsl"
 #include "Sphere.glsl"
 
-layout(set = 0, binding = ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
-layout(set = 0, binding = RESULT_IMAGE_BINDING_LOCATION, rgba8) uniform image2D resultImage;
-layout(set = 0, binding = OCCLUSION_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D shadowImage;
-layout(set = 0, binding = CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
+layout(set = 0, binding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
+layout(set = 0, binding = RT0_COLOR_IMAGE_BINDING_LOCATION, rgba8) uniform image2D colorImage;
+layout(set = 0, binding = RT0_POSITION_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D positionImage;
+layout(set = 0, binding = RT0_NORMAL_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D normalImage;
+layout(set = 0, binding = RT0_CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
 {
 	CameraShader camera;
 };
-layout(set = 0, binding = LIGHTS_BUFFER_BINDING_LOCATION, std140) readonly buffer lightBuffer
+layout(set = 0, binding = RT0_LIGHTS_BUFFER_BINDING_LOCATION, std140) readonly buffer lightBuffer
 {
 	SphericalLightSource lights[];
 };
-layout(set = 0, binding = OTHER_DATA_BUFFER_BINDING_LOCATION, std140) uniform otherDataBuffer
+layout(set = 0, binding = RT0_OTHER_DATA_BUFFER_BINDING_LOCATION, std140) uniform otherDataBuffer
 {
 	OtherData otherData;
 };
@@ -47,7 +48,7 @@ void main()
 	
 	// Trace primary ray against acceleration structure
 	Ray ray = GenerateRayFromCamera(camera);
-    traceNV(scene, rayFlags, cullMask, PRIMARY_CHIT_IDX, sbtRecordStride, PRIMARY_MISS_IDX, ray.origin, tMin, ray.dir, tMax, PRIMARY_PAYLOAD_LOCATION);
+    traceNV(scene, rayFlags, cullMask, RT0_PRIMARY_CHIT_IDX, sbtRecordStride, RT0_PRIMARY_MISS_IDX, ray.origin, tMin, ray.dir, tMax, PRIMARY_PAYLOAD_LOCATION);
     // Trace primary ray against light sources
     float lightSourceT = tMax;
     int lightSourceIdx = -1;
@@ -64,8 +65,9 @@ void main()
     // Early exit - light hit and its closer than the closest geometry hit
     if (lightSourceIdx > -1 && (lightSourceT < max(primaryPayload.normalAndHitDistance.w, 0.0f) || primaryPayload.normalAndHitDistance.w < 0.0f))
     {
-    	imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(lights[lightSourceIdx].emittance.rgb, 1.0f));
-		imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(vec3(DEFAULT_OCCLUSION), 1.0f));
+    	imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(lights[lightSourceIdx].emittance.rgb, 1.0f));
+		imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
+		imageStore(normalImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		return;
     }
     // Early exit - no geometry hit
@@ -75,8 +77,9 @@ void main()
 		const float y = gl_LaunchIDNV.y / 1080.0f;
 		const float red = mix(0.0f, 0.7f, y);
 		const float green = mix(0.65f, 0.9f, y);
-		imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(red, green, 0.8f, 1.0f));
-		imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(vec3(DEFAULT_OCCLUSION), 1.0f));
+		imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(red, green, 0.8f, 1.0f));
+		imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
+		imageStore(normalImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		return;
 	}
 	
@@ -99,67 +102,25 @@ void main()
 
 		// Trace shadow rays
 		Ray shadowRay = GenerateRay(isectPoint + (isectNormal * 0.001f), isectPointToLightCenterDir);
-		traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
+		traceNV(scene, rayFlags, cullMask, RT0_SECONDARY_CHIT_IDX, sbtRecordStride, RT0_SECONDARY_MISS_IDX, shadowRay.origin, tMin, shadowRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
 		
 		// Check for intersection with geometry before an intersection with the light:
 		//    Either didn't hit some geometry or
 		//    the distance to the geometry isect is further than the distance to the isect on the light
 		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
 		{
+			// https://en.wikipedia.org/wiki/Inverse-square_law
+			color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
 			numVisible++;
 		}
-		// https://en.wikipedia.org/wiki/Inverse-square_law
-		color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
 	}
-	color /= otherData.numSphericalLightSources;
-	color *= primaryPayload.materialColor.rgb;
-
-	// AO calculations
-	float occlusion = DEFAULT_OCCLUSION;
-	if (numVisible < otherData.numSphericalLightSources)
+	if (numVisible > 0)
 	{
-		int numOcclusionSteps = 5;
-		int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
-		// Sample hemisphere of directions given the normal at the intersection point
-		int numAO = 0;
-		float attenuation = 0.0f;
-		for (int i = 0; i <= totalOcclusionSamples; i++)
-		{
-			// Sample occlusion ray direction and trace
-			vec2 samplePoints = vec2(float(i) / float(numOcclusionSteps), float(i) / float(totalOcclusionSamples));
-			
-			/*
-			Through simple testing with few numOcclusionSteps (e.g. 5), there is very little difference
-			between using SampleHemisphere and SampleHemisphereVaryingZ...
-			*/
-			//vec3 occlusionRayDir = SampleHemisphere(isectNormal, samplePoints);
-			vec3 occlusionRayDir = SampleHemisphereVaryingZ(isectNormal, samplePoints);
-			Ray occlusionRay = GenerateRay(isectPoint + (isectNormal * 0.001f), occlusionRayDir);
-			traceNV(scene, rayFlags, cullMask, SECONDARY_CHIT_IDX, sbtRecordStride, SECONDARY_MISS_IDX, occlusionRay.origin, tMin, occlusionRay.dir, tMax, SECONDARY_PAYLOAD_LOCATION);
-					
-			// Check for intersection with geometry
-			if (secondaryPayload.hitDist.x >= 0.0f)
-			//if (secondaryPayload.hitDist.x >= 0.0f && secondaryPayload.hitDist.x < 1.0f)
-			{
-				attenuation += PolynomialAOAttenuation(secondaryPayload.hitDist.x);
-				numAO++;
-			}
-			else
-			{
-				attenuation += POLYNONIAL_AO_ATTENUATION_Y_MAX;
-			}
-		}
-		// Calculate occlusion
-		occlusion = float(numAO) / float(totalOcclusionSamples);
-		occlusion *= (1.0f - (float(numVisible) / float(otherData.numSphericalLightSources)));
-		// Remember to scale totalOcclusionSamples with the maximum value that a single attenuation sample can give
-		attenuation /= float(totalOcclusionSamples) * POLYNONIAL_AO_ATTENUATION_Y_MAX;
-		// Factor in attenuation
-		occlusion *= attenuation;
-		occlusion = min(occlusion, 1.0f);
+		color /= numVisible;
 	}
+	color *= primaryPayload.materialColor.rgb;
 	
-	// Store
-    imageStore(resultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
-    imageStore(shadowImage, ivec2(gl_LaunchIDNV.xy), vec4(occlusion, occlusion, occlusion, 0.0f));
+	imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+    imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(isectPoint, 0.0f));
+    imageStore(normalImage, ivec2(gl_LaunchIDNV.xy), vec4(isectNormal, 0.0f));
 }
