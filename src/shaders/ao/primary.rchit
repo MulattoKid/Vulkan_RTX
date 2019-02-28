@@ -5,7 +5,7 @@
 #include "DataLayouts.glsl"
 #include "Defines.glsl"
 
-layout(location = SECONDARY_PAYLOAD_LOCATION) rayPayloadInNV ShadowRayPayload payload;
+layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadInNV ShadowRayPayload payload;
 
 void main()
 {

@@ -5,7 +5,6 @@
 #include "Defines.glsl"
 #include "Camera.glsl"
 #include "DataLayouts.glsl"
-#include "Sample.glsl"
 #include "Sphere.glsl"
 
 layout(set = 0, binding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;

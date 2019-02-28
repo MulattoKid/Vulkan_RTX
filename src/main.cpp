@@ -1279,8 +1279,8 @@ void Raytrace(const char* brhanFile)
 	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsRenderPass0))
 	
 	std::vector<VkDescriptorPoolSize> poolSizesGraphics = {
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfoGraphics = {};
 	descriptorPoolInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1303,10 +1303,10 @@ void Raytrace(const char* brhanFile)
 	
     std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass0(3);
     // Color image
-	VkDescriptorImageInfo descriptorRayTracingImageInfoGraphics = {};
-    descriptorRayTracingImageInfoGraphics.sampler = linearSampler;
-    descriptorRayTracingImageInfoGraphics.imageView = rayTracingColorImageView;
-    descriptorRayTracingImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	VkDescriptorImageInfo descriptorRayTracingColorImageInfoGraphics = {};
+    descriptorRayTracingColorImageInfoGraphics.sampler = linearSampler;
+    descriptorRayTracingColorImageInfoGraphics.imageView = rayTracingColorImageView;
+    descriptorRayTracingColorImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[0];
     rayTracingImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     rayTracingImageWriteGraphics.pNext = NULL;
@@ -1315,14 +1315,14 @@ void Raytrace(const char* brhanFile)
     rayTracingImageWriteGraphics.dstArrayElement = 0;
     rayTracingImageWriteGraphics.descriptorCount = 1;
     rayTracingImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    rayTracingImageWriteGraphics.pImageInfo = &descriptorRayTracingImageInfoGraphics;
+    rayTracingImageWriteGraphics.pImageInfo = &descriptorRayTracingColorImageInfoGraphics;
     rayTracingImageWriteGraphics.pBufferInfo = NULL;
     rayTracingImageWriteGraphics.pTexelBufferView = NULL;
     // AO image
-    VkDescriptorImageInfo descriptorRayTracingOcclusionImageInfoGraphics = {};
-    descriptorRayTracingOcclusionImageInfoGraphics.sampler = linearSampler;
-    descriptorRayTracingOcclusionImageInfoGraphics.imageView = rayTracingAOImageView;
-    descriptorRayTracingOcclusionImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkDescriptorImageInfo descriptorRayTracingAOImageInfoGraphics = {};
+    descriptorRayTracingAOImageInfoGraphics.sampler = linearSampler;
+    descriptorRayTracingAOImageInfoGraphics.imageView = rayTracingAOImageView;
+    descriptorRayTracingAOImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[1];
     rayTracingOcclusionImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     rayTracingOcclusionImageWriteGraphics.pNext = NULL;
@@ -1331,7 +1331,7 @@ void Raytrace(const char* brhanFile)
     rayTracingOcclusionImageWriteGraphics.dstArrayElement = 0;
     rayTracingOcclusionImageWriteGraphics.descriptorCount = 1;
     rayTracingOcclusionImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    rayTracingOcclusionImageWriteGraphics.pImageInfo = &descriptorRayTracingOcclusionImageInfoGraphics;
+    rayTracingOcclusionImageWriteGraphics.pImageInfo = &descriptorRayTracingAOImageInfoGraphics;
     rayTracingOcclusionImageWriteGraphics.pBufferInfo = NULL;
     rayTracingOcclusionImageWriteGraphics.pTexelBufferView = NULL;
     // Blur variable uniform
@@ -1443,7 +1443,7 @@ void Raytrace(const char* brhanFile)
 		beginInfo.pInheritanceInfo = NULL;
 		CHECK_VK_RESULT(vkBeginCommandBuffer(graphicsQueueCommandBuffers[i], &beginInfo))
 		
-		//Ray trace
+		// Ray trace color, position and normal
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdColorPosition.rayTracingPipeline);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdColorPosition.rayTracingPipelineLayout, 0, rtpdColorPosition.descriptorSets.size(), rtpdColorPosition.descriptorSets.data(), 0, NULL);
 		vkCmdTraceRaysNV(graphicsQueueCommandBuffers[i], 
@@ -1452,9 +1452,24 @@ void Raytrace(const char* brhanFile)
 			rtpdColorPosition.shaderBindingTableBuffer, 1 * rtpdColorPosition.shaderGroupHandleSize, rtpdColorPosition.shaderGroupHandleSize,
 			 VK_NULL_HANDLE, 0, 0, vkApp.vkSurfaceExtent.width, vkApp.vkSurfaceExtent.height, 1);
 		
-		//Barrier - wait for ray tracing to finish and transition images
+		// Barrier - wait for ray tracing to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
-		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingNormalImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		
+		// Ray trace AO
+		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdAO.rayTracingPipeline);
+		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdAO.rayTracingPipelineLayout, 0, rtpdAO.descriptorSets.size(), rtpdAO.descriptorSets.data(), 0, NULL);
+		vkCmdTraceRaysNV(graphicsQueueCommandBuffers[i], 
+			rtpdAO.shaderBindingTableBuffer, 0 * rtpdAO.shaderGroupHandleSize,
+			rtpdAO.shaderBindingTableBuffer, 2 * rtpdAO.shaderGroupHandleSize, rtpdAO.shaderGroupHandleSize,
+			rtpdAO.shaderBindingTableBuffer, 1 * rtpdAO.shaderGroupHandleSize, rtpdAO.shaderGroupHandleSize,
+			 VK_NULL_HANDLE, 0, 0, vkApp.vkSurfaceExtent.width / 2, vkApp.vkSurfaceExtent.height / 2, 1);
+			 
+		// Barrier - wait for ray tracing to finish and transition images
+		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingNormalImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
 		
 		// Blur ambient occlusion result and combine with light result
 		VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -1478,7 +1493,7 @@ void Raytrace(const char* brhanFile)
 		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(graphicsQueueCommandBuffers[i]);
 		
-		//Barrier - wait for ambient occlusion to finish and transition images from SHADER_READ_ONLY to GENERAL
+		//Barrier - wait for blurring to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
 		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
 		
