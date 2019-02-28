@@ -1263,7 +1263,7 @@ void Raytrace(const char* brhanFile)
 	// Graphics pipeline stuff
 	
 	// Raytracing stuff
-	vkDestroyDescriptorPool(vkApp.vkDevice, descriptorPool, NULL);
+	/*vkDestroyDescriptorPool(vkApp.vkDevice, descriptorPool, NULL);
 	vkDestroyImageView(vkApp.vkDevice, rayTracingOcclusionImageView, NULL);
 	vkDestroyImageView(vkApp.vkDevice, rayTracingImageView, NULL);
 	vkFreeMemory(vkApp.vkDevice, rayTracingImageMemory, NULL);
@@ -1292,7 +1292,7 @@ void Raytrace(const char* brhanFile)
 	vkFreeMemory(vkApp.vkDevice, lightsBufferMemory, NULL);
 	vkDestroyBuffer(vkApp.vkDevice, lightsBuffer, NULL);
 	vkFreeMemory(vkApp.vkDevice, cameraBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);
+	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);*/
 }
 
 int main(int argc, char** argv)

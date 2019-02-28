@@ -231,7 +231,7 @@ void main()
 	// Out
     vec3 visibility = vec3(1.0f - occlusion);
     outColor = vec4(originalColor * visibility, 1.0f);
-    outColor = vec4(visibility, 1.0f);
+    //outColor = vec4(visibility, 1.0f);
 }
 
 
