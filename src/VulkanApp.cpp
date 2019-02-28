@@ -1223,41 +1223,6 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 		m.diffuseColor[1] = model.diffuse.y;
 		m.diffuseColor[2] = model.diffuse.z;
 		m.diffuseColor[3] = 1.0f;
-		m.specularColor[0] = model.specular[0];
-		m.specularColor[1] = model.specular[1];
-		m.specularColor[2] = model.specular[2];
-		m.specularColor[3] = 1.0f;
-		// Emission property isn't supported by .brhan files yet
-		m.emissiveColor[0] = 0.0f;
-		m.emissiveColor[1] = 0.0f;
-		m.emissiveColor[2] = 0.0f;
-		m.emissiveColor[3] = 1.0f;
-		if (model.material == "matte")
-		{
-			m.materialType = MATTE_MATERIAL;
-		}
-		else if (model.material == "mirror")
-		{
-			m.materialType = MIRROR_MATERIAL;
-		}
-		else if (model.material == "water")
-		{
-			m.materialType = WATER_MATERIAL;
-			m.specularColor[0] = model.reflectance[0];
-			m.specularColor[1] = model.reflectance[1];
-			m.specularColor[2] = model.reflectance[2];
-		}
-		else if (model.material == "glass")
-		{
-			m.materialType = GLASS_MATERIAL;
-			m.specularColor[0] = model.reflectance[0];
-			m.specularColor[1] = model.reflectance[1];
-			m.specularColor[2] = model.reflectance[2];
-		}
-		else
-		{
-			LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Unsupported material\n");
-		}
 	}
 	else
 	{
@@ -1271,58 +1236,6 @@ void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)
 			m.diffuseColor[1] = mtl.diffuse[1];
 			m.diffuseColor[2] = mtl.diffuse[2];
 			m.diffuseColor[3] = 1.0f;
-			m.specularColor[0] = mtl.specular[0];
-			m.specularColor[1] = mtl.specular[1];
-			m.specularColor[2] = mtl.specular[2];
-			m.specularColor[3] = 1.0f;
-			m.emissiveColor[0] = mtl.emission[0];
-			m.emissiveColor[1] = mtl.emission[1];
-			m.emissiveColor[2] = mtl.emission[2];
-			m.emissiveColor[3] = 1.0f;
-			m.ior = mtl.ior;
-			m.roughness = mtl.roughness;
-			
-			if ((m.diffuseColor[0] > 0.0f && m.diffuseColor[1] > 0.0f && m.diffuseColor[2] > 0.0f) && (m.specularColor[0] == 0.0f && m.specularColor[1] == 0.0f && m.specularColor[2] == 0.0f))
-			{
-				m.materialType = MATTE_MATERIAL;
-			}
-			else if ((m.diffuseColor[0] == 0.0f && m.diffuseColor[1] == 0.0f && m.diffuseColor[2] == 0.0f) && (m.specularColor[0] > 0.0f && m.specularColor[1] > 0.0f && m.specularColor[2] > 0.0f))
-			{
-				m.materialType = MIRROR_MATERIAL;
-			}
-			else if (m.ior >= 1.32f && m.ior <= 1.35f)
-			{
-				m.materialType = WATER_MATERIAL;
-			}
-			else if (m.ior >= 1.5f && m.ior <= 1.6f)
-			{
-				m.materialType = GLASS_MATERIAL;
-			}
-			else
-			{
-				LOG_ERROR(false, __FILE__, __FUNCTION__, __LINE__, "Unsupported material\n");
-			}
-			
-			if (!mtl.diffuse_texname.empty())
-			{
-				m.diffuseTexture = new VulkanTexture();
-				CreateTexture(mtl.diffuse_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, m.diffuseTexture);
-			}
-			if (!mtl.specular_texname.empty())
-			{
-				m.specularTexture = new VulkanTexture();
-				CreateTexture(mtl.specular_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, m.specularTexture);
-			}
-			if (!mtl.emissive_texname.empty())
-			{
-				m.emissiveTexture = new VulkanTexture();
-				CreateTexture(mtl.emissive_texname.c_str(), VK_FORMAT_R8G8B8A8_UNORM, m.emissiveTexture);
-			}
-			if (!mtl.roughness_texname.empty())
-			{
-				m.roughnessTexture = new VulkanTexture();
-				CreateTexture(mtl.roughness_texname.c_str(), VK_FORMAT_R8_UNORM, m.roughnessTexture);
-			}
 		}
 	}
 	
@@ -1470,18 +1383,6 @@ void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std:
 		perMeshAttributeData->push_back(mesh.material.diffuseColor[0]);
 		perMeshAttributeData->push_back(mesh.material.diffuseColor[1]);
 		perMeshAttributeData->push_back(mesh.material.diffuseColor[2]);
-		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(mesh.material.specularColor[0]);
-		perMeshAttributeData->push_back(mesh.material.specularColor[1]);
-		perMeshAttributeData->push_back(mesh.material.specularColor[2]);
-		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(mesh.material.emissiveColor[0]);
-		perMeshAttributeData->push_back(mesh.material.emissiveColor[1]);
-		perMeshAttributeData->push_back(mesh.material.emissiveColor[2]);
-		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
-		perMeshAttributeData->push_back(float(mesh.material.materialType));
-		perMeshAttributeData->push_back(mesh.material.ior);
-		perMeshAttributeData->push_back(mesh.material.roughness);
 		perMeshAttributeData->push_back(0.0f); //For vec4 in shader
 	}
 }
@@ -1848,8 +1749,3 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	float ms = ns / 1000000.0f;
 	printf("Acceleration structure build time (ms): %.2f\n", ms);
 }
-
-
-
-
-

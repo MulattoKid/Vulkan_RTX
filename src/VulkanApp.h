@@ -98,16 +98,6 @@ struct VulkanTexture
 struct Material
 {
 	float diffuseColor[4];
-	float specularColor[4];
-	float emissiveColor[4];
-	//Other data:
-	float ior;
-	float roughness;
-	VulkanTexture* diffuseTexture = NULL;
-	VulkanTexture* specularTexture = NULL;
-	VulkanTexture* emissiveTexture = NULL;
-	VulkanTexture* roughnessTexture = NULL;
-	int materialType;
 };
 
 struct Mesh

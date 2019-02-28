@@ -26,11 +26,6 @@ struct OtherData
 struct MeshAttributes
 {
 	vec4 diffuseColor;
-	vec4 specularColor;
-	vec4 emissiveColor;
-	// .x = material type
-	// .y = ior
-	// .z = roughness
 	vec4 otherData;
 };
 

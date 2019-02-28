@@ -18,8 +18,6 @@ layout(set = 1, binding = PER_VERTEX_ATTRIBUTES_BINDING_LOCATION, std140) readon
 {
 	VertexAttributes vertexAttributes[];
 };
-layout(set = 1, binding = DIFFUSE_TEXTURES_BINDING_LOCATION) uniform sampler2D diffuseTextures[];
-layout(set = 1, binding = SPECULAR_TEXTURES_BINDING_LOCATION) uniform sampler2D specularTextures[];
 
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadInNV PrimaryRayPayload payload;
 hitAttributeNV vec2 hitAttribs;
@@ -56,46 +54,5 @@ void main()
 	payload.otherData.x = meshAttributes[meshID].otherData.y;
 	payload.otherData.y = meshAttributes[meshID].otherData.z;
 	payload.otherData2.x = int(meshAttributes[meshID].otherData.x);
-	if (uv.x < 0.0f && uv.y < 0.0f)
-	{
-		if (payload.otherData2.x == MATTE_MATERIAL)
-		{
-			payload.materialColor = meshAttributes[meshID].diffuseColor;
-		}
-		else if (payload.otherData2.x == MIRROR_MATERIAL)
-		{
-			payload.materialColor = meshAttributes[meshID].specularColor;
-		}
-		else if (payload.otherData2.x == WATER_MATERIAL)
-		{
-			payload.materialColor = meshAttributes[meshID].specularColor;
-		}
-		else if (payload.otherData2.x == GLASS_MATERIAL)
-		{
-			payload.materialColor = meshAttributes[meshID].specularColor;
-		}
-		else
-		{
-			payload.materialColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-		}
-	}
-	else
-	{
-		if (payload.otherData2.x == MATTE_MATERIAL)
-		{
-			payload.materialColor = texture(diffuseTextures[nonuniformEXT(meshID)], uv);
-		}
-		else if (payload.otherData2.x == MIRROR_MATERIAL)
-		{
-			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv);
-		}
-		else if (payload.otherData2.x == WATER_MATERIAL)
-		{
-			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv);
-		}
-		else if (payload.otherData2.x == GLASS_MATERIAL)
-		{
-			payload.materialColor = texture(specularTextures[nonuniformEXT(meshID)], uv);
-		}
-	}
+	payload.materialColor = meshAttributes[meshID].diffuseColor;
 }

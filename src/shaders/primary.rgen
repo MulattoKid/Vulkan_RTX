@@ -85,7 +85,6 @@ void main()
 	float isectDist = primaryPayload.normalAndHitDistance.w;
 	vec3 isectPoint = ray.origin + (ray.dir * isectDist);
 
-	// AO calculations
 	vec3 color = vec3(0.0f);
 	int numVisible = 0;
 	for (int l = 0; l < otherData.numSphericalLightSources; l++)
@@ -115,6 +114,7 @@ void main()
 	color /= otherData.numSphericalLightSources;
 	color *= primaryPayload.materialColor.rgb;
 
+	// AO calculations
 	float occlusion = DEFAULT_OCCLUSION;
 	if (numVisible < otherData.numSphericalLightSources)
 	{
