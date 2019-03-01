@@ -12,6 +12,4 @@
 
 # Rasterization shaders
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shader.vert -Isrc/shaders/include -o src/shaders/out/vert.spv
-~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderHorizontalBlur.frag -Isrc/shaders/include -o src/shaders/out/fragHorizontalBlur.spv
-~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderVerticalBlur.frag -Isrc/shaders/include -o src/shaders/out/fragVerticalBlur.spv
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderPCFBlur.frag -Isrc/shaders/include -o src/shaders/out/fragPCFBlur.spv

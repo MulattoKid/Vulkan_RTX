@@ -51,8 +51,5 @@ void main()
 		
 	// Set payload information
 	payload.normalAndHitDistance = vec4(normal, gl_HitTNV);
-	payload.otherData.x = meshAttributes[meshID].otherData.y;
-	payload.otherData.y = meshAttributes[meshID].otherData.z;
-	payload.otherData2.x = int(meshAttributes[meshID].otherData.x);
 	payload.materialColor = meshAttributes[meshID].diffuseColor;
 }
