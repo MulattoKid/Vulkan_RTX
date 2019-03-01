@@ -83,9 +83,9 @@ void main()
 	}
 	
 	// Intersection data
-	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 	float isectDist = primaryPayload.normalAndHitDistance.w;
 	vec3 isectPoint = ray.origin + (ray.dir * isectDist);
+	vec3 isectNormal = primaryPayload.normalAndHitDistance.xyz;
 
 	vec3 color = vec3(0.0f);
 	int numVisible = 0;
@@ -109,17 +109,21 @@ void main()
 		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
 		{
 			// https://en.wikipedia.org/wiki/Inverse-square_law
-			color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
+			//color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
 			numVisible++;
 		}
+		color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
 	}
-	if (numVisible > 0)
+	/*if (numVisible > 0)
 	{
 		color /= numVisible;
-	}
+	}*/
+	color /= otherData.numSphericalLightSources;
 	color *= primaryPayload.materialColor.rgb;
 	
 	imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
-    imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(isectPoint, 0.0f));
+	// NOTE: see that I store the fraction of light rays that were visible in
+	// the w component in the positionImage
+    imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(isectPoint, float(numVisible) / float(otherData.numSphericalLightSources)));
     imageStore(normalImage, ivec2(gl_LaunchIDNV.xy), vec4(isectNormal, 0.0f));
 }

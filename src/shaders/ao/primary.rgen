@@ -21,8 +21,8 @@ float PolynomialAOAttenuation(float dist)
 	// Convert from range [0, MAX_OCCLUSION_DIST] to [0, 1]
 	float x = min(dist, MAX_OCCLUSION_DIST) / MAX_OCCLUSION_DIST;
 	
-	// Function: y = POLYNONIAL_ATTENUATION_Y_MAX - x^POLYNOMIAL_ATTENUATION_POWER
-	return POLYNONIAL_AO_ATTENUATION_Y_MAX - pow(x, POLYNOMIAL_AO_ATTENUATION_POWER);
+	// Function: y = POLYNOMIAL_AO_ATTENUATION_POWER - POLYNOMIAL_AO_ATTENUATION_POWER^x
+	return POLYNOMIAL_AO_ATTENUATION_POWER - pow(POLYNOMIAL_AO_ATTENUATION_POWER, x);
 }
 
 void main()
@@ -34,11 +34,16 @@ void main()
     const float tMax = 100.0f;
 	
 	// Intersection data
+	vec4 positionFractionVisible = texture(positionImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy));
+	vec3 isectPoint = positionFractionVisible.xyz;
 	vec3 isectNormal = texture(normalImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy)).xyz;
-	vec3 isectPoint = texture(positionImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy)).xyz;
+	if (isectPoint == vec3(0.0f) || positionFractionVisible.w == 1.0f)
+	{
+		imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(DEFAULT_OCCLUSION));
+		return;
+	}
 
 	// AO calculations
-	float occlusion = DEFAULT_OCCLUSION;
 	int numOcclusionSteps = 5;
 	int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
 	// Sample hemisphere of directions given the normal at the intersection point
@@ -68,14 +73,12 @@ void main()
 		}
 	}
 	// Calculate occlusion
-	occlusion = float(numAO) / float(totalOcclusionSamples);
+	float occlusion = float(numAO) / float(totalOcclusionSamples);
 	// Remember to scale totalOcclusionSamples with the maximum value that a single attenuation sample can give
 	attenuation /= float(totalOcclusionSamples) * POLYNONIAL_AO_ATTENUATION_Y_MAX;
 	// Factor in attenuation
 	occlusion *= attenuation;
+	// For safety due to rounding-error: occlusion cannot be more than 1.0f
 	occlusion = min(occlusion, 1.0f);
 	imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(occlusion, 0.0f, 0.0f, 0.0f));
-	
-	//imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(isectPoint, 0.0f));
-	//imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(isectNormal, 0.0f));
 }

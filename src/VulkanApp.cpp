@@ -1181,7 +1181,7 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
 	submitInfo.pSignalSemaphores = NULL;
 	CHECK_VK_RESULT(vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, vkInFlightFences[currentFrame]))
 	
-	//Wait here to make sure all submitted command buffers have completed execution
+	// Wait here to make sure all submitted command buffers have completed execution
 	vkWaitForFences(vkDevice, 1, &vkInFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint32_t>::max());
 	currentFrame = (currentFrame + 1) % maxFramesInFlight;
 	

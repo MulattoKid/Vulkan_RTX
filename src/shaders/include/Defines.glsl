@@ -48,9 +48,9 @@
 //////////////////////
 //Shader-ONLY values//
 //////////////////////
-#define MAX_OCCLUSION_DIST 1.0f
-#define POLYNONIAL_AO_ATTENUATION_Y_MAX 4.0f
-#define POLYNOMIAL_AO_ATTENUATION_POWER 40
+#define MAX_OCCLUSION_DIST 2.0f
+#define POLYNOMIAL_AO_ATTENUATION_POWER 4
+#define POLYNONIAL_AO_ATTENUATION_Y_MAX 3.0f
 #define DEFAULT_OCCLUSION 0.0f
 
 #endif

@@ -13,6 +13,8 @@
 
 VulkanApp* vulkanApp;
 uint32_t blurVariable;
+uint32_t renderOnscreen = 1;
+uint32_t firstOffscreenFrame = 0;
 
 void MouseCallback(GLFWwindow * window, double xpos, double ypos)
 {
@@ -104,6 +106,16 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			{
 				case GLFW_PRESS:
 					blurVariable ^= 1;
+					break;
+				default:
+					break;
+			}
+		case GLFW_KEY_O:
+			switch (action)
+			{
+				case GLFW_PRESS:
+					renderOnscreen ^= 1;
+					firstOffscreenFrame = renderOnscreen ^ 1;
 					break;
 				default:
 					break;
@@ -1522,8 +1534,24 @@ void Raytrace(const char* brhanFile)
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
 		
-		vkApp.Render(graphicsQueueCommandBuffers.data());
-		//vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
+		if (renderOnscreen)
+		{
+			vkApp.Render(graphicsQueueCommandBuffers.data());
+		}
+		else
+		{
+			if (firstOffscreenFrame)
+			{
+				int previousFrame = vkApp.currentFrame - 1;
+				if (previousFrame < 0)
+				{
+					previousFrame = vkApp.maxFramesInFlight - 1;
+				}
+				vkWaitForFences(vkApp.vkDevice, 1, &vkApp.vkInFlightFences[previousFrame], VK_TRUE, std::numeric_limits<uint32_t>::max());
+				firstOffscreenFrame = 0;
+			}
+			vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
+		}
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);
 	
