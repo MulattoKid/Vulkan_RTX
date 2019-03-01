@@ -23,87 +23,29 @@ void main()
 	
 	if (blurVariable == 1)
 	{
-		// Current best
-		/*float sum  = textureOffset(occlusionImage, fUV, ivec2( 0,  0)).r;
-		if (sum == 0.0f)
+		occlusion = textureOffset(aoImage, fUV, ivec2( 0,  0)).r;
+		if (occlusion == 0.0f)
 		{
 			outColor = vec4(originalColor, 1.0f);
-			//outColor = vec4(1.0f);
 			return;
 		}
-		sum       += textureOffset(aoImage, fUV, ivec2(-4, -4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2(-2, -4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 0, -4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 2, -4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 4, -4)).r;
 		
-		sum       += textureOffset(aoImage, fUV, ivec2(-4, -2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2(-2, -2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 0, -2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 2, -2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 4, -2)).r;
+		// Blur 3x3
+		occlusion += textureOffset(aoImage, fUV, ivec2(-1, -1)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2(-1,  0)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2(-1,  1)).r;
 		
-		sum       += textureOffset(aoImage, fUV, ivec2(-4,  0)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2(-2,  0)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 0,  0)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 2,  0)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 4,  0)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2( 0, -1)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  1)).r;
 		
-		sum       += textureOffset(aoImage, fUV, ivec2(-4,  2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2(-2,  2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 0,  2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 2,  2)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 4,  2)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2( 1, -1)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2( 1,  0)).r;
+		occlusion += textureOffset(aoImage, fUV, ivec2( 1,  1)).r;
 		
-		sum       += textureOffset(aoImage, fUV, ivec2(-4,  4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2(-2,  4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 0,  4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 2,  4)).r;
-		sum       += textureOffset(aoImage, fUV, ivec2( 4,  4)).r;
-		occlusion = sum / 25.0f;*/
-	
-		// Sample 3x3 first and check the average value against the center texel's value
-		// If the delta is large, sample 5x5 and average
-		/*float centerOcclusion  = textureOffset(occlusionImage, fUV, ivec2(0, 0)).r;
-		float borderOcclusion  = textureOffset(aoImage, fUV, ivec2(-1, -1)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2(-1,  0)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2(-1,  1)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2( 0, -1)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2( 0,  1)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2( 1, -1)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2( 1,  0)).r;
-		borderOcclusion       += textureOffset(aoImage, fUV, ivec2( 1,  1)).r;
-		float avgBorderOcclusion = borderOcclusion / 9.0f;
-		occlusion = centerOcclusion;
-		if (abs(centerOcclusion - avgBorderOcclusion) > 0.05f)
-		{
-			occlusion  = centerOcclusion + borderOcclusion;
-			occlusion += textureOffset(aoImage, fUV, ivec2(-2, -2)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2(-2, -1)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2(-2,  0)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2(-2,  1)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2(-2,  2)).r;
-			
-			occlusion += textureOffset(aoImage, fUV, ivec2(-1, -2)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2(-1,  2)).r;
-			
-			occlusion += textureOffset(aoImage, fUV, ivec2( 0, -2)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2( 0,  2)).r;
-			
-			occlusion += textureOffset(aoImage, fUV, ivec2( 1, -2)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2( 1,  2)).r;
-			
-			occlusion += textureOffset(aoImage, fUV, ivec2( 2, -2)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2( 2, -1)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2( 2,  0)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2( 2,  1)).r;
-			occlusion += textureOffset(aoImage, fUV, ivec2( 2,  2)).r;
-			
-			occlusion /= 25.0f;
-		}*/
+		occlusion /= 9.0f;
 		
 		// Blur 5x5
-		occlusion  = textureOffset(aoImage, fUV, ivec2(-2, -2)).r;
+		/*occlusion  = textureOffset(aoImage, fUV, ivec2(-2, -2)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2(-2, -1)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2(-2,  0)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2(-2,  1)).r;
@@ -117,7 +59,6 @@ void main()
 		
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0, -2)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0, -1)).r;
-		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  0)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  1)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  2)).r;
 		
@@ -133,7 +74,7 @@ void main()
 		occlusion += textureOffset(aoImage, fUV, ivec2( 2,  1)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 2,  2)).r;
 		
-		occlusion /= 25.0f;
+		occlusion /= 25.0f;*/
 		
 		// Blur skipping 7x7
 		/*occlusion  = textureOffset(aoImage, fUV, ivec2(-3, -3)).r;
@@ -151,7 +92,6 @@ void main()
 		occlusion += textureOffset(aoImage, fUV, ivec2(-1,  3)).r;
 		
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0, -2)).r;
-		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  0)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  2)).r;
 		
 		occlusion += textureOffset(aoImage, fUV, ivec2( 1, -3)).r;
@@ -195,7 +135,6 @@ void main()
 		
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0, -4)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0, -2)).r;
-		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  0)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  2)).r;
 		occlusion += textureOffset(aoImage, fUV, ivec2( 0,  4)).r;
 		
