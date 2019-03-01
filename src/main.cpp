@@ -110,6 +110,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 				default:
 					break;
 			}
+			break;
 		case GLFW_KEY_O:
 			switch (action)
 			{
@@ -120,6 +121,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 				default:
 					break;
 			}
+			break;
 		default:
 			break;
 	}
