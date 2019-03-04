@@ -18,12 +18,15 @@ layout(location=0) out vec4 outColor;
 // https://developer.nvidia.com/gpugems/GPUGems/gpugems_ch11.html
 void main()
 {
+	//outColor = vec4(texture(aoImage, fUV).rgb, 1.0f);
+	//return;
+
 	vec3 originalColor = texture(rayTracingImage, fUV).rgb;
 	float occlusion = DEFAULT_OCCLUSION;
 	
 	if (blurVariable == 1)
 	{
-		occlusion = textureOffset(aoImage, fUV, ivec2( 0,  0)).r;
+		occlusion = textureOffset(aoImage, fUV, ivec2(0,  0)).r;
 		if (occlusion == 0.0f)
 		{
 			outColor = vec4(originalColor, 1.0f);

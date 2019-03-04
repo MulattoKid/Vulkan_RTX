@@ -811,6 +811,8 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet0Writes.size(), descriptorSet0Writes.data(), 0, NULL);
 }
 
+#include "glm/common.hpp"
+
 void Raytrace(const char* brhanFile)
 {
 	BrhanFile sceneFile(brhanFile);
