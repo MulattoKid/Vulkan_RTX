@@ -4,6 +4,9 @@
 
 #include "Defines.glsl"
 
+#define AO 1
+#define AO_COLOR 0
+
 layout(location=0) in vec2 fUV;
 
 layout(set = 0, binding = 0) uniform sampler2D rayTracingImage;
@@ -22,7 +25,7 @@ void main()
 	//return;
 
 	vec3 originalColor = texture(rayTracingImage, fUV).rgb;
-	float occlusion = DEFAULT_OCCLUSION;
+	float occlusion = 0.0f;
 	
 	if (blurVariable == 1)
 	{
@@ -172,9 +175,12 @@ void main()
 	
 	// Out
     vec3 visibility = vec3(1.0f - occlusion);
+#if AO
+    outColor = vec4(visibility, 1.0f);
+#elif AO_COLOR
     outColor = vec4(originalColor * visibility, 1.0f);
-    //outColor = vec4(visibility, 1.0f);
     //outColor = vec4(originalColor, 1.0f);
+#endif
 }
 
 

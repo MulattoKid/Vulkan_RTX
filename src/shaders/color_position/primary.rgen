@@ -27,16 +27,6 @@ layout(set = 0, binding = RT0_OTHER_DATA_BUFFER_BINDING_LOCATION, std140) unifor
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV PrimaryRayPayload primaryPayload;
 layout(location = SECONDARY_PAYLOAD_LOCATION) rayPayloadNV ShadowRayPayload secondaryPayload;
 
-// Tried linear and power - didn't work well
-float PolynomialAOAttenuation(float dist)
-{
-	// Convert from range [0, MAX_OCCLUSION_DIST] to [0, 1]
-	float x = min(dist, MAX_OCCLUSION_DIST) / MAX_OCCLUSION_DIST;
-	
-	// Function: y = POLYNONIAL_ATTENUATION_Y_MAX - x^POLYNOMIAL_ATTENUATION_POWER
-	return POLYNONIAL_AO_ATTENUATION_Y_MAX - pow(x, POLYNOMIAL_AO_ATTENUATION_POWER);
-}
-
 void main()
 {
 	const uint rayFlags = gl_RayFlagsNoneNV;
@@ -117,7 +107,6 @@ void main()
 	color *= primaryPayload.materialColor.rgb;
 	
 	imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
-	//imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(vec3(fractionOfVisibleLights), 1.0f));
 	// NOTE: see that I store the fraction of light rays that were visible in
 	// the w component in the positionImage. It is used to avoid performing AO
 	// calculations for the entire 

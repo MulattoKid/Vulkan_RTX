@@ -8,6 +8,11 @@
 #include "Sample.glsl"
 #include "Sphere.glsl"
 
+#define ONE_OVER_PI 0.3183098861837907f
+
+#define SAMPLE_UNIFORM 0
+#define SAMPLE_COSINE 1
+
 layout(set = 0, binding = RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RT1_POSITION_IMAGE_BINDING_LOCATION) uniform sampler2D positionImage;
 layout(set = 0, binding = RT1_NORMAL_IMAGE_BINDING_LOCATION) uniform sampler2D normalImage;
@@ -15,14 +20,14 @@ layout(set = 0, binding = RT1_AO_IMAGE_BINDING_LOCATION, rgba32f) uniform image2
 
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV ShadowRayPayload primaryPayload;
 
-// Tried linear and power - didn't work well
-float PolynomialAOAttenuation(float dist)
+float VisibilityFunction(float dist)
 {
-	// Convert from range [0, MAX_OCCLUSION_DIST] to [0, 1]
-	float x = min(dist, MAX_OCCLUSION_DIST) / MAX_OCCLUSION_DIST;
-	
-	// Function: y = POLYNOMIAL_AO_ATTENUATION_POWER - POLYNOMIAL_AO_ATTENUATION_POWER^x
-	return POLYNOMIAL_AO_ATTENUATION_POWER - pow(POLYNOMIAL_AO_ATTENUATION_POWER, x);
+	// y = n^(-x)
+#if SAMPLE_UNIFORM
+	return pow(2.0f, -dist);
+#elif SAMPLE_COSINE
+	return pow(16.0f, -dist);
+#endif
 }
 
 void main()
@@ -40,7 +45,7 @@ void main()
 	// Early exit - avoid calculating AO
 	if (isectPoint == vec3(0.0f) || positionFractionVisible.w == 1.0f)
 	{
-		imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(DEFAULT_OCCLUSION));
+		imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		return;
 	}
 
@@ -52,42 +57,24 @@ void main()
 	int abcIndex = -1;
 	int abcIndexDirOne = -1;
 	int abcIndexDirTwo = -1;
-	vec3 absABC = abs(abc);
-	if (abc.x != 0.0f && absABC.x >= absABC.y && absABC.x >= absABC.z)
+	// Get the first that is not 0.0f
+	if (abc.x != 0.0f)
 	{
 		abcIndex = 0;
 		abcIndexDirOne = 1;
 		abcIndexDirTwo = 2;
 	}
-	else if (abc.y != 0.0f && absABC.y >= absABC.z)
+	else if (abc.y != 0.0f)
 	{
 		abcIndex = 1;
 		abcIndexDirOne = 0;
 		abcIndexDirTwo = 2;
 	}
-	else if (abc.z != 0.0f)
+	else
 	{
 		abcIndex = 2;
 		abcIndexDirOne = 0;
 		abcIndexDirTwo = 1;
-	}
-	else // The largest value is 0.0f
-	{
-		// Get the first that is not 0.0f
-		if (abc.x != 0.0f)
-		{
-			abcIndex = 0;
-			abcIndexDirOne = 1;
-			abcIndexDirTwo = 2;
-		}
-		else if (abc.y != 0.0f)
-		{
-			abcIndex = 1;
-			abcIndexDirOne = 0;
-			abcIndexDirTwo = 2;
-		}
-		// Already checked z
-		// else - IS NOT POSSIBLE!!!
 	}
 	// 3) Find the two directions: https://math.stackexchange.com/questions/2563909/find-points-on-a-plane
 	vec3 pointDirOne = isectPoint;
@@ -95,19 +82,17 @@ void main()
 	float phi = -abc[abcIndexDirOne] / abc[abcIndex];
 	pointDirOne[abcIndex] += phi;
 	vec3 dirOne = normalize(pointDirOne - isectPoint);
-	// dirTwo can be found more efficiantely by taking the cross of dirOne and the normal
+	// dirTwo can be found more efficiantely by taking the cross-product of dirOne and the normal
 	vec3 dirTwo = cross(dirOne, isectNormal);
 	
 	// Constants for sub-sampling occlusion ray's origin
-	const float maxOffset = 0.001f;
+	const float maxOffset = 0.0001f;
 	const float minOffset = -maxOffset;
 
 	// AO calculations
 	const int numOcclusionSteps = 7;
 	const int totalOcclusionSamples = numOcclusionSteps * numOcclusionSteps;
-	// Sample hemisphere of directions given the normal at the intersection point
-	int numAO = 0;
-	float attenuation = 0.0f;
+	float occlusion = 0.0f;
 	for (int y = 0; y <= numOcclusionSteps; y++)
 	{
 		for (int x = 0; x <= numOcclusionSteps; x++)
@@ -117,35 +102,34 @@ void main()
 			vec3 occlusionRayOrigin = isectPoint + (isectNormal * 0.001f) +
 									  	(dirOne * mix(minOffset, maxOffset, xFrac)) +
 									   	(dirTwo * mix(minOffset, maxOffset, yFrac));
-			//occlusionRayOrigin = isectPoint + (isectNormal * 0.001f);
+			occlusionRayOrigin = isectPoint + (isectNormal * 0.001f);
 			
 			// Through simple testing with few numOcclusionSteps (e.g. 5), there is very little difference
 			// between using SampleHemisphere and SampleHemisphereVaryingZ...
 			float idx = y * numOcclusionSteps + x;
+
+#if SAMPLE_UNIFORM
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
-			//vec3 occlusionRayDir = SampleHemisphereVaryingZ(isectNormal, samplePoints);
+			//occlusionRayDir = SampleHemisphereVaryingZ(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
+#elif SAMPLE_COSINE
+			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));	
+#endif
 			traceNV(scene, rayFlags, cullMask, RT1_PRIMARY_CHIT_IDX, sbtRecordStride, RT1_PRIMARY_MISS_IDX, occlusionRayOrigin, tMin, occlusionRayDir, tMax, PRIMARY_PAYLOAD_LOCATION);
 						
 			// Check for intersection with geometry
 			if (primaryPayload.hitDist.x >= 0.0f)
 			{
-				attenuation += PolynomialAOAttenuation(primaryPayload.hitDist.x);
-				numAO++;
-			}
-			else
-			{
-				attenuation += POLYNONIAL_AO_ATTENUATION_Y_MAX;
+#if SAMPLE_UNIFORM
+				occlusion += VisibilityFunction(primaryPayload.hitDist.x) * dot(isectNormal, occlusionRayDir);
+#elif SAMPLE_COSINE
+				occlusion += VisibilityFunction(primaryPayload.hitDist.x);
+#endif
 			}
 		}
 	}
-	
-	// Calculate occlusion
-	float occlusion = float(numAO) / float(totalOcclusionSamples);
-	// Remember to scale totalOcclusionSamples with the maximum value that a single attenuation sample can give
-	attenuation /= float(totalOcclusionSamples) * POLYNONIAL_AO_ATTENUATION_Y_MAX;
-	// Factor in attenuation
-	occlusion *= attenuation;
+	occlusion /= float(totalOcclusionSamples) * ONE_OVER_PI;
 	// For safety due to rounding-error: occlusion cannot be more than 1.0f
 	occlusion = min(occlusion, 1.0f);
+	
 	imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(occlusion, 0.0f, 0.0f, 0.0f));
 }
