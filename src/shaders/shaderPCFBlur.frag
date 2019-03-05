@@ -26,7 +26,7 @@ void main()
 	
 	if (blurVariable == 1)
 	{
-		occlusion = textureOffset(aoImage, fUV, ivec2(0,  0)).r;
+		occlusion = textureOffset(aoImage, fUV, ivec2(0, 0)).r;
 		if (occlusion == 0.0f)
 		{
 			outColor = vec4(originalColor, 1.0f);

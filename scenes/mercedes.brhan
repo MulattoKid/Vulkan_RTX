@@ -1,5 +1,5 @@
 Camera position[0 5 15] view_direction[0 -0.3 -1.0] vertical_fov[45] width[1920] height[1080]
 
 Model file[data/mercedes/Mercedes_AMG_GT-R_OBJ.obj] translate[0 0 0] rotate[0 0 0] scale[0.02 0.02 0.02] material[matte] diffuse[0.9 0.4 0.25]
-SphericalLight center[-5 12 0] radius[0.2] emittance[10 10 10]
-SphericalLight center[5 12 0] radius[0.2] emittance[0 0 10]
+SphericalLight center[-5 3 0] radius[0.2] emittance[10 10 10]
+SphericalLight center[5 12 0] radius[0.2] emittance[0 10 10]
