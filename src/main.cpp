@@ -905,9 +905,11 @@ void Raytrace(const char* brhanFile)
 		vkApp.LoadMesh(mff, &meshes);
 	}
 	std::vector<std::vector<float>> geometryData;
+	std::vector<glm::mat4x4> transformationData;
 	for (Mesh& mesh : meshes)
 	{
 		geometryData.push_back(mesh.vertices);
+		transformationData.push_back(glm::mat4x4(1.0f));
 	}
 	
 	std::vector<float> perMeshAttributeData;
@@ -1539,9 +1541,18 @@ void Raytrace(const char* brhanFile)
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
 		
+		// Update the transformation for each mesh
+		for (glm::mat4x4& transformation : transformationData)
+		{
+			glm::mat4 translateM = glm::translate(glm::mat4x4(1.0f), glm::vec3(0.01f, 0.0f, 0.0f));
+			transformation *= translateM;
+		}
+		// Rebuild acceleration structure
+		float rebuildTime = vkApp.RebuildAccelerationStructure(accStruct, transformationData);
+		
 		if (renderOnscreen)
 		{
-			vkApp.Render(graphicsQueueCommandBuffers.data());
+			vkApp.Render(graphicsQueueCommandBuffers.data(), 0.0f);
 		}
 		else
 		{
@@ -1555,7 +1566,7 @@ void Raytrace(const char* brhanFile)
 				vkWaitForFences(vkApp.vkDevice, 1, &vkApp.vkInFlightFences[previousFrame], VK_TRUE, std::numeric_limits<uint32_t>::max());
 				firstOffscreenFrame = 0;
 			}
-			vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data());
+			vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data(), 0.0f);
 		}
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);

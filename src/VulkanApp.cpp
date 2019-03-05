@@ -1116,7 +1116,7 @@ void VulkanApp::AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommand
 	CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &alloccationInfo, commandBuffers.data()))
 }
 
-void VulkanApp::Render(VkCommandBuffer* commandBuffers)
+void VulkanApp::Render(VkCommandBuffer* commandBuffers, float rebuildTime)
 {
 	auto start_time = GetTime();
 
@@ -1161,7 +1161,7 @@ void VulkanApp::Render(VkCommandBuffer* commandBuffers)
 	printf("\rFrame time (ms): %.2f", ms);
 }
 
-void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers)
+void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime)
 {
 	auto start_time = GetTime();
 
@@ -1401,7 +1401,7 @@ void VulkanApp::CreateBottomAccStruct(const std::vector<float>& geometry, VkGeom
 
 	//Create vertex buffer
 	VkDeviceSize vertexBufferSize = geometry.size() * sizeof(float);
-	CreateDeviceBuffer(vertexBufferSize, (void*)(geometry.data()), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &bottomAccStruct->vertexBuffer, &bottomAccStruct->vertexBufferMemory);
+	CreateDeviceBuffer(vertexBufferSize, (void*)(geometry.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &bottomAccStruct->vertexBuffer, &bottomAccStruct->vertexBufferMemory);
 
 	//Steps
 	/*
@@ -1486,7 +1486,7 @@ void VulkanApp::CreateBottomAccStruct(const std::vector<float>& geometry, VkGeom
 	accelerationStructureMemoryRequirementInfo.accelerationStructure = bottomAccStruct->accelerationStructure;
 	VkMemoryRequirements2 accelerationStructMemoryRequirements;
 	vkGetAccelerationStructureMemoryRequirementsNV(vkDevice, &accelerationStructureMemoryRequirementInfo, &accelerationStructMemoryRequirements);
-		
+	
 	VkMemoryAllocateInfo accelerationStructureMemoryInfo = {};
 	accelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	accelerationStructureMemoryInfo.pNext = NULL;
@@ -1604,8 +1604,8 @@ void VulkanApp::CreateVulkanAccelerationStructure(const std::vector<std::vector<
 	}
 	
 	//b)
-	VkDeviceSize geometryInstanceBufferSize = geometryInstances.size() * sizeof(VkGeometryInstanceNV);
-	CreateDeviceBuffer(geometryInstanceBufferSize, (void*)(geometryInstances.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &accStruct->geometryInstancesBuffer, &accStruct->geometryInstancesBufferMemory);
+	accStruct->geometryInstancesBufferSize = geometryInstances.size() * sizeof(VkGeometryInstanceNV);
+	CreateHostVisibleBuffer(accStruct->geometryInstancesBufferSize, (void*)(geometryInstances.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &accStruct->geometryInstancesBuffer, &accStruct->geometryInstancesBufferMemory);
 
 	//c)
 	CreateTopAccStruct(geometryInstances.size(), &accStruct->topAccStruct, vkDevice);
@@ -1634,7 +1634,7 @@ VulkanAccelerationStructure::~VulkanAccelerationStructure()
 }
 
 
-void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct)
+void VulkanApp::BuildAccelerationStructure(VulkanAccelerationStructure& accStruct)
 {
 	auto start_time = GetTime();
 
@@ -1656,8 +1656,6 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	g) End command buffer
 	h) Submit command buffer to graphics queue
 	i) Wait on graphics queue to be idle
-	j) Free command buffer
-	k) Destroy scratch buffer and free scratch memory
 	*/
 	
 	//a
@@ -1682,21 +1680,18 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	
 	
 	//b
-	VkBuffer scratchBuffer;
-	VkDeviceMemory scratchBufferMemory;
-	CreateDeviceBuffer(scratchBufferSize, (void*)(NULL), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &scratchBuffer, &scratchBufferMemory);
+	CreateDeviceBuffer(scratchBufferSize, (void*)(NULL), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &accStruct.scratchBuffer, &accStruct.scratchBufferMemory);
 	
 	//c
-	VkCommandBuffer tmpCommandBuffer;
-	AllocateGraphicsQueueCommandBuffer(&tmpCommandBuffer);
+	AllocateGraphicsQueueCommandBuffer(&accStruct.buildCommandBuffer);
 	
 	//d
 	VkCommandBufferBeginInfo beginInfo = {};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.pNext = NULL;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	beginInfo.flags = 0;
 	beginInfo.pInheritanceInfo = NULL;
-	vkBeginCommandBuffer(tmpCommandBuffer, &beginInfo);
+	vkBeginCommandBuffer(accStruct.buildCommandBuffer, &beginInfo);
 	
 	//e
 	VkMemoryBarrier memoryBarrier = {};
@@ -1707,19 +1702,19 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	for (const BottomAccStruct& bottomAccStruct : accStruct.bottomAccStructs)
 	{
 		//Build
-		vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &bottomAccStruct.accelerationStructureInfo, VK_NULL_HANDLE, 0, VK_FALSE, bottomAccStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
+		vkCmdBuildAccelerationStructureNV(accStruct.buildCommandBuffer, &bottomAccStruct.accelerationStructureInfo, VK_NULL_HANDLE, 0, VK_FALSE, bottomAccStruct.accelerationStructure, VK_NULL_HANDLE, accStruct.scratchBuffer, 0);
 		//Barrier
-		vkCmdPipelineBarrier(tmpCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
+		vkCmdPipelineBarrier(accStruct.buildCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
 	}
 	
 	//f
 	//Build
-	vkCmdBuildAccelerationStructureNV(tmpCommandBuffer, &accStruct.topAccStruct.accelerationStructureInfo, accStruct.geometryInstancesBuffer, 0, VK_FALSE, accStruct.topAccStruct.accelerationStructure, VK_NULL_HANDLE, scratchBuffer, 0);
+	vkCmdBuildAccelerationStructureNV(accStruct.buildCommandBuffer, &accStruct.topAccStruct.accelerationStructureInfo, accStruct.geometryInstancesBuffer, 0, VK_FALSE, accStruct.topAccStruct.accelerationStructure, VK_NULL_HANDLE, accStruct.scratchBuffer, 0);
 	//Barrier
-	vkCmdPipelineBarrier(tmpCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
+	vkCmdPipelineBarrier(accStruct.buildCommandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
 	
 	//g
-	vkEndCommandBuffer(tmpCommandBuffer);
+	vkEndCommandBuffer(accStruct.buildCommandBuffer);
 	
 	//h
 	VkSubmitInfo submitInfo = {};
@@ -1729,7 +1724,7 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	submitInfo.pWaitSemaphores = NULL;
 	submitInfo.pWaitDstStageMask = NULL;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &tmpCommandBuffer;
+	submitInfo.pCommandBuffers = &accStruct.buildCommandBuffer;
 	submitInfo.signalSemaphoreCount = 0;
 	submitInfo.pSignalSemaphores = NULL;
 	vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
@@ -1737,15 +1732,62 @@ void VulkanApp::BuildAccelerationStructure(const VulkanAccelerationStructure& ac
 	//i
 	vkQueueWaitIdle(vkGraphicsQueue);
 	
-	//j
-	FreeGraphicsQueueCommandBuffer(&tmpCommandBuffer);
-	
-	//k
-	vkFreeMemory(vkDevice, scratchBufferMemory, NULL);
-	vkDestroyBuffer(vkDevice, scratchBuffer, NULL);
-	
 	auto end_time = GetTime();
 	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
 	float ms = ns / 1000000.0f;
 	printf("Acceleration structure build time (ms): %.2f\n", ms);
+}
+
+float VulkanApp::RebuildAccelerationStructure(VulkanAccelerationStructure& accStruct, const std::vector<glm::mat4x4>& transformationData)
+{
+	auto start_time = GetTime();
+
+	//Steps
+	/*
+	h) Submit command buffer to graphics queue
+	i) Wait on graphics queue to be idle
+	*/
+	
+	float transform[12];
+	const uint32_t copySize = sizeof(float) * 12;
+	void* data;
+	CHECK_VK_RESULT(vkMapMemory(vkDevice, accStruct.geometryInstancesBufferMemory, 0, accStruct.geometryInstancesBufferSize, 0, &data))
+	for (glm::mat4x4 transformation : transformationData)
+	{
+		transform[0]  = transformation[0][0];
+		transform[1]  = transformation[1][0];
+		transform[2]  = transformation[2][0];
+		transform[3]  = transformation[3][0];
+		transform[4]  = transformation[0][1];
+		transform[5]  = transformation[1][1];
+		transform[6]  = transformation[2][1];
+		transform[7]  = transformation[3][1];
+		transform[8]  = transformation[0][2];
+		transform[9]  = transformation[1][2];
+		transform[10] = transformation[2][2];
+		transform[11] = transformation[3][2];
+		memcpy(data, transform, copySize);
+	}
+	vkUnmapMemory(vkDevice, accStruct.geometryInstancesBufferMemory);
+	
+	//h
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pNext = NULL;
+	submitInfo.waitSemaphoreCount = 0;
+	submitInfo.pWaitSemaphores = NULL;
+	submitInfo.pWaitDstStageMask = NULL;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &accStruct.buildCommandBuffer;
+	submitInfo.signalSemaphoreCount = 0;
+	submitInfo.pSignalSemaphores = NULL;
+	vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	
+	//i
+	vkQueueWaitIdle(vkGraphicsQueue);
+	
+	auto end_time = GetTime();
+	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
+	float ms = ns / 1000000.0f;
+	return ms;
 }

@@ -80,7 +80,11 @@ struct VulkanAccelerationStructure
 	std::vector<VkGeometryInstanceNV> geometryInstances;
 	VkBuffer geometryInstancesBuffer;
 	VkDeviceMemory geometryInstancesBufferMemory;
+	VkDeviceSize geometryInstancesBufferSize;
 	TopAccStruct topAccStruct;
+	VkBuffer scratchBuffer;
+	VkDeviceMemory scratchBufferMemory;
+	VkCommandBuffer buildCommandBuffer;
 	
 	~VulkanAccelerationStructure();
 };
@@ -186,12 +190,13 @@ public:
 	void CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
 	VkFormat GetDefaultFramebufferFormat();
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
-	void Render(VkCommandBuffer* commandBuffers);
-	void RenderOffscreen(VkCommandBuffer* commandBuffers);
+	void Render(VkCommandBuffer* commandBuffers, float rebuildTime);
+	void RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime);
 	void LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes);
 	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* perMeshAttributeData, std::vector<float>* perVertexAttributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
-	void BuildAccelerationStructure(const VulkanAccelerationStructure& accStruct);
+	void BuildAccelerationStructure(VulkanAccelerationStructure& accStruct);
+	float RebuildAccelerationStructure(VulkanAccelerationStructure& accStruct, const std::vector<glm::mat4x4>& transformationData);
 	
 private:
 	void QuerySwapChainSupport(VkPhysicalDevice physicalDevice);
