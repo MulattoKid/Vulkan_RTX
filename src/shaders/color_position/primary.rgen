@@ -7,6 +7,8 @@
 #include "DataLayouts.glsl"
 #include "Sphere.glsl"
 
+#define SHADOW 0
+
 layout(set = 0, binding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RT0_COLOR_IMAGE_BINDING_LOCATION, rgba8) uniform image2D colorImage;
 layout(set = 0, binding = RT0_POSITION_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D positionImage;
@@ -96,12 +98,21 @@ void main()
 		// Check for intersection with geometry before an intersection with the light:
 		//    Either didn't hit some geometry or
 		//    the distance to the geometry isect is further than the distance to the isect on the light
+#if SHADOW
 		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
 		{
 			// https://en.wikipedia.org/wiki/Inverse-square_law
 			color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
 			numVisible++;
 		}
+#else
+		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
+		{
+			numVisible++;
+		}
+		// https://en.wikipedia.org/wiki/Inverse-square_law
+		color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
+#endif
 	}
 	float fractionOfVisibleLights = float(numVisible) / float(otherData.numSphericalLightSources);
 	color *= primaryPayload.materialColor.rgb;

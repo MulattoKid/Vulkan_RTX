@@ -26,7 +26,7 @@ float VisibilityFunction(float dist)
 #if SAMPLE_UNIFORM
 	return pow(2.0f, -dist);
 #elif SAMPLE_COSINE
-	return pow(16.0f, -dist);
+	return pow(32.0f, -dist);
 #endif
 }
 
@@ -86,7 +86,7 @@ void main()
 	vec3 dirTwo = cross(dirOne, isectNormal);
 	
 	// Constants for sub-sampling occlusion ray's origin
-	const float maxOffset = 0.0001f;
+	const float maxOffset = 0.001f;
 	const float minOffset = -maxOffset;
 
 	// AO calculations
@@ -107,7 +107,6 @@ void main()
 			// Through simple testing with few numOcclusionSteps (e.g. 5), there is very little difference
 			// between using SampleHemisphere and SampleHemisphereVaryingZ...
 			float idx = y * numOcclusionSteps + x;
-
 #if SAMPLE_UNIFORM
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
 			//occlusionRayDir = SampleHemisphereVaryingZ(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));

@@ -1058,9 +1058,10 @@ void Raytrace(const char* brhanFile)
 	vkApp.TransitionImageLayoutSingle(rayTracingNormalImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
     
     //Ray tracing AO image
+    VkExtent3D aoImageExtent = { vkApp.vkSurfaceExtent.width / 2, vkApp.vkSurfaceExtent.height / 2, 1 };
+    //VkExtent3D aoImageExtent = { vkApp.vkSurfaceExtent.width * 0.75f, vkApp.vkSurfaceExtent.height * 0.75f, 1 };
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	imageInfo.extent.width = vkApp.vkSurfaceExtent.width / 2;
-	imageInfo.extent.height = vkApp.vkSurfaceExtent.height / 2;
+	imageInfo.extent = aoImageExtent;
 	VkImage rayTracingAOImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingAOImage))
 	
@@ -1480,7 +1481,7 @@ void Raytrace(const char* brhanFile)
 			rtpdAO.shaderBindingTableBuffer, 0 * rtpdAO.shaderGroupHandleSize,
 			rtpdAO.shaderBindingTableBuffer, 2 * rtpdAO.shaderGroupHandleSize, rtpdAO.shaderGroupHandleSize,
 			rtpdAO.shaderBindingTableBuffer, 1 * rtpdAO.shaderGroupHandleSize, rtpdAO.shaderGroupHandleSize,
-			 VK_NULL_HANDLE, 0, 0, vkApp.vkSurfaceExtent.width / 2, vkApp.vkSurfaceExtent.height / 2, 1);
+			 VK_NULL_HANDLE, 0, 0, aoImageExtent.width, aoImageExtent.height, 1);
 			 
 		// Barrier - wait for ray tracing to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
