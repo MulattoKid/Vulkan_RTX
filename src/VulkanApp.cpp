@@ -1738,16 +1738,8 @@ void VulkanApp::BuildAccelerationStructure(VulkanAccelerationStructure& accStruc
 	printf("Acceleration structure build time (ms): %.2f\n", ms);
 }
 
-float VulkanApp::RebuildAccelerationStructure(VulkanAccelerationStructure& accStruct, const std::vector<glm::mat4x4>& transformationData)
+void VulkanApp::UpdateAccelerationStructureTransforms(VulkanAccelerationStructure& accStruct, const std::vector<glm::mat4x4>& transformationData)
 {
-	auto start_time = GetTime();
-
-	//Steps
-	/*
-	h) Submit command buffer to graphics queue
-	i) Wait on graphics queue to be idle
-	*/
-	
 	float transform[12];
 	const uint32_t copySize = sizeof(float) * 12;
 	void* data;
@@ -1769,25 +1761,4 @@ float VulkanApp::RebuildAccelerationStructure(VulkanAccelerationStructure& accSt
 		memcpy(data, transform, copySize);
 	}
 	vkUnmapMemory(vkDevice, accStruct.geometryInstancesBufferMemory);
-	
-	//h
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.pNext = NULL;
-	submitInfo.waitSemaphoreCount = 0;
-	submitInfo.pWaitSemaphores = NULL;
-	submitInfo.pWaitDstStageMask = NULL;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &accStruct.buildCommandBuffer;
-	submitInfo.signalSemaphoreCount = 0;
-	submitInfo.pSignalSemaphores = NULL;
-	vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	
-	//i
-	vkQueueWaitIdle(vkGraphicsQueue);
-	
-	auto end_time = GetTime();
-	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
-	float ms = ns / 1000000.0f;
-	return ms;
 }

@@ -1462,6 +1462,17 @@ void Raytrace(const char* brhanFile)
 		beginInfo.pInheritanceInfo = NULL;
 		CHECK_VK_RESULT(vkBeginCommandBuffer(graphicsQueueCommandBuffers[i], &beginInfo))
 		
+		// Rebuild acceleration structure
+		VkMemoryBarrier memoryBarrier = {};
+		memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memoryBarrier.pNext = NULL;
+		memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
+		memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
+		vkCmdBuildAccelerationStructureNV(graphicsQueueCommandBuffers[i], &accStruct.topAccStruct.accelerationStructureInfo, accStruct.geometryInstancesBuffer, 0, VK_FALSE, accStruct.topAccStruct.accelerationStructure, VK_NULL_HANDLE, accStruct.scratchBuffer, 0);
+		
+		//Barrier before tracing can begin
+		vkCmdPipelineBarrier(graphicsQueueCommandBuffers[i], VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
+		
 		// Ray trace color, position and normal
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdColorPosition.rayTracingPipeline);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdColorPosition.rayTracingPipelineLayout, 0, rtpdColorPosition.descriptorSets.size(), rtpdColorPosition.descriptorSets.data(), 0, NULL);
@@ -1548,7 +1559,7 @@ void Raytrace(const char* brhanFile)
 			transformation *= translateM;
 		}
 		// Rebuild acceleration structure
-		float rebuildTime = vkApp.RebuildAccelerationStructure(accStruct, transformationData);
+		vkApp.UpdateAccelerationStructureTransforms(accStruct, transformationData);
 		
 		if (renderOnscreen)
 		{
@@ -1570,42 +1581,6 @@ void Raytrace(const char* brhanFile)
 		}
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);
-	
-	// Cleanup
-	// Graphics pipeline stuff
-	
-	// Raytracing stuff
-	/*vkDestroyDescriptorPool(vkApp.vkDevice, descriptorPool, NULL);
-	vkDestroyImageView(vkApp.vkDevice, rayTracingOcclusionImageView, NULL);
-	vkDestroyImageView(vkApp.vkDevice, rayTracingColorImageView, NULL);
-	vkFreeMemory(vkApp.vkDevice, rayTracingImageMemory, NULL);
-	vkDestroyImage(vkApp.vkDevice, rayTracingImage, NULL);
-	vkFreeMemory(vkApp.vkDevice, shaderBindindTableBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, shaderBindingTableBuffer, NULL);
-	vkDestroyPipeline(vkApp.vkDevice, rayTracingPipeline, NULL);
-	vkDestroyPipelineLayout(vkApp.vkDevice, rayTracingPipelineLayout, NULL);
-	for (auto& descriptorSetLayout : rayTracingPipelineDescriptorSetLayouts)
-	{
-		vkDestroyDescriptorSetLayout(vkApp.vkDevice, descriptorSetLayout, NULL);
-	}
-	vkDestroySampler(vkApp.vkDevice, linearSampler, NULL);
-	vkDestroySampler(vkApp.vkDevice, nearestSampler, NULL);
-	for (VkShaderModule& shaderModule : shaderModules)
-	{
-		vkDestroyShaderModule(vkApp.vkDevice, shaderModule, NULL);
-	}
-	vkFreeMemory(vkApp.vkDevice, customIDToAttributeArrayIndexBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, customIDToAttributeArrayIndexBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, perVertexAttributeBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, perVertexAttributeBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, perMeshAttributeBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, perMeshAttributeBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, otherDataBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, otherDataBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, lightsBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, lightsBuffer, NULL);
-	vkFreeMemory(vkApp.vkDevice, cameraBufferMemory, NULL);
-	vkDestroyBuffer(vkApp.vkDevice, cameraBuffer, NULL);*/
 }
 
 int main(int argc, char** argv)

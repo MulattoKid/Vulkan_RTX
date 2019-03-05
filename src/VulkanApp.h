@@ -196,7 +196,7 @@ public:
 	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* perMeshAttributeData, std::vector<float>* perVertexAttributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);
 	void BuildAccelerationStructure(VulkanAccelerationStructure& accStruct);
-	float RebuildAccelerationStructure(VulkanAccelerationStructure& accStruct, const std::vector<glm::mat4x4>& transformationData);
+	void UpdateAccelerationStructureTransforms(VulkanAccelerationStructure& accStruct, const std::vector<glm::mat4x4>& transformationData);
 	
 private:
 	void QuerySwapChainSupport(VkPhysicalDevice physicalDevice);
