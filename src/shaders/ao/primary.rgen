@@ -10,6 +10,7 @@
 
 #define ONE_OVER_PI 0.3183098861837907f
 
+#define SUB_SAMPLE_ISECT_POINT 0
 #define SAMPLE_UNIFORM 0
 #define SAMPLE_COSINE 1
 
@@ -42,14 +43,18 @@ void main()
 	vec4 positionFractionVisible = texture(positionImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy));
 	vec3 isectPoint = positionFractionVisible.xyz;
 	vec3 isectNormal = texture(normalImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy)).xyz;
-	// Early exit - avoid calculating AO
-	if (isectPoint == vec3(0.0f) || positionFractionVisible.w == 1.0f)
+	// Early exit:
+	// 	Either if position is vec3(0.0f), indicating a special case
+	// 	Or if one of the lights are visible from the point
+	if (isectPoint == vec3(0.0f) || positionFractionVisible.w > 0.0f)
 	{
 		imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		return;
 	}
 
+#if SUB_SAMPLE_ISECT_POINT
 	// Calculate the two directions that will be used to "sub-sample" the intersection point
+	// Runs the risk of going too far and ending up within some other geometry...
 	// 1) Find equation of plane: https://math.stackexchange.com/questions/753113/how-to-find-an-equation-of-the-plane-given-its-normal-vector-and-a-point-on-the?newreg=c41a1becdbb54022a59483dbb1068fea
 	vec3 abc = isectNormal;
 	float d = dot(isectPoint, isectNormal);
@@ -88,6 +93,7 @@ void main()
 	// Constants for sub-sampling occlusion ray's origin
 	const float maxOffset = 0.001f;
 	const float minOffset = -maxOffset;
+#endif
 
 	// AO calculations
 	const int numOcclusionSteps = 7;
@@ -99,17 +105,20 @@ void main()
 		{
 			float xFrac = float(x) / float(numOcclusionSteps);
 			float yFrac = float(y) / float(numOcclusionSteps);
+
+#if SUB_SAMPLE_ISECT_POINT
 			vec3 occlusionRayOrigin = isectPoint + (isectNormal * 0.001f) +
 									  	(dirOne * mix(minOffset, maxOffset, xFrac)) +
 									   	(dirTwo * mix(minOffset, maxOffset, yFrac));
-			occlusionRayOrigin = isectPoint + (isectNormal * 0.001f);
+#else
+			vec3 occlusionRayOrigin = isectPoint + (isectNormal * 0.001f);
+#endif
 			
 			// Through simple testing with few numOcclusionSteps (e.g. 5), there is very little difference
 			// between using SampleHemisphere and SampleHemisphereVaryingZ...
 			float idx = y * numOcclusionSteps + x;
 #if SAMPLE_UNIFORM
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
-			//occlusionRayDir = SampleHemisphereVaryingZ(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
 #elif SAMPLE_COSINE
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));	
 #endif
