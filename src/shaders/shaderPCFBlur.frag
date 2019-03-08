@@ -4,8 +4,8 @@
 
 #include "Defines.glsl"
 
-#define AO 1
-#define AO_COLOR 0
+#define AO 0
+#define AO_COLOR 1
 
 layout(location=0) in vec2 fUV;
 

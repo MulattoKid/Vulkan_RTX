@@ -13,6 +13,82 @@
 #define SUB_SAMPLE_ISECT_POINT 0
 #define SAMPLE_UNIFORM 0
 #define SAMPLE_COSINE 1
+#define BLUE_NOISE 1
+
+#if BLUE_NOISE
+struct SamplePoint
+{
+	float u0;
+	float u1;
+};
+SamplePoint samplePoints[64] =
+{
+    {0.869141, 0.657227},
+    {0.379883, 0.838867},
+    {0.349609, 0.327148},
+    {0.610352, 0.965820},
+    {0.652344, 0.242188},
+    {0.127930, 0.654297},
+    {0.803711, 0.305664},
+    {0.863281, 0.047852},
+    {0.058594, 0.240234},
+    {0.355469, 0.554688},
+    {0.617188, 0.684570},
+    {0.385742, 0.095703},
+    {0.196289, 0.835938},
+    {0.192383, 0.029297},
+    {0.538086, 0.458008},
+    {0.935547, 0.457031},
+    {0.162109, 0.416992},
+    {0.933594, 0.852539},
+    {0.739258, 0.434570},
+    {0.720703, 0.054688},
+    {0.245117, 0.196289},
+    {0.482422, 0.198242},
+    {0.008789, 0.044922},
+    {0.333008, 0.684570},
+    {0.783203, 0.798828},
+    {0.340820, 0.972656},
+    {0.775391, 0.177734},
+    {0.091797, 0.927734},
+    {0.504883, 0.589844},
+    {0.561523, 0.818359},
+    {0.972656, 0.325195},
+    {0.530273, 0.342773},
+    {0.086914, 0.528320},
+    {0.898438, 0.186523},
+    {0.584961, 0.099609},
+    {0.437500, 0.466797},
+    {0.744141, 0.627930},
+    {0.464844, 0.931641},
+    {0.068359, 0.747070},
+    {0.318359, 0.450195},
+    {0.708008, 0.900391},
+    {0.419922, 0.731445},
+    {0.165039, 0.289062},
+    {0.090820, 0.128906},
+    {0.194336, 0.547852},
+    {0.053711, 0.401367},
+    {0.526367, 0.729492},
+    {0.657227, 0.356445},
+    {0.370117, 0.214844},
+    {0.623047, 0.526367},
+    {0.948242, 0.963867},
+    {0.990234, 0.663086},
+    {0.794922, 0.966797},
+    {0.282227, 0.887695},
+    {0.858398, 0.532227},
+    {0.917969, 0.765625},
+    {0.674805, 0.784180},
+    {0.842773, 0.416016},
+    {0.468750, 0.059570},
+    {0.435547, 0.374023},
+    {0.231445, 0.725586},
+    {0.951172, 0.585938},
+    {0.228516, 0.346680},
+    {0.292969, 0.080078}
+};
+#endif
 
 layout(set = 0, binding = RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RT1_POSITION_IMAGE_BINDING_LOCATION) uniform sampler2D positionImage;
@@ -117,10 +193,19 @@ void main()
 			// Through simple testing with few numOcclusionSteps (e.g. 5), there is very little difference
 			// between using SampleHemisphere and SampleHemisphereVaryingZ...
 			float idx = y * numOcclusionSteps + x;
+			int idxI = y * numOcclusionSteps + x;
 #if SAMPLE_UNIFORM
+#if BLUE_NOISE
+			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));	
+#else
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
+#endif
 #elif SAMPLE_COSINE
-			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));	
+#if BLUE_NOISE
+			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
+#else
+			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
+#endif
 #endif
 			traceNV(scene, rayFlags, cullMask, RT1_PRIMARY_CHIT_IDX, sbtRecordStride, RT1_PRIMARY_MISS_IDX, occlusionRayOrigin, tMin, occlusionRayDir, tMax, PRIMARY_PAYLOAD_LOCATION);
 						

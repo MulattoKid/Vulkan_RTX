@@ -1554,7 +1554,7 @@ void Raytrace(const char* brhanFile)
 		for (glm::mat4x4& transformation : transformationData)
 		{
 			glm::mat4 translateM = glm::translate(glm::mat4x4(1.0f), glm::vec3(0.01f, 0.0f, 0.0f));
-			transformation *= translateM;
+			//transformation *= translateM;
 		}
 		// Rebuild acceleration structure
 		vkApp.UpdateAccelerationStructureTransforms(accStruct, transformationData);
