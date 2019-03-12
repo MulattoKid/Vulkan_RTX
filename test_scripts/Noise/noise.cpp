@@ -250,7 +250,7 @@ void BlueNoiseAnimate(uchar_t* data)
 	  	{
 	  		printf("        {%f, %f},\n", float(samplePoints[frameOffset + s].x) / float(IMAGE_WIDTH), float(samplePoints[frameOffset + s].y) / float(IMAGE_HEIGHT));
 	  	}
-	  	printf("    }\n");
+	  	printf("    },\n");
   	}
 	printf("}\n");
 #endif

@@ -15,13 +15,34 @@
 
 // Sample points to use
 #define REGULAR_SAMPLES 0
-#define BLUE_NOISE 0
+#define BLUE_NOISE 1
+#define BLUE_NOISE_ANIMATE 0
 #define GOLDEN_RATIO 0
-#define FIBONACCI_SPIRAL 1
+#define FIBONACCI_SPIRAL 0
 
 // Sample method
 #define SAMPLE_UNIFORM 0
 #define SAMPLE_COSINE 1
+
+/*#if REGULAR_SAMPLES
+struct SamplePoint =
+{
+};
+#else
+	#if BLUE_NOISE_ANIMATION
+		SamplePoint samplePoints[3][64] =
+		{
+		};
+	#else
+		SamplePoint samplePoints[64] =
+		{
+		#if BLUE_NOISE
+		#elif GOLDEN_RATIO
+		#elif FIBONACCI_SPIRAL
+		#endif
+		};
+	#endif
+#endif*/
 
 #if REGULAR_SAMPLES
 #else
@@ -30,6 +51,209 @@ struct SamplePoint
 	float u0;
 	float u1;
 };
+#if BLUE_NOISE_ANIMATE
+SamplePoint samplePoints[3][64] =
+{
+    {
+        {0.421875, 0.158203},
+        {0.939453, 0.038086},
+        {0.196289, 0.688477},
+        {0.311523, 0.430664},
+        {0.710938, 0.887695},
+        {0.492188, 0.652344},
+        {0.944336, 0.782227},
+        {0.914062, 0.456055},
+        {0.750977, 0.460938},
+        {0.188477, 0.972656},
+        {0.894531, 0.244141},
+        {0.647461, 0.277344},
+        {0.525391, 0.375000},
+        {0.161133, 0.228516},
+        {0.364258, 0.816406},
+        {0.567383, 0.010742},
+        {0.098633, 0.427734},
+        {0.099609, 0.094727},
+        {0.311523, 0.274414},
+        {0.819336, 0.600586},
+        {0.000977, 0.584961},
+        {0.774414, 0.173828},
+        {0.142578, 0.830078},
+        {0.797852, 0.764648},
+        {0.690430, 0.583008},
+        {0.261719, 0.561523},
+        {0.422852, 0.030273},
+        {0.613281, 0.740234},
+        {0.038086, 0.900391},
+        {0.800781, 0.028320},
+        {0.523438, 0.853516},
+        {0.640625, 0.145508},
+        {0.267578, 0.126953},
+        {0.106445, 0.540039},
+        {0.057617, 0.693359},
+        {0.306641, 0.002930},
+        {0.351562, 0.684570},
+        {0.432617, 0.496094},
+        {0.908203, 0.665039},
+        {0.033203, 0.204102},
+        {0.432617, 0.301758},
+        {0.829102, 0.355469},
+        {0.875000, 0.894531},
+        {0.640625, 0.479492},
+        {0.266602, 0.889648},
+        {0.463867, 0.949219},
+        {0.183594, 0.342773},
+        {0.564453, 0.555664},
+        {0.524414, 0.125977},
+        {0.912109, 0.557617},
+        {0.499023, 0.755859},
+        {0.007812, 0.342773},
+        {0.986328, 0.123047},
+        {0.708008, 0.727539},
+        {0.616211, 0.919922},
+        {0.876953, 0.141602},
+        {0.542969, 0.276367},
+        {0.041992, 0.798828},
+        {0.181641, 0.117188},
+        {0.005859, 0.483398},
+        {0.537109, 0.466797},
+        {0.237305, 0.784180},
+        {0.100586, 0.308594},
+        {0.589844, 0.659180},
+    },
+    {
+        {0.267578, 0.126953},
+        {0.106445, 0.540039},
+        {0.057617, 0.693359},
+        {0.306641, 0.002930},
+        {0.351562, 0.684570},
+        {0.432617, 0.496094},
+        {0.908203, 0.665039},
+        {0.033203, 0.204102},
+        {0.432617, 0.301758},
+        {0.829102, 0.355469},
+        {0.875000, 0.894531},
+        {0.640625, 0.479492},
+        {0.266602, 0.889648},
+        {0.463867, 0.949219},
+        {0.183594, 0.342773},
+        {0.564453, 0.555664},
+        {0.524414, 0.125977},
+        {0.912109, 0.557617},
+        {0.499023, 0.755859},
+        {0.007812, 0.342773},
+        {0.986328, 0.123047},
+        {0.708008, 0.727539},
+        {0.616211, 0.919922},
+        {0.876953, 0.141602},
+        {0.542969, 0.276367},
+        {0.041992, 0.798828},
+        {0.181641, 0.117188},
+        {0.005859, 0.483398},
+        {0.537109, 0.466797},
+        {0.237305, 0.784180},
+        {0.100586, 0.308594},
+        {0.589844, 0.659180},
+        {0.715820, 0.057617},
+        {0.671875, 0.203125},
+        {0.206055, 0.633789},
+        {0.291992, 0.553711},
+        {0.989258, 0.998047},
+        {0.299805, 0.260742},
+        {0.333984, 0.415039},
+        {0.768555, 0.597656},
+        {0.692383, 0.339844},
+        {0.138672, 0.975586},
+        {0.405273, 0.166992},
+        {0.449219, 0.617188},
+        {0.837891, 0.772461},
+        {0.756836, 0.883789},
+        {0.234375, 0.440430},
+        {0.816406, 0.473633},
+        {0.913086, 0.254883},
+        {0.481445, 0.393555},
+        {0.584961, 0.026367},
+        {0.789062, 0.240234},
+        {0.982422, 0.898438},
+        {0.623047, 0.790039},
+        {0.376953, 0.892578},
+        {0.913086, 0.407227},
+        {0.955078, 0.765625},
+        {0.875000, 0.006836},
+        {0.432617, 0.067383},
+        {0.136719, 0.826172},
+        {0.149414, 0.205078},
+        {0.082031, 0.109375},
+        {0.540039, 0.859375},
+        {0.737305, 0.445312},
+    },
+    {
+        {0.671875, 0.203125},
+        {0.206055, 0.633789},
+        {0.291992, 0.553711},
+        {0.989258, 0.998047},
+        {0.299805, 0.260742},
+        {0.333984, 0.415039},
+        {0.768555, 0.597656},
+        {0.692383, 0.339844},
+        {0.138672, 0.975586},
+        {0.405273, 0.166992},
+        {0.449219, 0.617188},
+        {0.837891, 0.772461},
+        {0.756836, 0.883789},
+        {0.234375, 0.440430},
+        {0.816406, 0.473633},
+        {0.913086, 0.254883},
+        {0.481445, 0.393555},
+        {0.584961, 0.026367},
+        {0.789062, 0.240234},
+        {0.982422, 0.898438},
+        {0.623047, 0.790039},
+        {0.376953, 0.892578},
+        {0.913086, 0.407227},
+        {0.955078, 0.765625},
+        {0.875000, 0.006836},
+        {0.432617, 0.067383},
+        {0.136719, 0.826172},
+        {0.149414, 0.205078},
+        {0.082031, 0.109375},
+        {0.540039, 0.859375},
+        {0.737305, 0.445312},
+        {0.642578, 0.401367},
+        {0.292969, 0.073242},
+        {0.016602, 0.562500},
+        {0.714844, 0.050781},
+        {0.033203, 0.381836},
+        {0.257812, 0.802734},
+        {0.080078, 0.665039},
+        {0.531250, 0.164062},
+        {0.403320, 0.762695},
+        {0.709961, 0.698242},
+        {0.544922, 0.543945},
+        {0.872070, 0.150391},
+        {0.143555, 0.339844},
+        {0.555664, 0.673828},
+        {0.252930, 0.963867},
+        {0.447266, 0.960938},
+        {0.896484, 0.667969},
+        {0.004883, 0.470703},
+        {0.025391, 0.267578},
+        {0.886719, 0.549805},
+        {0.564453, 0.313477},
+        {0.143555, 0.502930},
+        {0.410156, 0.283203},
+        {0.772461, 0.128906},
+        {0.658203, 0.932617},
+        {0.430664, 0.520508},
+        {0.332031, 0.653320},
+        {0.802734, 0.364258},
+        {0.655273, 0.509766},
+        {0.266602, 0.337891},
+        {0.250000, 0.163086},
+        {0.496094, 0.796875},
+        {0.355469, 0.000000},
+    },
+};
+#else
 SamplePoint samplePoints[64] =
 {
 #if BLUE_NOISE
@@ -230,11 +454,16 @@ SamplePoint samplePoints[64] =
 #endif
 };
 #endif
+#endif
 
 layout(set = 0, binding = RT1_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RT1_POSITION_IMAGE_BINDING_LOCATION) uniform sampler2D positionImage;
 layout(set = 0, binding = RT1_NORMAL_IMAGE_BINDING_LOCATION) uniform sampler2D normalImage;
 layout(set = 0, binding = RT1_AO_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D aoImage;
+layout(set = 0, binding = RT1_CURRENT_FRAME_BINDING_LOCATION, std140) uniform currentFrameVariableBuffer
+{
+	uint currentFrame;
+};
 
 layout(location = PRIMARY_PAYLOAD_LOCATION) rayPayloadNV ShadowRayPayload primaryPayload;
 
@@ -338,6 +567,9 @@ void main()
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
 #elif FIBONACCI_SPIRAL
 			vec3 occlusionRayDir = SampleHemisphereFibonacciSpiral(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
+#elif BLUE_NOISE_ANIMATE
+			uint blueNoiseFrameIdx = currentFrame % 3;
+			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(samplePoints[blueNoiseFrameIdx][idxI].u0, samplePoints[blueNoiseFrameIdx][idxI].u1));
 #else // BLUE_NOISE or GOLDEN_RATIO
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
 #endif
@@ -346,6 +578,9 @@ void main()
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(numOcclusionSteps), idx / float(totalOcclusionSamples)));
 #elif FIBONACCI_SPIRAL
 			vec3 occlusionRayDir = SampleHemisphereFibonacciSpiral(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
+#elif BLUE_NOISE_ANIMATE
+			uint blueNoiseFrameIdx = currentFrame % 3;
+			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(samplePoints[blueNoiseFrameIdx][idxI].u0, samplePoints[blueNoiseFrameIdx][idxI].u1));
 #else // BLUE_NOISE or GOLDEN_RATIO
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
 #endif

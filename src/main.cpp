@@ -672,6 +672,13 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	rayTracingAOImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	rayTracingAOImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
+	VkDescriptorSetLayoutBinding& rayTracingCurrentFrameDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT1_CURRENT_FRAME_BINDING_LOCATION];
+	rayTracingCurrentFrameDescriptorSetLayoutBinding.binding = RT1_CURRENT_FRAME_BINDING_LOCATION;
+	rayTracingCurrentFrameDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	rayTracingCurrentFrameDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingCurrentFrameDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingCurrentFrameDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
 	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo0 = rtpd->descriptorSetLayoutInfos[0];
 	descriptorSetLayoutInfo0.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptorSetLayoutInfo0.pNext = NULL;
@@ -722,7 +729,7 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	vkApp.CreateDeviceBuffer(rtpd->shaderBindingTableBufferSize, (void*)(rtpd->shaderGroupHandles.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &rtpd->shaderBindingTableBuffer, &rtpd->shaderBindindTableBufferMemory);
 }
 
-void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkImageView& rayTracingPositionImageView, VkImageView& rayTracingNormalImageView, VkSampler& sampler, VkImageView& rayTracingAOImageView, RayTracingPipelineData* rtpd)
+void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkImageView& rayTracingPositionImageView, VkImageView& rayTracingNormalImageView, VkSampler& sampler, VkImageView& rayTracingAOImageView, VkBuffer currentFrameBuffer, RayTracingPipelineData* rtpd)
 {
 	//Descriptor sets
 	rtpd->descriptorSets.resize(rtpd->numDescriptorSets);
@@ -808,6 +815,23 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     rayTracingAOImageWrite.pBufferInfo = NULL;
     rayTracingAOImageWrite.pTexelBufferView = NULL;
     
+    VkDescriptorBufferInfo descriptorRayTracingCurrentFrameInfo = {};
+    descriptorRayTracingCurrentFrameInfo.buffer = currentFrameBuffer;
+    descriptorRayTracingCurrentFrameInfo.offset = 0;
+    descriptorRayTracingCurrentFrameInfo.range = VK_WHOLE_SIZE;
+    
+    VkWriteDescriptorSet& rayTracingCurrentFrameWrite = descriptorSet0Writes[RT1_CURRENT_FRAME_BINDING_LOCATION];
+    rayTracingCurrentFrameWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingCurrentFrameWrite.pNext = NULL;
+    rayTracingCurrentFrameWrite.dstSet = descriptorSet0;
+    rayTracingCurrentFrameWrite.dstBinding = RT1_CURRENT_FRAME_BINDING_LOCATION;
+    rayTracingCurrentFrameWrite.dstArrayElement = 0;
+    rayTracingCurrentFrameWrite.descriptorCount = 1;
+    rayTracingCurrentFrameWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    rayTracingCurrentFrameWrite.pImageInfo = NULL;
+    rayTracingCurrentFrameWrite.pBufferInfo = &descriptorRayTracingCurrentFrameInfo;
+    rayTracingCurrentFrameWrite.pTexelBufferView = NULL;
+    
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet0Writes.size(), descriptorSet0Writes.data(), 0, NULL);
 }
 
@@ -882,6 +906,14 @@ void Raytrace(const char* brhanFile)
 	VkBuffer lightsBuffer;
 	VkDeviceMemory lightsBufferMemory;
 	vkApp.CreateHostVisibleBuffer(lightsBufferSize, (void*)(lights.data()), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &lightsBuffer, &lightsBufferMemory);
+	
+	////////////////////////////
+	///////FRAME COUNTER////////
+	////////////////////////////
+	VkDeviceSize currentFrameBufferSize = sizeof(uint32_t);
+	VkBuffer currentFrameBuffer;
+	VkDeviceMemory currentFrameBufferMemory;
+	vkApp.CreateHostVisibleBuffer(currentFrameBufferSize, (void*)(&vkApp.currentFrame), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &currentFrameBuffer, &currentFrameBufferMemory);
 	
 	////////////////////////////
 	/////////OTHER DATA/////////
@@ -1105,7 +1137,7 @@ void Raytrace(const char* brhanFile)
 	
 	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
 	
-	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, &rtpdAO);
+	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, &rtpdAO);
     
     ////////////////////////////
 	/////GRAPHICS PIPELINE//////
@@ -1550,6 +1582,7 @@ void Raytrace(const char* brhanFile)
 		// Update
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
+		vkApp.UpdateHostVisibleBuffer(currentFrameBufferSize, &vkApp.currentFrame, currentFrameBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
 		
 		// Update the transformation for each mesh
