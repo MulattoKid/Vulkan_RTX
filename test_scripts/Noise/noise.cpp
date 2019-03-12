@@ -13,8 +13,9 @@ constexpr int32_t IMAGE_WIDTH = 1024;
 constexpr int32_t IMAGE_HEIGHT = 1024;
 
 constexpr int32_t NUM_DIMENSIONS = 2;
-constexpr int32_t NUM_SAMPLES = 8 * 8;
+constexpr int32_t NUM_SAMPLES = 64;
 constexpr int32_t NUM_CANDIDATES_M = 1;
+constexpr int32_t NUM_FRAMES = 3;
 
 constexpr float TWO_PI = 6.2831853071795865f;
 constexpr float GOLDEN_ANGLE = 2.3999632297286533f;
@@ -131,6 +132,155 @@ void BlueNoise(uchar_t* data)
   	}
 }
 
+void BlueNoiseAnimate(uchar_t* data)
+{
+	printf("Blue noise animation...\n");
+	SamplePoint samplePoints[NUM_SAMPLES * NUM_FRAMES];
+	std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
+  	std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+  	
+  	// Generate first sample
+  	samplePoints[0].x = int32_t(IMAGE_WIDTH * distribution(generator));
+  	samplePoints[0].y = int32_t(IMAGE_HEIGHT * distribution(generator));
+  	
+  	// Generate remaining samples for frame 0
+  	for (int32_t s = 1; s < NUM_SAMPLES; s++)
+  	{
+  		const int32_t numCandidates = s * NUM_CANDIDATES_M + 1;
+  		
+  		int32_t furthestDistanceGlobal = std::numeric_limits<int32_t>::min();
+  		int32_t x, y, closestDistanceLocal;
+  		for (int32_t c = 0; c < numCandidates; c++)
+  		{
+		  	x = int32_t(IMAGE_WIDTH * distribution(generator));
+		  	y = int32_t(IMAGE_HEIGHT * distribution(generator));
+		  	
+	  		closestDistanceLocal = std::numeric_limits<int32_t>::max();
+	  		int32_t distanceX, distanceY, distance;
+		  	for (int32_t i = 0; i < s; i++)
+		  	{
+		  		// Takes wrapping-distance into account
+		  		distanceX = std::min(IMAGE_WIDTH - std::abs(samplePoints[i].x - x),
+		  									 std::abs(samplePoints[i].x - x));
+			  	distanceY = std::min(IMAGE_HEIGHT - std::abs(samplePoints[i].y - y),
+			  								 std::abs(samplePoints[i].y - y));
+			  	// Avoid sqrt as the actual distance is irrelevant.
+			  	// I only care about the largest distance and sqrt doesn't change that.
+			  	distance = distanceX * distanceX + distanceY * distanceY;
+			  	if (distance < closestDistanceLocal)
+			  	{
+			  		closestDistanceLocal = distance;
+			  	}
+		  	}
+		  	
+		  	if (closestDistanceLocal > furthestDistanceGlobal)
+		  	{
+		  		samplePoints[s].x = x;
+		  		samplePoints[s].y = y;
+		  		furthestDistanceGlobal = closestDistanceLocal;
+		  		
+  				if (s >= NUM_SAMPLES / 2)
+  				{
+  					int32_t offset = (NUM_SAMPLES / 2);
+			  		samplePoints[offset + s].x = x;
+			  		samplePoints[offset + s].y = y;
+  				}
+		  	}
+  		}
+  	}
+  	
+  	// Generate samples for remaining frames
+  	for (int32_t f = 1; f < NUM_FRAMES; f++)
+  	{
+	  	int32_t frameOffset = f * NUM_SAMPLES;
+  		for (int32_t s = NUM_SAMPLES / 2; s < NUM_SAMPLES; s++)
+	  	{
+	  		const int32_t numCandidates = s * NUM_CANDIDATES_M + 1;
+	  		
+	  		int32_t furthestDistanceGlobal = std::numeric_limits<int32_t>::min();
+	  		int32_t x, y, closestDistanceLocal;
+	  		for (int32_t c = 0; c < numCandidates; c++)
+	  		{
+			  	x = int32_t(IMAGE_WIDTH * distribution(generator));
+			  	y = int32_t(IMAGE_HEIGHT * distribution(generator));
+			  	
+		  		closestDistanceLocal = std::numeric_limits<int32_t>::max();
+		  		int32_t distanceX, distanceY, distance;
+			  	for (int32_t i = 0; i < s; i++)
+			  	{
+			  		// Takes wrapping-distance into account
+			  		distanceX = std::min(IMAGE_WIDTH - std::abs(samplePoints[frameOffset + i].x - x),
+			  									 std::abs(samplePoints[frameOffset + i].x - x));
+				  	distanceY = std::min(IMAGE_HEIGHT - std::abs(samplePoints[frameOffset + i].y - y),
+				  								 std::abs(samplePoints[frameOffset + i].y - y));
+				  	// Avoid sqrt as the actual distance is irrelevant.
+				  	// I only care about the largest distance and sqrt doesn't change that.
+				  	distance = distanceX * distanceX + distanceY * distanceY;
+				  	if (distance < closestDistanceLocal)
+				  	{
+				  		closestDistanceLocal = distance;
+				  	}
+			  	}
+			  	
+			  	if (closestDistanceLocal > furthestDistanceGlobal)
+			  	{
+			  		samplePoints[frameOffset + s].x = x;
+			  		samplePoints[frameOffset + s].y = y;
+			  		furthestDistanceGlobal = closestDistanceLocal;
+			  		
+	  				if ((s >= NUM_SAMPLES / 2) && (f + 1 < NUM_FRAMES))
+	  				{
+	  					int32_t offset = (NUM_SAMPLES / 2) - 1;
+				  		samplePoints[frameOffset + offset + s].x = x;
+				  		samplePoints[frameOffset + offset + s].y = y;
+	  				}
+			  	}
+	  		}
+	  	}
+  	}
+  	
+#if PRINT
+  	// Print samples
+  	printf("BLUE NOISE ANIMATE =\n{\n");
+  	for (int32_t f = 0; f < NUM_FRAMES; f++)
+  	{
+  		int32_t frameOffset = NUM_SAMPLES * f;
+  		printf("    {\n");
+  		for (int32_t s = 0; s < NUM_SAMPLES; s++)
+	  	{
+	  		printf("        {%f, %f},\n", float(samplePoints[frameOffset + s].x) / float(IMAGE_WIDTH), float(samplePoints[frameOffset + s].y) / float(IMAGE_HEIGHT));
+	  	}
+	  	printf("    }\n");
+  	}
+	printf("}\n");
+#endif
+  	
+  	// Just for outlining the picture border
+  	for (int32_t f = 0; f < NUM_FRAMES; f++)
+  	{
+	  	int32_t frameOffset = IMAGE_WIDTH * IMAGE_HEIGHT * f;
+  		for (int y = 0; y < IMAGE_HEIGHT; y++)
+	  	{
+	  		for (int x = 0; x < IMAGE_WIDTH; x++)
+	  		{
+	  			data[frameOffset + (y * IMAGE_WIDTH + x)] = 64;
+	  		}
+	  	}
+  	}
+  	// Color samples
+  	for (int32_t f = 0; f < NUM_FRAMES; f++)
+  	{
+  		int32_t frameOffsetSamples = NUM_SAMPLES * f;
+	  	int32_t frameOffsetData = IMAGE_WIDTH * IMAGE_HEIGHT * f;
+  		for (int32_t s = 0; s < NUM_SAMPLES; s++)
+	  	{
+	  		int32_t sampleIdx = frameOffsetSamples + s;
+	  		int32_t dataIdx = frameOffsetData + (samplePoints[sampleIdx].y * IMAGE_WIDTH + samplePoints[sampleIdx].x);
+	  		data[dataIdx] = 255;
+	  	}
+  	}
+}
+
 // http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/#GeneralizingGoldenRatio
 void GoldenRatio(uchar_t* data)
 {
@@ -203,7 +353,7 @@ void FibonacciSpiral2D(uchar_t* data)
 	
 #if PRINT
 	// Print samples
-  	printf(" FIBONACCI SPIRAL 2D =\n{\n");
+  	printf("FIBONACCI SPIRAL 2D =\n{\n");
   	for (int32_t i = 0; i < NUM_SAMPLES; i++)
   	{
   		printf("    {%f, %f},\n", float(samplePoints[i].x) / float(IMAGE_WIDTH), float(samplePoints[i].y) / float(IMAGE_HEIGHT));
@@ -251,7 +401,9 @@ void FibonacciSpiral3D(uchar_t* data)
 
 int main(int argc, char** argv)
 {
-	uchar_t* data = new uchar_t[IMAGE_WIDTH * IMAGE_HEIGHT];
+	// Includes enough memory for animation, but that is only
+	// used by BlueNoiseAnimate
+	uchar_t* data = new uchar_t[IMAGE_WIDTH * IMAGE_HEIGHT * NUM_FRAMES];
 	
 	WhiteNoise(data);
 	int res =  stbi_write_bmp("white_noise.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
@@ -260,6 +412,15 @@ int main(int argc, char** argv)
 	BlueNoise(data);
 	res =  stbi_write_bmp("blue_noise.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
 	assert(res != 0);
+	
+	BlueNoiseAnimate(data);
+	for (int32_t i = 0; i < NUM_FRAMES; i++)
+	{
+		std::string frameName = "blue_noise_animate_f" + std::to_string(i) + ".bmp";
+		int32_t frameOffset = IMAGE_WIDTH * IMAGE_HEIGHT * i;
+		res =  stbi_write_bmp(frameName.c_str(), IMAGE_WIDTH, IMAGE_HEIGHT, 1, data + frameOffset);
+		assert(res != 0);
+	}
 	
 	GoldenRatio(data);
 	res =  stbi_write_bmp("golden_ratio.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
