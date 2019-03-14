@@ -679,6 +679,13 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	rayTracingCurrentFrameDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	rayTracingCurrentFrameDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
+	VkDescriptorSetLayoutBinding& rayTracingBlueNoiseImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT1_BLUE_NOISE_IMAGE_BINDING_LOCATION];
+	rayTracingBlueNoiseImageDescriptorSetLayoutBinding.binding = RT1_BLUE_NOISE_IMAGE_BINDING_LOCATION;
+	rayTracingBlueNoiseImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	rayTracingBlueNoiseImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingBlueNoiseImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingBlueNoiseImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
 	VkDescriptorSetLayoutCreateInfo& descriptorSetLayoutInfo0 = rtpd->descriptorSetLayoutInfos[0];
 	descriptorSetLayoutInfo0.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptorSetLayoutInfo0.pNext = NULL;
@@ -729,7 +736,7 @@ void CreateRayTracingAOPipelineAndData(VulkanApp& vkApp, RayTracingPipelineData*
 	vkApp.CreateDeviceBuffer(rtpd->shaderBindingTableBufferSize, (void*)(rtpd->shaderGroupHandles.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &rtpd->shaderBindingTableBuffer, &rtpd->shaderBindindTableBufferMemory);
 }
 
-void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkImageView& rayTracingPositionImageView, VkImageView& rayTracingNormalImageView, VkSampler& sampler, VkImageView& rayTracingAOImageView, VkBuffer currentFrameBuffer, RayTracingPipelineData* rtpd)
+void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkImageView& rayTracingPositionImageView, VkImageView& rayTracingNormalImageView, VkSampler& positionNormalSampler, VkImageView& rayTracingAOImageView, VkBuffer currentFrameBuffer, VkImageView& rayTracingBlueNoiseImageView, VkSampler& blueNoiseSampler, RayTracingPipelineData* rtpd)
 {
 	//Descriptor sets
 	rtpd->descriptorSets.resize(rtpd->numDescriptorSets);
@@ -765,7 +772,7 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     accelerationStructureWrite.pTexelBufferView = NULL;
     
     VkDescriptorImageInfo descriptorRayTracingPositionImageInfo = {};
-    descriptorRayTracingPositionImageInfo.sampler = sampler;
+    descriptorRayTracingPositionImageInfo.sampler = positionNormalSampler;
     descriptorRayTracingPositionImageInfo.imageView = rayTracingPositionImageView;
     descriptorRayTracingPositionImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
@@ -782,7 +789,7 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     rayTracingPositionImageWrite.pTexelBufferView = NULL;
     
     VkDescriptorImageInfo descriptorRayTracingNormalImageInfo = {};
-    descriptorRayTracingNormalImageInfo.sampler = sampler;
+    descriptorRayTracingNormalImageInfo.sampler = positionNormalSampler;
     descriptorRayTracingNormalImageInfo.imageView = rayTracingNormalImageView;
     descriptorRayTracingNormalImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     
@@ -831,6 +838,23 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     rayTracingCurrentFrameWrite.pImageInfo = NULL;
     rayTracingCurrentFrameWrite.pBufferInfo = &descriptorRayTracingCurrentFrameInfo;
     rayTracingCurrentFrameWrite.pTexelBufferView = NULL;
+    
+    VkDescriptorImageInfo descriptorRayTracingBlueNoiseImageInfo = {};
+    descriptorRayTracingBlueNoiseImageInfo.sampler = blueNoiseSampler;
+    descriptorRayTracingBlueNoiseImageInfo.imageView = rayTracingBlueNoiseImageView;
+    descriptorRayTracingBlueNoiseImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    
+    VkWriteDescriptorSet& rayTracingBlueNoiseImageWrite = descriptorSet0Writes[RT1_BLUE_NOISE_IMAGE_BINDING_LOCATION];
+    rayTracingBlueNoiseImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingBlueNoiseImageWrite.pNext = NULL;
+    rayTracingBlueNoiseImageWrite.dstSet = descriptorSet0;
+    rayTracingBlueNoiseImageWrite.dstBinding = RT1_BLUE_NOISE_IMAGE_BINDING_LOCATION;
+    rayTracingBlueNoiseImageWrite.dstArrayElement = 0;
+    rayTracingBlueNoiseImageWrite.descriptorCount = 1;
+    rayTracingBlueNoiseImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    rayTracingBlueNoiseImageWrite.pImageInfo = &descriptorRayTracingBlueNoiseImageInfo;
+    rayTracingBlueNoiseImageWrite.pBufferInfo = NULL;
+    rayTracingBlueNoiseImageWrite.pTexelBufferView = NULL;
     
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet0Writes.size(), descriptorSet0Writes.data(), 0, NULL);
 }
@@ -970,9 +994,10 @@ void Raytrace(const char* brhanFile)
 	////////////////////////////
 	//////////SAMPLER///////////
 	////////////////////////////
-	VkSampler nearestSampler, linearSampler;
+	VkSampler nearestSampler, linearSampler, linearRepeatSampler;
 	vkApp.CreateDefaultSampler(&nearestSampler, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 	vkApp.CreateDefaultSampler(&linearSampler, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+	vkApp.CreateDefaultSampler(&linearRepeatSampler, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 	
 	////////////////////////////
 	///ACCELERATION STRUCTURE///
@@ -1012,14 +1037,14 @@ void Raytrace(const char* brhanFile)
 	VkImage rayTracingColorImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingColorImage))
 	
-	VkMemoryRequirements rayTracingColorImageMemoryRequirements;
-	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingColorImage, &rayTracingColorImageMemoryRequirements);
-	VkMemoryAllocateInfo rayTracingColorImageAllocateInfo = {};
-	rayTracingColorImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	rayTracingColorImageAllocateInfo.allocationSize = rayTracingColorImageMemoryRequirements.size;
-	rayTracingColorImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingColorImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkMemoryRequirements imageMemoryRequirements;
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingColorImage, &imageMemoryRequirements);
+	VkMemoryAllocateInfo imageAllocateInfo = {};
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	VkDeviceMemory rayTracingColorImageMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingColorImageAllocateInfo, NULL, &rayTracingColorImageMemory))
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &rayTracingColorImageMemory))
 	vkBindImageMemory(vkApp.vkDevice, rayTracingColorImage, rayTracingColorImageMemory, 0);
 	
 	VkImageViewCreateInfo imageViewInfo;
@@ -1048,14 +1073,12 @@ void Raytrace(const char* brhanFile)
 	VkImage rayTracingPositionImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingPositionImage))
 	
-	VkMemoryRequirements rayTracingPositionImageMemoryRequirements;
-	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingPositionImage, &rayTracingPositionImageMemoryRequirements);
-	VkMemoryAllocateInfo rayTracingPositionImageAllocateInfo = {};
-	rayTracingPositionImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	rayTracingPositionImageAllocateInfo.allocationSize = rayTracingPositionImageMemoryRequirements.size;
-	rayTracingPositionImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingPositionImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingPositionImage, &imageMemoryRequirements);
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	VkDeviceMemory rayTracingPositionImageMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingPositionImageAllocateInfo, NULL, &rayTracingPositionImageMemory))
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &rayTracingPositionImageMemory))
 	vkBindImageMemory(vkApp.vkDevice, rayTracingPositionImage, rayTracingPositionImageMemory, 0);
     
     imageViewInfo.image = rayTracingPositionImage;
@@ -1073,14 +1096,12 @@ void Raytrace(const char* brhanFile)
 	VkImage rayTracingNormalImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingNormalImage))
 	
-	VkMemoryRequirements rayTracingNormalImageMemoryRequirements;
-	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingNormalImage, &rayTracingNormalImageMemoryRequirements);
-	VkMemoryAllocateInfo rayTracingNormalImageAllocateInfo = {};
-	rayTracingNormalImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	rayTracingNormalImageAllocateInfo.allocationSize = rayTracingNormalImageMemoryRequirements.size;
-	rayTracingNormalImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingNormalImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingNormalImage, &imageMemoryRequirements);
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	VkDeviceMemory rayTracingNormalImageMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingNormalImageAllocateInfo, NULL, &rayTracingNormalImageMemory))
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &rayTracingNormalImageMemory))
 	vkBindImageMemory(vkApp.vkDevice, rayTracingNormalImage, rayTracingNormalImageMemory, 0);
     
     imageViewInfo.image = rayTracingNormalImage;
@@ -1093,20 +1114,17 @@ void Raytrace(const char* brhanFile)
     
     //Ray tracing AO image
     VkExtent3D aoImageExtent = { vkApp.vkSurfaceExtent.width / 2, vkApp.vkSurfaceExtent.height / 2, 1 };
-    //VkExtent3D aoImageExtent = { vkApp.vkSurfaceExtent.width * 0.75f, vkApp.vkSurfaceExtent.height * 0.75f, 1 };
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	imageInfo.extent = aoImageExtent;
 	VkImage rayTracingAOImage;
 	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingAOImage))
 	
-	VkMemoryRequirements rayTracingAOImageMemoryRequirements;
-	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingAOImage, &rayTracingAOImageMemoryRequirements);
-	VkMemoryAllocateInfo rayTracingAOImageAllocateInfo = {};
-	rayTracingAOImageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	rayTracingAOImageAllocateInfo.allocationSize = rayTracingAOImageMemoryRequirements.size;
-	rayTracingAOImageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(rayTracingAOImageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingAOImage, &imageMemoryRequirements);
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	VkDeviceMemory rayTracingAOImageMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &rayTracingAOImageAllocateInfo, NULL, &rayTracingAOImageMemory))
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &rayTracingAOImageMemory))
 	vkBindImageMemory(vkApp.vkDevice, rayTracingAOImage, rayTracingAOImageMemory, 0);
     
     imageViewInfo.image = rayTracingAOImage;
@@ -1117,13 +1135,17 @@ void Raytrace(const char* brhanFile)
     //Transition ray tracing AO image layout
 	vkApp.TransitionImageLayoutSingle(rayTracingAOImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
 	
+	// Blue noise rotation image
+	VulkanTexture blueNoiseTexture;
+	vkApp.CreateTexture("data/textures/BlueNoise64x64@2048.bmp", VK_FORMAT_R8_UNORM, &blueNoiseTexture);
+	
 	//Descriptor pool
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 2 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1137,7 +1159,7 @@ void Raytrace(const char* brhanFile)
 	
 	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
 	
-	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, &rtpdAO);
+	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, blueNoiseTexture.imageView, linearRepeatSampler, &rtpdAO);
     
     ////////////////////////////
 	/////GRAPHICS PIPELINE//////

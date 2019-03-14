@@ -964,6 +964,8 @@ void VulkanApp::CreateTexture(const char* filename, VkFormat format, VulkanTextu
 	imageViewInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewInfo.subresourceRange.layerCount = 1;
 	CHECK_VK_RESULT(vkCreateImageView(vkDevice, &imageViewInfo, NULL, &texture->imageView))
+	
+	printf("Created texture with dimensions %ux%u for image %s using %lu bytes\n", width, height, filename, imageMemoryRequirements.size);
 }
 
 VulkanTexture::~VulkanTexture()

@@ -1,21 +1,12 @@
 #ifndef SHADER_SAMPLE_H
 #define SHADER_SAMPLE_H
 
+#include "Geometric.glsl"
+
 #define PI 3.1415926535897932f
 #define TWO_PI 6.2831853071795865f
 #define ONE_OVER_TWO_PI 0.1591549430918953f
 #define GOLDEN_ANGLE 2.3999632297286533f
-
-// https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-mat3 RotationToAlignAToB(vec3 a, vec3 b)
-{
-	vec3 v = cross(a, b);
-	mat3 m = mat3(vec3(0.0f, v[2], -v[1]), vec3(-v[2], 0.0f, v[0]), vec3(v[1], -v[0], 0.0f));
-	float s = length(v);
-	float c = dot(a, b);
-	mat3 rotation = mat3(1.0f) + m + ((m * m) * ((1.0f - c) / (s * s)));
-	return rotation;
-}
 
 float SameHemisphere(vec3 a, vec3 b)
 {

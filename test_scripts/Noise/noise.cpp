@@ -5,15 +5,15 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#define PRINT 1
+#define PRINT 0
 
 typedef unsigned char uchar_t;
 
-constexpr int32_t IMAGE_WIDTH = 1024;
-constexpr int32_t IMAGE_HEIGHT = 1024;
+constexpr int32_t IMAGE_WIDTH = 64;
+constexpr int32_t IMAGE_HEIGHT = 64;
 
 constexpr int32_t NUM_DIMENSIONS = 2;
-constexpr int32_t NUM_SAMPLES = 64;
+constexpr int32_t NUM_SAMPLES = 2048;
 constexpr int32_t NUM_CANDIDATES_M = 1;
 constexpr int32_t NUM_FRAMES = 3;
 
@@ -413,14 +413,14 @@ int main(int argc, char** argv)
 	res =  stbi_write_bmp("blue_noise.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
 	assert(res != 0);
 	
-	BlueNoiseAnimate(data);
+	/*BlueNoiseAnimate(data);
 	for (int32_t i = 0; i < NUM_FRAMES; i++)
 	{
 		std::string frameName = "blue_noise_animate_f" + std::to_string(i) + ".bmp";
 		int32_t frameOffset = IMAGE_WIDTH * IMAGE_HEIGHT * i;
 		res =  stbi_write_bmp(frameName.c_str(), IMAGE_WIDTH, IMAGE_HEIGHT, 1, data + frameOffset);
 		assert(res != 0);
-	}
+	}*/
 	
 	GoldenRatio(data);
 	res =  stbi_write_bmp("golden_ratio.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
