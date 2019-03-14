@@ -6,4 +6,4 @@ debug:
 
 .PHONY : clean
 clean:
-	rm noise
+	rm rotate

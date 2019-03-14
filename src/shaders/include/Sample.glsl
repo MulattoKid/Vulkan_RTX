@@ -1,12 +1,8 @@
 #ifndef SHADER_SAMPLE_H
 #define SHADER_SAMPLE_H
 
+#include "Defines.glsl"
 #include "Geometric.glsl"
-
-#define PI 3.1415926535897932f
-#define TWO_PI 6.2831853071795865f
-#define ONE_OVER_TWO_PI 0.1591549430918953f
-#define GOLDEN_ANGLE 2.3999632297286533f
 
 float SameHemisphere(vec3 a, vec3 b)
 {

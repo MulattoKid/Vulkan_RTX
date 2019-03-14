@@ -9,13 +9,11 @@
 #include "Sample.glsl"
 #include "Sphere.glsl"
 
-#define ONE_OVER_PI 0.3183098861837907f
-
 // Sample points to use
 #define REGULAR_SAMPLES 0
 #define BLUE_NOISE 1
-#define GOLDEN_RATIO 0
-#define FIBONACCI_SPIRAL 0
+#define GOLDEN_RATIO_SAMPLE 0
+#define FIBONACCI_SPIRAL_SAMPLE 0
 
 // Sample method
 #define SAMPLE_UNIFORM 0
@@ -99,7 +97,7 @@ SamplePoint samplePoints[64] =
     {0.951172, 0.585938},
     {0.228516, 0.346680},
     {0.292969, 0.080078}
-#elif GOLDEN_RATIO
+#elif GOLDEN_RATIO_SAMPLE
 	{0.253906, 0.069336},
     {0.008789, 0.639648},
     {0.763672, 0.208984},
@@ -164,7 +162,7 @@ SamplePoint samplePoints[64] =
     {0.301758, 0.830078},
     {0.056641, 0.399414},
     {0.811523, 0.969727}
-#elif FIBONACCI_SPIRAL //0=theta, 1=phi
+#elif FIBONACCI_SPIRAL_SAMPLE //0=theta, 1=phi
 	{0.088853, 2.399963},
     {0.154306, 4.799926},
     {0.199744, 7.199889},
@@ -328,6 +326,7 @@ void main()
 	// Sample degree of rotation
 	vec2 blueNoiseUV = gl_LaunchIDNV.xy / vec2(BLUE_NOISE_IMAGE_SIZE);
 	float blueNoiseRotationAngle = texture(blueNoiseImage, blueNoiseUV).r;
+	blueNoiseRotationAngle = fract(blueNoiseRotationAngle + GOLDEN_RATIO * float(currentFrame));
 	int sampleCenterX = numOcclusionSamples / 2;
 	int sampleCenterY = numOcclusionSamples / 2;
 #endif
@@ -388,9 +387,9 @@ void main()
 #if SAMPLE_COSINE
 #if BLUE_NOISE
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
-#elif FIBONACCI_SPIRAL
+#elif FIBONACCI_SPIRAL_SAMPLE
 			vec3 occlusionRayDir = SampleHemisphereFibonacciSpiral(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
-#elif GOLDEN_RATIO
+#elif GOLDEN_RATIO_SAMPLE
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
 #else // REGULAR_SAMPLES
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(maxOcclusionStepIndex), idx / float(totalOcclusionSamples)));
@@ -398,9 +397,9 @@ void main()
 #else //SAMPLE_UNIFORM
 #if BLUE_NOISE
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
-#elif FIBONACCI_SPIRAL
+#elif FIBONACCI_SPIRAL_SAMPLE
 			vec3 occlusionRayDir = SampleHemisphereFibonacciSpiral(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
-#elif GOLDEN_RATIO
+#elif GOLDEN_RATIO_SAMPLE
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
 #else // REGULAR_SAMPLES
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(maxOcclusionStepIndex), idx / float(totalOcclusionSamples)));
