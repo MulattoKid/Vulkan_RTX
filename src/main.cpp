@@ -260,13 +260,6 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	rayTracingColorImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	rayTracingColorImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
-	VkDescriptorSetLayoutBinding& rayTracingMotionVectorImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION];
-	rayTracingMotionVectorImageDescriptorSetLayoutBinding.binding = RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION;
-	rayTracingMotionVectorImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	rayTracingMotionVectorImageDescriptorSetLayoutBinding.descriptorCount = 1;
-	rayTracingMotionVectorImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
-	rayTracingMotionVectorImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
-	
 	VkDescriptorSetLayoutBinding& rayTracingPositionImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_POSITION_IMAGE_BINDING_LOCATION];
 	rayTracingPositionImageDescriptorSetLayoutBinding.binding = RT0_POSITION_IMAGE_BINDING_LOCATION;
 	rayTracingPositionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -382,7 +375,7 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	vkApp.CreateDeviceBuffer(rtpd->shaderBindingTableBufferSize, (void*)(rtpd->shaderGroupHandles.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &rtpd->shaderBindingTableBuffer, &rtpd->shaderBindindTableBufferMemory);
 }
 
-void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingColorImageView, VkImageView& rayTracingMotionVectorImageView, VkImageView& rayTracingPositionImageView, VkImageView rayTracingNormalImageView, RayTracingPipelineData* rtpd)
+void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingColorImageView, VkImageView& rayTracingPositionImageView, VkImageView rayTracingNormalImageView, RayTracingPipelineData* rtpd)
 {
 	//Descriptor sets
 	rtpd->descriptorSets.resize(rtpd->numDescriptorSets);
@@ -433,23 +426,6 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     rayTracingColorImageWrite.pImageInfo = &descriptorRayTracingColorImageInfo;
     rayTracingColorImageWrite.pBufferInfo = NULL;
     rayTracingColorImageWrite.pTexelBufferView = NULL;
-    
-    VkDescriptorImageInfo descriptorRayTracingMotionVectorImageInfo = {};
-    descriptorRayTracingMotionVectorImageInfo.sampler = VK_NULL_HANDLE;
-    descriptorRayTracingMotionVectorImageInfo.imageView = rayTracingMotionVectorImageView;
-    descriptorRayTracingMotionVectorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    
-    VkWriteDescriptorSet& rayTracingMotionVectorImageWrite = descriptorSet0Writes[RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION];
-    rayTracingMotionVectorImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    rayTracingMotionVectorImageWrite.pNext = NULL;
-    rayTracingMotionVectorImageWrite.dstSet = descriptorSet0;
-    rayTracingMotionVectorImageWrite.dstBinding = RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION;
-    rayTracingMotionVectorImageWrite.dstArrayElement = 0;
-    rayTracingMotionVectorImageWrite.descriptorCount = 1;
-    rayTracingMotionVectorImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    rayTracingMotionVectorImageWrite.pImageInfo = &descriptorRayTracingMotionVectorImageInfo;
-    rayTracingMotionVectorImageWrite.pBufferInfo = NULL;
-    rayTracingMotionVectorImageWrite.pTexelBufferView = NULL;
     
     VkDescriptorImageInfo descriptorRayTracingPositionImageInfo = {};
     descriptorRayTracingPositionImageInfo.sampler = VK_NULL_HANDLE;
@@ -1097,29 +1073,6 @@ void Raytrace(const char* brhanFile)
     //Transition ray tracing COLOR image layout
 	vkApp.TransitionImageLayoutSingle(rayTracingColorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
     
-    //Ray tracing MOTION VECTOR image
-	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
-	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
-	VkImage rayTracingMotionVectorImage;
-	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingMotionVectorImage))
-	
-	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingMotionVectorImage, &imageMemoryRequirements);
-	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
-	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	VkDeviceMemory rayTracingMotionVectorImageMemory;
-	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &rayTracingMotionVectorImageMemory))
-	vkBindImageMemory(vkApp.vkDevice, rayTracingMotionVectorImage, rayTracingMotionVectorImageMemory, 0);
-    
-    imageViewInfo.image = rayTracingMotionVectorImage;
-    imageViewInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	VkImageView rayTracingMotionVectorImageView;
-    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &rayTracingMotionVectorImageView))
-    
-    //Transition ray tracing POSITION image layout
-	vkApp.TransitionImageLayoutSingle(rayTracingMotionVectorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
-    
     //Ray tracing POSITION image
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
@@ -1199,7 +1152,7 @@ void Raytrace(const char* brhanFile)
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 2 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
@@ -1212,7 +1165,7 @@ void Raytrace(const char* brhanFile)
 	VkDescriptorPool descriptorPool;
 	CHECK_VK_RESULT(vkCreateDescriptorPool(vkApp.vkDevice, &descriptorPoolInfo, NULL, &descriptorPool))
 	
-	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingMotionVectorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
+	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
 	
 	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, blueNoiseTexture.imageView, nearestRepeatSampler, &rtpdAO);
     
@@ -1366,20 +1319,20 @@ void Raytrace(const char* brhanFile)
 	colorBlendInfo.blendConstants[3] = 0.0f;
 
 	// Descriptors setup
-	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsRenderPass0(3);
-	VkDescriptorSetLayoutBinding& rayTracingImageBinding = descriptorSetLayoutBindingsRenderPass0[0];
+	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsRenderPass(3);
+	VkDescriptorSetLayoutBinding& rayTracingImageBinding = descriptorSetLayoutBindingsRenderPass[0];
 	rayTracingImageBinding.binding = 0;
 	rayTracingImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	rayTracingImageBinding.descriptorCount = 1;
 	rayTracingImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	rayTracingImageBinding.pImmutableSamplers = NULL;
-	VkDescriptorSetLayoutBinding& rayTracingOcclusionImageBinding = descriptorSetLayoutBindingsRenderPass0[1];
-	rayTracingOcclusionImageBinding.binding = 1;
-	rayTracingOcclusionImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	rayTracingOcclusionImageBinding.descriptorCount = 1;
-	rayTracingOcclusionImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	rayTracingOcclusionImageBinding.pImmutableSamplers = NULL;
-	VkDescriptorSetLayoutBinding& blurUniformBinding = descriptorSetLayoutBindingsRenderPass0[2];
+	VkDescriptorSetLayoutBinding& rayTracingAOImageBinding = descriptorSetLayoutBindingsRenderPass[1];
+	rayTracingAOImageBinding.binding = 1;
+	rayTracingAOImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	rayTracingAOImageBinding.descriptorCount = 1;
+	rayTracingAOImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	rayTracingAOImageBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& blurUniformBinding = descriptorSetLayoutBindingsRenderPass[2];
 	blurUniformBinding.binding = 2;
 	blurUniformBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	blurUniformBinding.descriptorCount = 1;
@@ -1390,21 +1343,21 @@ void Raytrace(const char* brhanFile)
 	descriptorSetInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptorSetInfoGraphics.pNext = NULL;
 	descriptorSetInfoGraphics.flags = 0;
-	descriptorSetInfoGraphics.bindingCount = descriptorSetLayoutBindingsRenderPass0.size();
-	descriptorSetInfoGraphics.pBindings = descriptorSetLayoutBindingsRenderPass0.data();
-	VkDescriptorSetLayout descriptorSetLayoutGraphicsRenderPass0;
-	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetInfoGraphics, NULL, &descriptorSetLayoutGraphicsRenderPass0))
+	descriptorSetInfoGraphics.bindingCount = descriptorSetLayoutBindingsRenderPass.size();
+	descriptorSetInfoGraphics.pBindings = descriptorSetLayoutBindingsRenderPass.data();
+	VkDescriptorSetLayout descriptorSetLayoutGraphicsRenderPass;
+	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetInfoGraphics, NULL, &descriptorSetLayoutGraphicsRenderPass))
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfoGraphics = {};
 	pipelineLayoutInfoGraphics.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfoGraphics.pNext = NULL;
 	pipelineLayoutInfoGraphics.flags = 0;
 	pipelineLayoutInfoGraphics.setLayoutCount = 1;
-	pipelineLayoutInfoGraphics.pSetLayouts = &descriptorSetLayoutGraphicsRenderPass0;
+	pipelineLayoutInfoGraphics.pSetLayouts = &descriptorSetLayoutGraphicsRenderPass;
 	pipelineLayoutInfoGraphics.pushConstantRangeCount = 0;
 	pipelineLayoutInfoGraphics.pPushConstantRanges = NULL;
-	VkPipelineLayout pipelineLayoutGraphicsRenderPass0;
-	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsRenderPass0))
+	VkPipelineLayout pipelineLayoutGraphicsRenderPass;
+	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsRenderPass))
 	
 	std::vector<VkDescriptorPoolSize> poolSizesGraphics = {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
@@ -1425,7 +1378,7 @@ void Raytrace(const char* brhanFile)
 	descriptorSetGraphicsAllocateInfo.pNext = NULL;
 	descriptorSetGraphicsAllocateInfo.descriptorPool = descriptorPoolGraphics;
 	descriptorSetGraphicsAllocateInfo.descriptorSetCount = 1;
-	descriptorSetGraphicsAllocateInfo.pSetLayouts = &descriptorSetLayoutGraphicsRenderPass0;
+	descriptorSetGraphicsAllocateInfo.pSetLayouts = &descriptorSetLayoutGraphicsRenderPass;
 	VkDescriptorSet descriptorSetGraphicsRenderPass0;
 	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphicsRenderPass0))
 	
@@ -1501,8 +1454,8 @@ void Raytrace(const char* brhanFile)
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[0].inputAttachmentCount = 0;
 	subpasses[0].pInputAttachments = NULL;
-	subpasses[0].colorAttachmentCount = 1;
-	subpasses[0].pColorAttachments = &colorAttachmentRefs[0];
+	subpasses[0].colorAttachmentCount = colorAttachmentRefs.size();
+	subpasses[0].pColorAttachments = colorAttachmentRefs.data();
 	subpasses[0].pResolveAttachments = NULL;
 	subpasses[0].pDepthStencilAttachment = NULL;
 	subpasses[0].preserveAttachmentCount = 0;
@@ -1527,8 +1480,8 @@ void Raytrace(const char* brhanFile)
 	renderpassInfo.pSubpasses = subpasses.data();
 	renderpassInfo.dependencyCount = subpassDependencies.size();
 	renderpassInfo.pDependencies = subpassDependencies.data();
-	VkRenderPass renderPass0;
-	CHECK_VK_RESULT(vkCreateRenderPass(vkApp.vkDevice, &renderpassInfo, NULL, &renderPass0))
+	VkRenderPass renderPass;
+	CHECK_VK_RESULT(vkCreateRenderPass(vkApp.vkDevice, &renderpassInfo, NULL, &renderPass))
 
 	std::vector<VkGraphicsPipelineCreateInfo> graphicsPipelineInfos(1);
 	graphicsPipelineInfos[0].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -1545,16 +1498,16 @@ void Raytrace(const char* brhanFile)
 	graphicsPipelineInfos[0].pDepthStencilState = NULL;
 	graphicsPipelineInfos[0].pColorBlendState = &colorBlendInfo;
 	graphicsPipelineInfos[0].pDynamicState = NULL;
-	graphicsPipelineInfos[0].layout = pipelineLayoutGraphicsRenderPass0;
-	graphicsPipelineInfos[0].renderPass = renderPass0;
+	graphicsPipelineInfos[0].layout = pipelineLayoutGraphicsRenderPass;
+	graphicsPipelineInfos[0].renderPass = renderPass;
 	graphicsPipelineInfos[0].subpass = 0;
 	graphicsPipelineInfos[0].basePipelineHandle = VK_NULL_HANDLE;
 	std::vector<VkPipeline> graphicsPipelines(2);
 	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, graphicsPipelineInfos.size(), graphicsPipelineInfos.data(), NULL, graphicsPipelines.data()))
     
     // FRAMEBUFFERS
-	std::vector<VkFramebuffer> framebuffersRenderPass0;
-	vkApp.CreateDefaultFramebuffers(framebuffersRenderPass0, renderPass0);
+	std::vector<VkFramebuffer> framebuffersRenderPass;
+	vkApp.CreateDefaultFramebuffers(framebuffersRenderPass, renderPass);
     
 	////////////////////////////
 	///////////RECORD///////////
@@ -1618,8 +1571,8 @@ void Raytrace(const char* brhanFile)
 		VkRenderPassBeginInfo renderpassInfo = {};
 		renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderpassInfo.pNext = NULL;
-		renderpassInfo.renderPass = renderPass0;
-		renderpassInfo.framebuffer = framebuffersRenderPass0[i];
+		renderpassInfo.renderPass = renderPass;
+		renderpassInfo.framebuffer = framebuffersRenderPass[i];
 		renderpassInfo.renderArea.offset = { 0, 0 };
 		renderpassInfo.renderArea.extent = vkApp.vkSurfaceExtent;
 		renderpassInfo.clearValueCount = 1;
@@ -1628,7 +1581,7 @@ void Raytrace(const char* brhanFile)
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[renderPassID]);
 		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
 		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsRenderPass0, 0, 1, &descriptorSetGraphicsRenderPass0, 0, NULL);
+		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsRenderPass, 0, 1, &descriptorSetGraphicsRenderPass0, 0, NULL);
 		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(graphicsQueueCommandBuffers[i]);
 		
