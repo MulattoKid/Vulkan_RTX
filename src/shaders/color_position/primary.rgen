@@ -11,6 +11,7 @@
 
 layout(set = 0, binding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RT0_COLOR_IMAGE_BINDING_LOCATION, rgba8) uniform image2D colorImage;
+layout(set = 0, binding = RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D motionVectorImage;
 layout(set = 0, binding = RT0_POSITION_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D positionImage;
 layout(set = 0, binding = RT0_NORMAL_IMAGE_BINDING_LOCATION, rgba32f) uniform image2D normalImage;
 layout(set = 0, binding = RT0_CAMERA_BUFFER_BINDING_LOCATION, std140) uniform cameraBuffer
@@ -57,6 +58,7 @@ void main()
     if (lightSourceIdx > -1 && (lightSourceT < max(primaryPayload.normalAndHitDistance.w, 0.0f) || primaryPayload.normalAndHitDistance.w < 0.0f))
     {
     	imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(lights[lightSourceIdx].emittance.rgb, 1.0f));
+		imageStore(motionVectorImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		imageStore(normalImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		return;
@@ -69,6 +71,7 @@ void main()
 		const float red = mix(0.0f, 0.7f, y);
 		const float green = mix(0.65f, 0.9f, y);
 		imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(red, green, 0.8f, 1.0f));
+		imageStore(motionVectorImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		imageStore(positionImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		imageStore(normalImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
 		return;
@@ -118,6 +121,9 @@ void main()
 	color *= primaryPayload.materialColor.rgb;
 	
 	imageStore(colorImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 1.0f));
+	vec4 isectPointInPreviousFrame = camera.previousViewProjection * vec4(isectPoint, 1.0f);
+	isectPointInPreviousFrame /= isectPointInPreviousFrame.w;
+	imageStore(motionVectorImage, ivec2(gl_LaunchIDNV.xy), isectPointInPreviousFrame);
 	// NOTE: see that I store the fraction of light rays that were visible in
 	// the w component in the positionImage. It is used to avoid performing AO
 	// calculations for the entire 

@@ -2,6 +2,7 @@
 #define CAMERA_H
 
 #include "glm/vec3.hpp"
+#include "glm/mat4x4.hpp"
 
 struct Camera
 {
@@ -18,6 +19,7 @@ struct Camera
 	
 	Camera() {}
 	Camera(const unsigned int filmWidth, const unsigned int filmHeight, const float verticalFOV, const glm::vec3& origin, const glm::vec3& viewDir);
+	glm::mat4x4 GetViewProjectionMatrix();
 	void Update();
 };
 

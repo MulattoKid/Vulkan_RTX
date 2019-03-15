@@ -213,20 +213,6 @@ void VulkanApp::PickPhysicalDevice(uint32_t extensionCount, const char** extensi
 		if (PhysicalDeviceIsSuitable(devices[i], extensionCount, extensionNames))
 		{
 			vkPhysicalDevice = devices[i];
-			
-			VkPhysicalDeviceInlineUniformBlockPropertiesEXT uniformProp = {};
-			uniformProp.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_PROPERTIES_EXT;
-			uniformProp.pNext = NULL;
-			VkPhysicalDeviceProperties2 prop2 = {};
-			prop2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-			prop2.pNext = &uniformProp;
-			vkGetPhysicalDeviceProperties2(vkPhysicalDevice, &prop2);
-			
-			maxBoundDescriptorSets = prop2.properties.limits.maxBoundDescriptorSets;
-			printf("\t maxBoundDescriptorSets: %u\n", maxBoundDescriptorSets);
-			maxInlineUniformBlockSize = uniformProp.maxInlineUniformBlockSize;
-			printf("\t maxInlineUniformBlockSize: %u\n", maxInlineUniformBlockSize);
-			
 			return;
 		}
 	}

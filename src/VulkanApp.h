@@ -162,6 +162,7 @@ struct VulkanApp
 	
 	// Other data
 	Camera camera;
+	Camera previousFrameCamera;
 	double lastMouseX, lastMouseY;
 
 	//Functions

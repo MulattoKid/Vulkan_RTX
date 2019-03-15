@@ -10,6 +10,7 @@ struct CameraShader
 	vec4 topLeftCorner;
 	vec4 horizontalEnd;
 	vec4 verticalEnd;
+	mat4 previousViewProjection;
 };
 
 struct SphericalLightSource

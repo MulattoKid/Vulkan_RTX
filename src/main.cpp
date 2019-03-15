@@ -260,6 +260,13 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	rayTracingColorImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
 	rayTracingColorImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
 	
+	VkDescriptorSetLayoutBinding& rayTracingMotionVectorImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION];
+	rayTracingMotionVectorImageDescriptorSetLayoutBinding.binding = RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION;
+	rayTracingMotionVectorImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	rayTracingMotionVectorImageDescriptorSetLayoutBinding.descriptorCount = 1;
+	rayTracingMotionVectorImageDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+	rayTracingMotionVectorImageDescriptorSetLayoutBinding.pImmutableSamplers = NULL;
+	
 	VkDescriptorSetLayoutBinding& rayTracingPositionImageDescriptorSetLayoutBinding = rtpd->descriptorSetLayoutBindings[0][RT0_POSITION_IMAGE_BINDING_LOCATION];
 	rayTracingPositionImageDescriptorSetLayoutBinding.binding = RT0_POSITION_IMAGE_BINDING_LOCATION;
 	rayTracingPositionImageDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -375,7 +382,7 @@ void CreateRayTracingColorPositionPipelineAndData(VulkanApp& vkApp, RayTracingPi
 	vkApp.CreateDeviceBuffer(rtpd->shaderBindingTableBufferSize, (void*)(rtpd->shaderGroupHandles.data()), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, &rtpd->shaderBindingTableBuffer, &rtpd->shaderBindindTableBufferMemory);
 }
 
-void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingColorImageView, VkImageView& rayTracingPositionImageView, VkImageView rayTracingNormalImageView, RayTracingPipelineData* rtpd)
+void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool& descriptorPool, VulkanAccelerationStructure& accStruct, VkBuffer& cameraBuffer, VkDeviceSize& cameraBufferSize, VkBuffer& lightsBuffer, VkDeviceSize& lightsBufferSize, VkBuffer& otherDataBuffer, VkDeviceSize& otherDataBufferSize, VkBuffer& customIDToAttributeArrayIndexBuffer, VkDeviceSize& customIDToAttributeArrayIndexBufferSize, VkBuffer& perMeshAttributeBuffer, VkDeviceSize& perMeshAttributeBufferSize, VkBuffer& perVertexAttributeBuffer, VkDeviceSize& perVertexAttributeBufferSize, VkImageView& rayTracingColorImageView, VkImageView& rayTracingMotionVectorImageView, VkImageView& rayTracingPositionImageView, VkImageView rayTracingNormalImageView, RayTracingPipelineData* rtpd)
 {
 	//Descriptor sets
 	rtpd->descriptorSets.resize(rtpd->numDescriptorSets);
@@ -426,6 +433,23 @@ void CreateDescriptorSetLayoutsColorPosition(VulkanApp& vkApp, VkDescriptorPool&
     rayTracingColorImageWrite.pImageInfo = &descriptorRayTracingColorImageInfo;
     rayTracingColorImageWrite.pBufferInfo = NULL;
     rayTracingColorImageWrite.pTexelBufferView = NULL;
+    
+    VkDescriptorImageInfo descriptorRayTracingMotionVectorImageInfo = {};
+    descriptorRayTracingMotionVectorImageInfo.sampler = VK_NULL_HANDLE;
+    descriptorRayTracingMotionVectorImageInfo.imageView = rayTracingMotionVectorImageView;
+    descriptorRayTracingMotionVectorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    
+    VkWriteDescriptorSet& rayTracingMotionVectorImageWrite = descriptorSet0Writes[RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION];
+    rayTracingMotionVectorImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    rayTracingMotionVectorImageWrite.pNext = NULL;
+    rayTracingMotionVectorImageWrite.dstSet = descriptorSet0;
+    rayTracingMotionVectorImageWrite.dstBinding = RT0_MOTION_VECTOR_IMAGE_BINDING_LOCATION;
+    rayTracingMotionVectorImageWrite.dstArrayElement = 0;
+    rayTracingMotionVectorImageWrite.descriptorCount = 1;
+    rayTracingMotionVectorImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    rayTracingMotionVectorImageWrite.pImageInfo = &descriptorRayTracingMotionVectorImageInfo;
+    rayTracingMotionVectorImageWrite.pBufferInfo = NULL;
+    rayTracingMotionVectorImageWrite.pTexelBufferView = NULL;
     
     VkDescriptorImageInfo descriptorRayTracingPositionImageInfo = {};
     descriptorRayTracingPositionImageInfo.sampler = VK_NULL_HANDLE;
@@ -897,11 +921,18 @@ void Raytrace(const char* brhanFile)
 	///////////CAMERA///////////
 	////////////////////////////
 	vkApp.camera = Camera(sceneFile.filmWidth, sceneFile.filmHeight, sceneFile.cameraVerticalFOV, sceneFile.cameraOrigin, sceneFile.cameraViewDir);
+	vkApp.previousFrameCamera = vkApp.camera;
+	glm::mat4x4 previousViewProjection = vkApp.previousFrameCamera.GetViewProjectionMatrix();
 	std::vector<float> cameraData = {
 		vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z, 0.0f,
 		vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z, 0.0f,
 		vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
-		vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f
+		vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f,
+		
+		previousViewProjection[0][0], previousViewProjection[0][1], previousViewProjection[0][2], previousViewProjection[0][3],
+		previousViewProjection[1][0], previousViewProjection[1][1], previousViewProjection[1][2], previousViewProjection[1][3],
+		previousViewProjection[2][0], previousViewProjection[2][1], previousViewProjection[2][2], previousViewProjection[2][3],
+		previousViewProjection[3][0], previousViewProjection[3][1], previousViewProjection[3][2], previousViewProjection[3][3]
 	};
 	VkDeviceSize cameraBufferSize = cameraData.size() * sizeof(float);
 	VkBuffer cameraBuffer;
@@ -1066,6 +1097,29 @@ void Raytrace(const char* brhanFile)
     //Transition ray tracing COLOR image layout
 	vkApp.TransitionImageLayoutSingle(rayTracingColorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
     
+    //Ray tracing MOTION VECTOR image
+	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
+	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
+	VkImage rayTracingMotionVectorImage;
+	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &rayTracingMotionVectorImage))
+	
+	vkGetImageMemoryRequirements(vkApp.vkDevice, rayTracingMotionVectorImage, &imageMemoryRequirements);
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory rayTracingMotionVectorImageMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &rayTracingMotionVectorImageMemory))
+	vkBindImageMemory(vkApp.vkDevice, rayTracingMotionVectorImage, rayTracingMotionVectorImageMemory, 0);
+    
+    imageViewInfo.image = rayTracingMotionVectorImage;
+    imageViewInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	VkImageView rayTracingMotionVectorImageView;
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &rayTracingMotionVectorImageView))
+    
+    //Transition ray tracing POSITION image layout
+	vkApp.TransitionImageLayoutSingle(rayTracingMotionVectorImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+    
     //Ray tracing POSITION image
 	imageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
@@ -1145,7 +1199,7 @@ void Raytrace(const char* brhanFile)
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 2 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
@@ -1158,7 +1212,7 @@ void Raytrace(const char* brhanFile)
 	VkDescriptorPool descriptorPool;
 	CHECK_VK_RESULT(vkCreateDescriptorPool(vkApp.vkDevice, &descriptorPoolInfo, NULL, &descriptorPool))
 	
-	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
+	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingMotionVectorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
 	
 	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, blueNoiseTexture.imageView, nearestRepeatSampler, &rtpdAO);
     
@@ -1594,19 +1648,23 @@ void Raytrace(const char* brhanFile)
 		glfwPollEvents();
 		// Camera
 		vkApp.camera.Update();
-		//printf("O: %f %f %f\n", vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z);
-		//printf("D: %f %f %f\n", vkApp.camera.viewDir.x, vkApp.camera.viewDir.y, vkApp.camera.viewDir.z);
+		previousViewProjection = vkApp.previousFrameCamera.GetViewProjectionMatrix();
 		cameraData = {
 			vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z, 0.0f,
 			vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z, 0.0f,
 			vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
-			vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f
+			vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f,
+		
+			previousViewProjection[0][0], previousViewProjection[0][1], previousViewProjection[0][2], previousViewProjection[0][3],
+			previousViewProjection[1][0], previousViewProjection[1][1], previousViewProjection[1][2], previousViewProjection[1][3],
+			previousViewProjection[2][0], previousViewProjection[2][1], previousViewProjection[2][2], previousViewProjection[2][3],
+			previousViewProjection[3][0], previousViewProjection[3][1], previousViewProjection[3][2], previousViewProjection[3][3]
 		};
 		// Update
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
-		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(currentFrameBufferSize, &vkApp.currentFrame, currentFrameBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
+		vkApp.previousFrameCamera = vkApp.camera;
 		
 		// Update the transformation for each mesh
 		for (glm::mat4x4& transformation : transformationData)

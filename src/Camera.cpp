@@ -1,6 +1,7 @@
 #include "Camera.h"
 #include "glm/geometric.hpp"
 #include "glm/gtc/constants.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "glm/trigonometric.hpp"
 
 Camera::Camera(const unsigned int filmWidth, const unsigned int filmHeight, const float verticalFOV, const glm::vec3& origin, const glm::vec3& viewDir)
@@ -32,6 +33,14 @@ Camera::Camera(const unsigned int filmWidth, const unsigned int filmHeight, cons
 	horizontalEnd = lensWidth * right;
 	//Go height of lense along the camera's down (-up) axis
 	verticalEnd = lensHeight * (-up);
+}
+
+// https://glm.g-truc.net/0.9.4/api/a00151.html
+glm::mat4x4 Camera::GetViewProjectionMatrix()
+{
+	glm::mat4x4 view = glm::lookAt(origin, origin + viewDir, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4x4 projection = glm::perspective(verticalFOV, aspectRatio, 0.01f, 100.0f);
+	return projection * view;
 }
 
 void Camera::Update()
