@@ -1382,13 +1382,13 @@ void Raytrace(const char* brhanFile)
 	VkDescriptorSet descriptorSetGraphicsRenderPass0;
 	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphicsRenderPass0))
 	
-    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass0(3);
+    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass(3);
     // Color image
 	VkDescriptorImageInfo descriptorRayTracingColorImageInfoGraphics = {};
     descriptorRayTracingColorImageInfoGraphics.sampler = linearSampler;
     descriptorRayTracingColorImageInfoGraphics.imageView = rayTracingColorImageView;
     descriptorRayTracingColorImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[0];
+    VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWritesRenderPass[0];
     rayTracingImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     rayTracingImageWriteGraphics.pNext = NULL;
     rayTracingImageWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
@@ -1404,7 +1404,7 @@ void Raytrace(const char* brhanFile)
     descriptorRayTracingAOImageInfoGraphics.sampler = linearSampler;
     descriptorRayTracingAOImageInfoGraphics.imageView = rayTracingAOImageView;
     descriptorRayTracingAOImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesRenderPass0[1];
+    VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesRenderPass[1];
     rayTracingOcclusionImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     rayTracingOcclusionImageWriteGraphics.pNext = NULL;
     rayTracingOcclusionImageWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
@@ -1420,7 +1420,7 @@ void Raytrace(const char* brhanFile)
     blurBufferInfoGraphics.buffer = blurBuffer;
     blurBufferInfoGraphics.offset = 0;
     blurBufferInfoGraphics.range = VK_WHOLE_SIZE;
-    VkWriteDescriptorSet& blurBufferWriteGraphics = descriptorSetGraphicsWritesRenderPass0[2];
+    VkWriteDescriptorSet& blurBufferWriteGraphics = descriptorSetGraphicsWritesRenderPass[2];
     blurBufferWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     blurBufferWriteGraphics.pNext = NULL;
     blurBufferWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
@@ -1432,7 +1432,7 @@ void Raytrace(const char* brhanFile)
     blurBufferWriteGraphics.pBufferInfo = &blurBufferInfoGraphics;
     blurBufferWriteGraphics.pTexelBufferView = NULL;
     // Update render pass 0
-    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWritesRenderPass0.size(), descriptorSetGraphicsWritesRenderPass0.data(), 0, NULL);
+    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWritesRenderPass.size(), descriptorSetGraphicsWritesRenderPass.data(), 0, NULL);
 
 	std::vector<VkAttachmentDescription> attachments(1);
 	attachments[0].flags = 0;
@@ -1449,17 +1449,17 @@ void Raytrace(const char* brhanFile)
 	colorAttachmentRefs[0].attachment = 0;
 	colorAttachmentRefs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	std::vector<VkSubpassDescription> subpasses(1);
-	subpasses[0].flags = 0;
-	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpasses[0].inputAttachmentCount = 0;
-	subpasses[0].pInputAttachments = NULL;
-	subpasses[0].colorAttachmentCount = colorAttachmentRefs.size();
-	subpasses[0].pColorAttachments = colorAttachmentRefs.data();
-	subpasses[0].pResolveAttachments = NULL;
-	subpasses[0].pDepthStencilAttachment = NULL;
-	subpasses[0].preserveAttachmentCount = 0;
-	subpasses[0].pPreserveAttachments = NULL;
+	VkSubpassDescription subpass;
+	subpass.flags = 0;
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.inputAttachmentCount = 0;
+	subpass.pInputAttachments = NULL;
+	subpass.colorAttachmentCount = colorAttachmentRefs.size();
+	subpass.pColorAttachments = colorAttachmentRefs.data();
+	subpass.pResolveAttachments = NULL;
+	subpass.pDepthStencilAttachment = NULL;
+	subpass.preserveAttachmentCount = 0;
+	subpass.pPreserveAttachments = NULL;
 
 	std::vector<VkSubpassDependency> subpassDependencies(1);
 	subpassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -1476,34 +1476,34 @@ void Raytrace(const char* brhanFile)
 	renderpassInfo.flags = 0;
 	renderpassInfo.attachmentCount = 1;
 	renderpassInfo.pAttachments = &attachments[0];
-	renderpassInfo.subpassCount = subpasses.size();
-	renderpassInfo.pSubpasses = subpasses.data();
+	renderpassInfo.subpassCount = 1;
+	renderpassInfo.pSubpasses = &subpass;
 	renderpassInfo.dependencyCount = subpassDependencies.size();
 	renderpassInfo.pDependencies = subpassDependencies.data();
 	VkRenderPass renderPass;
 	CHECK_VK_RESULT(vkCreateRenderPass(vkApp.vkDevice, &renderpassInfo, NULL, &renderPass))
 
-	std::vector<VkGraphicsPipelineCreateInfo> graphicsPipelineInfos(1);
-	graphicsPipelineInfos[0].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	graphicsPipelineInfos[0].pNext = NULL;
-	graphicsPipelineInfos[0].flags = 0;
-	graphicsPipelineInfos[0].stageCount = shaderStageInfosRenderPass0.size();
-	graphicsPipelineInfos[0].pStages = shaderStageInfosRenderPass0.data();
-	graphicsPipelineInfos[0].pVertexInputState = &vertexInputInfo;
-	graphicsPipelineInfos[0].pInputAssemblyState = &inputAssemblyInfo;
-	graphicsPipelineInfos[0].pTessellationState = NULL;
-	graphicsPipelineInfos[0].pViewportState = &viewportInfo;
-	graphicsPipelineInfos[0].pRasterizationState = &rasterizationInfo;
-	graphicsPipelineInfos[0].pMultisampleState = &multisampleInfo;
-	graphicsPipelineInfos[0].pDepthStencilState = NULL;
-	graphicsPipelineInfos[0].pColorBlendState = &colorBlendInfo;
-	graphicsPipelineInfos[0].pDynamicState = NULL;
-	graphicsPipelineInfos[0].layout = pipelineLayoutGraphicsRenderPass;
-	graphicsPipelineInfos[0].renderPass = renderPass;
-	graphicsPipelineInfos[0].subpass = 0;
-	graphicsPipelineInfos[0].basePipelineHandle = VK_NULL_HANDLE;
-	std::vector<VkPipeline> graphicsPipelines(2);
-	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, graphicsPipelineInfos.size(), graphicsPipelineInfos.data(), NULL, graphicsPipelines.data()))
+	VkGraphicsPipelineCreateInfo graphicsPipelineInfo;
+	graphicsPipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	graphicsPipelineInfo.pNext = NULL;
+	graphicsPipelineInfo.flags = 0;
+	graphicsPipelineInfo.stageCount = shaderStageInfosRenderPass0.size();
+	graphicsPipelineInfo.pStages = shaderStageInfosRenderPass0.data();
+	graphicsPipelineInfo.pVertexInputState = &vertexInputInfo;
+	graphicsPipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+	graphicsPipelineInfo.pTessellationState = NULL;
+	graphicsPipelineInfo.pViewportState = &viewportInfo;
+	graphicsPipelineInfo.pRasterizationState = &rasterizationInfo;
+	graphicsPipelineInfo.pMultisampleState = &multisampleInfo;
+	graphicsPipelineInfo.pDepthStencilState = NULL;
+	graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
+	graphicsPipelineInfo.pDynamicState = NULL;
+	graphicsPipelineInfo.layout = pipelineLayoutGraphicsRenderPass;
+	graphicsPipelineInfo.renderPass = renderPass;
+	graphicsPipelineInfo.subpass = 0;
+	graphicsPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	VkPipeline graphicsPipeline;
+	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, NULL, &graphicsPipeline))
     
     // FRAMEBUFFERS
 	std::vector<VkFramebuffer> framebuffersRenderPass;
@@ -1567,7 +1567,6 @@ void Raytrace(const char* brhanFile)
 		VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
 		VkClearValue clearValues[] = { clearColorValue };
 		// Render pass 0
-		const uint32_t renderPassID = 0;
 		VkRenderPassBeginInfo renderpassInfo = {};
 		renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderpassInfo.pNext = NULL;
@@ -1578,7 +1577,7 @@ void Raytrace(const char* brhanFile)
 		renderpassInfo.clearValueCount = 1;
 		renderpassInfo.pClearValues = clearValues;
 		vkCmdBeginRenderPass(graphicsQueueCommandBuffers[i], &renderpassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[renderPassID]);
+		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
 		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsRenderPass, 0, 1, &descriptorSetGraphicsRenderPass0, 0, NULL);
