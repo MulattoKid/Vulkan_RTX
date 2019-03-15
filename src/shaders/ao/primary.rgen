@@ -195,6 +195,7 @@ void main()
 	vec2 blueNoiseUV = gl_LaunchIDNV.xy / vec2(BLUE_NOISE_IMAGE_SIZE);
 	float blueNoiseRotationAngle = texture(blueNoiseImage, blueNoiseUV).r;
 	blueNoiseRotationAngle = fract(blueNoiseRotationAngle + GOLDEN_RATIO * float(currentFrame));
+	blueNoiseRotationAngle *= TWO_PI;
 	int sampleCenterX = numOcclusionSamples / 2;
 	int sampleCenterY = numOcclusionSamples / 2;
 #endif
@@ -245,8 +246,8 @@ void main()
 			{
 				wrapRotatedSampleY = numOcclusionSamples - (numOcclusionSamples - wrapRotatedSampleY) - 1;
 			}
+			
 			int idxI = wrapRotatedSampleY * numOcclusionSamples + wrapRotatedSampleX;
-			//idxI = y * numOcclusionSamples + x;
 #else
 			int idxI = y * numOcclusionSamples + x;
 #endif

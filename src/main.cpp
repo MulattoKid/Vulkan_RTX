@@ -994,10 +994,10 @@ void Raytrace(const char* brhanFile)
 	////////////////////////////
 	//////////SAMPLER///////////
 	////////////////////////////
-	VkSampler nearestSampler, linearSampler, linearRepeatSampler;
+	VkSampler nearestSampler, linearSampler, nearestRepeatSampler;
 	vkApp.CreateDefaultSampler(&nearestSampler, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 	vkApp.CreateDefaultSampler(&linearSampler, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-	vkApp.CreateDefaultSampler(&linearRepeatSampler, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+	vkApp.CreateDefaultSampler(&nearestRepeatSampler, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 	
 	////////////////////////////
 	///ACCELERATION STRUCTURE///
@@ -1137,7 +1137,8 @@ void Raytrace(const char* brhanFile)
 	
 	// Blue noise rotation image
 	VulkanTexture blueNoiseTexture;
-	vkApp.CreateTexture("data/textures/BlueNoise64x64@2048.bmp", VK_FORMAT_R8_UNORM, &blueNoiseTexture);
+	//vkApp.CreateTexture("data/textures/BlueNoise64x64@2048.bmp", VK_FORMAT_R8_UNORM, &blueNoiseTexture);
+	vkApp.CreateTexture("data/textures/LDR64x64.png", VK_FORMAT_R8_UNORM, &blueNoiseTexture);
 	
 	//Descriptor pool
 	std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -1159,7 +1160,7 @@ void Raytrace(const char* brhanFile)
 	
 	CreateDescriptorSetLayoutsColorPosition(vkApp, descriptorPool, accStruct, cameraBuffer, cameraBufferSize, lightsBuffer, lightsBufferSize, otherDataBuffer, otherDataBufferSize, customIDToAttributeArrayIndexBuffer, customIDToAttributeArrayIndexBufferSize, perMeshAttributeBuffer, perMeshAttributeBufferSize, perVertexAttributeBuffer, perVertexAttributeBufferSize, rayTracingColorImageView, rayTracingPositionImageView, rayTracingNormalImageView, &rtpdColorPosition);
 	
-	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, blueNoiseTexture.imageView, linearRepeatSampler, &rtpdAO);
+	CreateDescriptorSetLayoutsAO(vkApp, descriptorPool, accStruct, rayTracingPositionImageView, rayTracingNormalImageView, nearestSampler, rayTracingAOImageView, currentFrameBuffer, blueNoiseTexture.imageView, nearestRepeatSampler, &rtpdAO);
     
     ////////////////////////////
 	/////GRAPHICS PIPELINE//////
