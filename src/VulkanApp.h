@@ -190,6 +190,7 @@ public:
 	VkRect2D GetDefaultScissor();
 	void CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
 	VkFormat GetDefaultFramebufferFormat();
+	void CreateRenderPassFramebuffers(std::vector<std::vector<VkImageView>>& imageViews, uint32_t framebufferWidth, uint32_t framebufferHeight, std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
 	void Render(VkCommandBuffer* commandBuffers, float rebuildTime);
 	void RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime);

@@ -1,4 +1,5 @@
 #include "Camera.h"
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/geometric.hpp"
 #include "glm/gtc/constants.hpp"
 #include "glm/gtc/matrix_transform.hpp"

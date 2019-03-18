@@ -9,9 +9,9 @@
 
 layout(location=0) in vec2 fUV;
 
-layout(set = 0, binding = 0) uniform sampler2D rayTracingImage;
-layout(set = 0, binding = 1) uniform sampler2D aoImage;
-layout(set = 0, binding = 2, std140) uniform blurVariableBuffer
+layout(set = 0, binding = RS0_RAY_TRACING_IMAGE_BINDING_LOCATION) uniform sampler2D rayTracingImage;
+layout(set = 0, binding = RS0_AO_IMAGE_BINDING_LOCATION) uniform sampler2D aoImage;
+layout(set = 0, binding = RS0_BLUR_VARIABLE_BINDING_LOCATION, std140) uniform blurVariableBuffer
 {
 	uint blurVariable;
 };
@@ -58,7 +58,6 @@ void main()
     outColor = vec4(visibility, 1.0f);
 #elif AO_COLOR
     outColor = vec4(originalColor * visibility, 1.0f);
-    //outColor = vec4(originalColor, 1.0f);
 #endif
 }
 

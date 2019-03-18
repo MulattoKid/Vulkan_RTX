@@ -396,7 +396,7 @@ void VulkanApp::CreateSwapChain()
 	swapchainInfo.imageColorSpace = vkSurfaceFormat.colorSpace;
 	swapchainInfo.imageExtent = vkSurfaceExtent;
 	swapchainInfo.imageArrayLayers = 1;
-	swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	if (vkGraphicsQueueIndex != vkPresentQueueIndex)
 	{
 		swapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -1090,6 +1090,26 @@ void VulkanApp::CreateDefaultFramebuffers(std::vector<VkFramebuffer>& framebuffe
 VkFormat VulkanApp::GetDefaultFramebufferFormat()
 {
 	return vkSurfaceFormat.format;
+}
+
+void VulkanApp::CreateRenderPassFramebuffers(std::vector<std::vector<VkImageView>>& imageViews, uint32_t framebufferWidth, uint32_t framebufferHeight, std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass)
+{
+	framebuffers.resize(imageViews.size());
+	
+	VkFramebufferCreateInfo framebufferInfo = {};
+	framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebufferInfo.pNext = NULL;
+	framebufferInfo.flags = 0;
+	framebufferInfo.renderPass = renderPass;
+	framebufferInfo.attachmentCount = imageViews[0].size();
+	framebufferInfo.width = framebufferWidth;
+	framebufferInfo.height = framebufferHeight;
+	framebufferInfo.layers = 1;
+	for (size_t i = 0; i < framebuffers.size(); i++)
+	{
+		framebufferInfo.pAttachments = imageViews[i].data();
+		CHECK_VK_RESULT(vkCreateFramebuffer(vkDevice, &framebufferInfo, NULL, &framebuffers[i]))
+	}
 }
 
 void VulkanApp::AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers)

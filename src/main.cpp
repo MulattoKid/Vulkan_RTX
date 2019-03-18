@@ -1,4 +1,5 @@
 #include "BrhanFile.h"
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/gtc/constants.hpp"
 #include "glm/geometric.hpp"
 #include "glm/gtc/constants.hpp"
@@ -859,8 +860,6 @@ void CreateDescriptorSetLayoutsAO(VulkanApp& vkApp, VkDescriptorPool& descriptor
     vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSet0Writes.size(), descriptorSet0Writes.data(), 0, NULL);
 }
 
-#include "glm/common.hpp"
-
 void Raytrace(const char* brhanFile)
 {
 	BrhanFile sceneFile(brhanFile);
@@ -1037,7 +1036,7 @@ void Raytrace(const char* brhanFile)
 	imageInfo.mipLevels = 1;
 	imageInfo.arrayLayers = 1;
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1172,9 +1171,10 @@ void Raytrace(const char* brhanFile)
     ////////////////////////////
 	/////GRAPHICS PIPELINE//////
 	////////////////////////////
-	VkShaderModule vertexShaderModule, fragmentShaderModuleRenderPass0;
+	VkShaderModule vertexShaderModule, fragmentShaderModuleSubpass0, fragmentShaderModuleSubpass1;
 	vkApp.CreateShaderModule("src/shaders/out/vert.spv", &vertexShaderModule);
-	vkApp.CreateShaderModule("src/shaders/out/fragPCFBlur.spv", &fragmentShaderModuleRenderPass0);
+	vkApp.CreateShaderModule("src/shaders/out/fragPCFBlur.spv", &fragmentShaderModuleSubpass0);
+	vkApp.CreateShaderModule("src/shaders/out/fragTAA.spv", &fragmentShaderModuleSubpass1);
 
 	// Vertex buffer
 	// UV coordinates are a bit weird as the image has to be flipped to
@@ -1204,22 +1204,89 @@ void Raytrace(const char* brhanFile)
 	VkBuffer blurBuffer;
 	VkDeviceMemory blurBufferMemory;
 	vkApp.CreateHostVisibleBuffer(blurBufferSize, (void*)(&blurVariable), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &blurBuffer, &blurBufferMemory);
+	
+	// PREVIOUS FRAME IMAGE
+	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.format = vkApp.GetDefaultFramebufferFormat();
+	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
+	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
+	VkImage previousFrameImage;
+	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &previousFrameImage))
 
-	std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfosRenderPass0(2);
-	shaderStageInfosRenderPass0[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	shaderStageInfosRenderPass0[0].pNext = NULL;
-	shaderStageInfosRenderPass0[0].flags = 0;
-	shaderStageInfosRenderPass0[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-	shaderStageInfosRenderPass0[0].module = vertexShaderModule;
-	shaderStageInfosRenderPass0[0].pName = "main";
-	shaderStageInfosRenderPass0[0].pSpecializationInfo = NULL;
-	shaderStageInfosRenderPass0[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	shaderStageInfosRenderPass0[1].pNext = NULL;
-	shaderStageInfosRenderPass0[1].flags = 0;
-	shaderStageInfosRenderPass0[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shaderStageInfosRenderPass0[1].module = fragmentShaderModuleRenderPass0;
-	shaderStageInfosRenderPass0[1].pName = "main";
-	shaderStageInfosRenderPass0[1].pSpecializationInfo = NULL;
+	vkGetImageMemoryRequirements(vkApp.vkDevice, previousFrameImage, &imageMemoryRequirements);
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory previousFrameImageMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &previousFrameImageMemory))
+	vkBindImageMemory(vkApp.vkDevice, previousFrameImage, previousFrameImageMemory, 0);
+    
+    imageViewInfo.image = previousFrameImage;
+    imageViewInfo.format = vkApp.GetDefaultFramebufferFormat();
+	VkImageView previousFrameImageView;
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &previousFrameImageView))
+    
+    //Transition previous frame image layout
+	vkApp.TransitionImageLayoutSingle(previousFrameImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+    
+    // CURRENT FRAME IMAGE
+	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    imageInfo.format = vkApp.GetDefaultFramebufferFormat();
+	imageInfo.extent.width = vkApp.vkSurfaceExtent.width;
+	imageInfo.extent.height = vkApp.vkSurfaceExtent.height;
+	VkImage currentFrameImage;
+	CHECK_VK_RESULT(vkCreateImage(vkApp.vkDevice, &imageInfo, NULL, &currentFrameImage))
+
+	vkGetImageMemoryRequirements(vkApp.vkDevice, currentFrameImage, &imageMemoryRequirements);
+	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	imageAllocateInfo.allocationSize = imageMemoryRequirements.size;
+	imageAllocateInfo.memoryTypeIndex = vkApp.FindMemoryType(imageMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkDeviceMemory currentFrameImageMemory;
+	CHECK_VK_RESULT(vkAllocateMemory(vkApp.vkDevice, &imageAllocateInfo, NULL, &currentFrameImageMemory))
+	vkBindImageMemory(vkApp.vkDevice, currentFrameImage, currentFrameImageMemory, 0);
+    
+    imageViewInfo.image = currentFrameImage;
+    imageViewInfo.format = vkApp.GetDefaultFramebufferFormat();
+	VkImageView currentFrameImageView;
+    CHECK_VK_RESULT(vkCreateImageView(vkApp.vkDevice, &imageViewInfo, NULL, &currentFrameImageView))
+    
+    //Transition current frame image layout
+	vkApp.TransitionImageLayoutSingle(currentFrameImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
+
+
+	// Set up pipeline
+	// Shaders for subpass 0
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfosSubpass0(2);
+	shaderStageInfosSubpass0[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageInfosSubpass0[0].pNext = NULL;
+	shaderStageInfosSubpass0[0].flags = 0;
+	shaderStageInfosSubpass0[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	shaderStageInfosSubpass0[0].module = vertexShaderModule;
+	shaderStageInfosSubpass0[0].pName = "main";
+	shaderStageInfosSubpass0[0].pSpecializationInfo = NULL;
+	shaderStageInfosSubpass0[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageInfosSubpass0[1].pNext = NULL;
+	shaderStageInfosSubpass0[1].flags = 0;
+	shaderStageInfosSubpass0[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	shaderStageInfosSubpass0[1].module = fragmentShaderModuleSubpass0;
+	shaderStageInfosSubpass0[1].pName = "main";
+	shaderStageInfosSubpass0[1].pSpecializationInfo = NULL;
+	// Shaders for subpass 1
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfosSubpass1(2);
+	shaderStageInfosSubpass1[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageInfosSubpass1[0].pNext = NULL;
+	shaderStageInfosSubpass1[0].flags = 0;
+	shaderStageInfosSubpass1[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	shaderStageInfosSubpass1[0].module = vertexShaderModule;
+	shaderStageInfosSubpass1[0].pName = "main";
+	shaderStageInfosSubpass1[0].pSpecializationInfo = NULL;
+	shaderStageInfosSubpass1[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageInfosSubpass1[1].pNext = NULL;
+	shaderStageInfosSubpass1[1].flags = 0;
+	shaderStageInfosSubpass1[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	shaderStageInfosSubpass1[1].module = fragmentShaderModuleSubpass1;
+	shaderStageInfosSubpass1[1].pName = "main";
+	shaderStageInfosSubpass1[1].pSpecializationInfo = NULL;
 	
 	VkVertexInputBindingDescription inputDesc = {};
 	inputDesc.binding = 0;
@@ -1318,22 +1385,22 @@ void Raytrace(const char* brhanFile)
 	colorBlendInfo.blendConstants[2] = 0.0f;
 	colorBlendInfo.blendConstants[3] = 0.0f;
 
-	// Descriptors setup
-	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsRenderPass(3);
-	VkDescriptorSetLayoutBinding& rayTracingImageBinding = descriptorSetLayoutBindingsRenderPass[0];
-	rayTracingImageBinding.binding = 0;
+	// Descriptors setup SUBPASS 0
+	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsSubpass0(RS0_DESCRIPTOR_SET_NUM_BINDINGS);
+	VkDescriptorSetLayoutBinding& rayTracingImageBinding = descriptorSetLayoutBindingsSubpass0[RS0_RAY_TRACING_IMAGE_BINDING_LOCATION];
+	rayTracingImageBinding.binding = RS0_RAY_TRACING_IMAGE_BINDING_LOCATION;
 	rayTracingImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	rayTracingImageBinding.descriptorCount = 1;
 	rayTracingImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	rayTracingImageBinding.pImmutableSamplers = NULL;
-	VkDescriptorSetLayoutBinding& rayTracingAOImageBinding = descriptorSetLayoutBindingsRenderPass[1];
-	rayTracingAOImageBinding.binding = 1;
+	VkDescriptorSetLayoutBinding& rayTracingAOImageBinding = descriptorSetLayoutBindingsSubpass0[RS0_AO_IMAGE_BINDING_LOCATION];
+	rayTracingAOImageBinding.binding = RS0_AO_IMAGE_BINDING_LOCATION;
 	rayTracingAOImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	rayTracingAOImageBinding.descriptorCount = 1;
 	rayTracingAOImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	rayTracingAOImageBinding.pImmutableSamplers = NULL;
-	VkDescriptorSetLayoutBinding& blurUniformBinding = descriptorSetLayoutBindingsRenderPass[2];
-	blurUniformBinding.binding = 2;
+	VkDescriptorSetLayoutBinding& blurUniformBinding = descriptorSetLayoutBindingsSubpass0[RS0_BLUR_VARIABLE_BINDING_LOCATION];
+	blurUniformBinding.binding = RS0_BLUR_VARIABLE_BINDING_LOCATION;
 	blurUniformBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	blurUniformBinding.descriptorCount = 1;
 	blurUniformBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -1343,56 +1410,103 @@ void Raytrace(const char* brhanFile)
 	descriptorSetInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptorSetInfoGraphics.pNext = NULL;
 	descriptorSetInfoGraphics.flags = 0;
-	descriptorSetInfoGraphics.bindingCount = descriptorSetLayoutBindingsRenderPass.size();
-	descriptorSetInfoGraphics.pBindings = descriptorSetLayoutBindingsRenderPass.data();
-	VkDescriptorSetLayout descriptorSetLayoutGraphicsRenderPass;
-	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetInfoGraphics, NULL, &descriptorSetLayoutGraphicsRenderPass))
+	descriptorSetInfoGraphics.bindingCount = descriptorSetLayoutBindingsSubpass0.size();
+	descriptorSetInfoGraphics.pBindings = descriptorSetLayoutBindingsSubpass0.data();
+	VkDescriptorSetLayout descriptorSetLayoutGraphicsSubpass0;
+	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetInfoGraphics, NULL, &descriptorSetLayoutGraphicsSubpass0))
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfoGraphics = {};
 	pipelineLayoutInfoGraphics.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfoGraphics.pNext = NULL;
 	pipelineLayoutInfoGraphics.flags = 0;
 	pipelineLayoutInfoGraphics.setLayoutCount = 1;
-	pipelineLayoutInfoGraphics.pSetLayouts = &descriptorSetLayoutGraphicsRenderPass;
+	pipelineLayoutInfoGraphics.pSetLayouts = &descriptorSetLayoutGraphicsSubpass0;
 	pipelineLayoutInfoGraphics.pushConstantRangeCount = 0;
 	pipelineLayoutInfoGraphics.pPushConstantRanges = NULL;
-	VkPipelineLayout pipelineLayoutGraphicsRenderPass;
-	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsRenderPass))
+	VkPipelineLayout pipelineLayoutGraphicsSubpass0;
+	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsSubpass0))
 	
+	// Descriptors setup SUBPASS 1
+	std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingsSubpass1(RS1_DESCRIPTOR_SET_NUM_BINDINGS);
+	VkDescriptorSetLayoutBinding& previousFrameImageBinding = descriptorSetLayoutBindingsSubpass1[RS1_PREVIOUS_FRAME_IMAGE_BINDING_LOCATION];
+	previousFrameImageBinding.binding = RS1_PREVIOUS_FRAME_IMAGE_BINDING_LOCATION;
+	previousFrameImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	previousFrameImageBinding.descriptorCount = 1;
+	previousFrameImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	previousFrameImageBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& positionImageBinding = descriptorSetLayoutBindingsSubpass1[RS1_POSITION_IMAGE_BINDING_LOCATION];
+	positionImageBinding.binding = RS1_POSITION_IMAGE_BINDING_LOCATION;
+	positionImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	positionImageBinding.descriptorCount = 1;
+	positionImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	positionImageBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& currentFrameImageBinding = descriptorSetLayoutBindingsSubpass1[RS1_CURRENT_FRAME_IMAGE_BINDING_LOCATION];
+	currentFrameImageBinding.binding = RS1_CURRENT_FRAME_IMAGE_BINDING_LOCATION;
+	currentFrameImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	currentFrameImageBinding.descriptorCount = 1;
+	currentFrameImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	currentFrameImageBinding.pImmutableSamplers = NULL;
+	VkDescriptorSetLayoutBinding& cameraImageBinding = descriptorSetLayoutBindingsSubpass1[RS1_CAMERA_BUFFER_BINDING_LOCATION];
+	cameraImageBinding.binding = RS1_CAMERA_BUFFER_BINDING_LOCATION;
+	cameraImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	cameraImageBinding.descriptorCount = 1;
+	cameraImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	cameraImageBinding.pImmutableSamplers = NULL;
+
+	descriptorSetInfoGraphics.bindingCount = descriptorSetLayoutBindingsSubpass1.size();
+	descriptorSetInfoGraphics.pBindings = descriptorSetLayoutBindingsSubpass1.data();
+	VkDescriptorSetLayout descriptorSetLayoutGraphicsSubpass1;
+	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(vkApp.vkDevice, &descriptorSetInfoGraphics, NULL, &descriptorSetLayoutGraphicsSubpass1))
+
+	pipelineLayoutInfoGraphics.setLayoutCount = 1;
+	pipelineLayoutInfoGraphics.pSetLayouts = &descriptorSetLayoutGraphicsSubpass1;
+	VkPipelineLayout pipelineLayoutGraphicsSubpass1;
+	CHECK_VK_RESULT(vkCreatePipelineLayout(vkApp.vkDevice, &pipelineLayoutInfoGraphics, NULL, &pipelineLayoutGraphicsSubpass1))
+	
+	// Create descriptor pool
 	std::vector<VkDescriptorPoolSize> poolSizesGraphics = {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1 },
 	};
 	VkDescriptorPoolCreateInfo descriptorPoolInfoGraphics = {};
 	descriptorPoolInfoGraphics.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptorPoolInfoGraphics.pNext = NULL;
 	descriptorPoolInfoGraphics.flags = 0;
-	descriptorPoolInfoGraphics.maxSets = 1;
+	descriptorPoolInfoGraphics.maxSets = 2;
 	descriptorPoolInfoGraphics.poolSizeCount = poolSizesGraphics.size();
 	descriptorPoolInfoGraphics.pPoolSizes = poolSizesGraphics.data();
 	VkDescriptorPool descriptorPoolGraphics;
 	CHECK_VK_RESULT(vkCreateDescriptorPool(vkApp.vkDevice, &descriptorPoolInfoGraphics, NULL, &descriptorPoolGraphics))
 	
+	// Allocate sets
+	// Subpass 0
 	VkDescriptorSetAllocateInfo descriptorSetGraphicsAllocateInfo = {};
 	descriptorSetGraphicsAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptorSetGraphicsAllocateInfo.pNext = NULL;
 	descriptorSetGraphicsAllocateInfo.descriptorPool = descriptorPoolGraphics;
 	descriptorSetGraphicsAllocateInfo.descriptorSetCount = 1;
-	descriptorSetGraphicsAllocateInfo.pSetLayouts = &descriptorSetLayoutGraphicsRenderPass;
-	VkDescriptorSet descriptorSetGraphicsRenderPass0;
-	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphicsRenderPass0))
+	descriptorSetGraphicsAllocateInfo.pSetLayouts = &descriptorSetLayoutGraphicsSubpass0;
+	VkDescriptorSet descriptorSetGraphicsSubpass0;
+	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphicsSubpass0))
+	// Subpass 1
+	descriptorSetGraphicsAllocateInfo.pSetLayouts = &descriptorSetLayoutGraphicsSubpass1;
+	VkDescriptorSet descriptorSetGraphicsSubpass1;
+	CHECK_VK_RESULT(vkAllocateDescriptorSets(vkApp.vkDevice, &descriptorSetGraphicsAllocateInfo, &descriptorSetGraphicsSubpass1))
 	
-    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesRenderPass(3);
+	// Update set for subpass 0
+    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesSubpass0(RS0_DESCRIPTOR_SET_NUM_BINDINGS);
     // Color image
 	VkDescriptorImageInfo descriptorRayTracingColorImageInfoGraphics = {};
     descriptorRayTracingColorImageInfoGraphics.sampler = linearSampler;
     descriptorRayTracingColorImageInfoGraphics.imageView = rayTracingColorImageView;
     descriptorRayTracingColorImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWritesRenderPass[0];
+    VkWriteDescriptorSet& rayTracingImageWriteGraphics = descriptorSetGraphicsWritesSubpass0[RS0_RAY_TRACING_IMAGE_BINDING_LOCATION];
     rayTracingImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     rayTracingImageWriteGraphics.pNext = NULL;
-    rayTracingImageWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
-    rayTracingImageWriteGraphics.dstBinding = 0;
+    rayTracingImageWriteGraphics.dstSet = descriptorSetGraphicsSubpass0;
+    rayTracingImageWriteGraphics.dstBinding = RS0_RAY_TRACING_IMAGE_BINDING_LOCATION;
     rayTracingImageWriteGraphics.dstArrayElement = 0;
     rayTracingImageWriteGraphics.descriptorCount = 1;
     rayTracingImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1404,11 +1518,11 @@ void Raytrace(const char* brhanFile)
     descriptorRayTracingAOImageInfoGraphics.sampler = linearSampler;
     descriptorRayTracingAOImageInfoGraphics.imageView = rayTracingAOImageView;
     descriptorRayTracingAOImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesRenderPass[1];
+    VkWriteDescriptorSet& rayTracingOcclusionImageWriteGraphics = descriptorSetGraphicsWritesSubpass0[RS0_AO_IMAGE_BINDING_LOCATION];
     rayTracingOcclusionImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     rayTracingOcclusionImageWriteGraphics.pNext = NULL;
-    rayTracingOcclusionImageWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
-    rayTracingOcclusionImageWriteGraphics.dstBinding = 1;
+    rayTracingOcclusionImageWriteGraphics.dstSet = descriptorSetGraphicsSubpass0;
+    rayTracingOcclusionImageWriteGraphics.dstBinding = RS0_AO_IMAGE_BINDING_LOCATION;
     rayTracingOcclusionImageWriteGraphics.dstArrayElement = 0;
     rayTracingOcclusionImageWriteGraphics.descriptorCount = 1;
     rayTracingOcclusionImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1420,48 +1534,144 @@ void Raytrace(const char* brhanFile)
     blurBufferInfoGraphics.buffer = blurBuffer;
     blurBufferInfoGraphics.offset = 0;
     blurBufferInfoGraphics.range = VK_WHOLE_SIZE;
-    VkWriteDescriptorSet& blurBufferWriteGraphics = descriptorSetGraphicsWritesRenderPass[2];
+    VkWriteDescriptorSet& blurBufferWriteGraphics = descriptorSetGraphicsWritesSubpass0[RS0_BLUR_VARIABLE_BINDING_LOCATION];
     blurBufferWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     blurBufferWriteGraphics.pNext = NULL;
-    blurBufferWriteGraphics.dstSet = descriptorSetGraphicsRenderPass0;
-    blurBufferWriteGraphics.dstBinding = 2;
+    blurBufferWriteGraphics.dstSet = descriptorSetGraphicsSubpass0;
+    blurBufferWriteGraphics.dstBinding = RS0_BLUR_VARIABLE_BINDING_LOCATION;
     blurBufferWriteGraphics.dstArrayElement = 0;
     blurBufferWriteGraphics.descriptorCount = 1;
     blurBufferWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     blurBufferWriteGraphics.pImageInfo = NULL;
     blurBufferWriteGraphics.pBufferInfo = &blurBufferInfoGraphics;
     blurBufferWriteGraphics.pTexelBufferView = NULL;
-    // Update render pass 0
-    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWritesRenderPass.size(), descriptorSetGraphicsWritesRenderPass.data(), 0, NULL);
+    // Update
+    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWritesSubpass0.size(), descriptorSetGraphicsWritesSubpass0.data(), 0, NULL);
+    
+    // Update set for subpass 1
+    std::vector<VkWriteDescriptorSet> descriptorSetGraphicsWritesSubpass1(RS1_DESCRIPTOR_SET_NUM_BINDINGS);
+    // Previous frame image
+	VkDescriptorImageInfo descriptorPreviousFrameImageInfoGraphics = {};
+    descriptorPreviousFrameImageInfoGraphics.sampler = linearSampler;
+    descriptorPreviousFrameImageInfoGraphics.imageView = previousFrameImageView;
+    descriptorPreviousFrameImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkWriteDescriptorSet& previousFrameImageWriteGraphics = descriptorSetGraphicsWritesSubpass1[RS1_PREVIOUS_FRAME_IMAGE_BINDING_LOCATION];
+    previousFrameImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    previousFrameImageWriteGraphics.pNext = NULL;
+    previousFrameImageWriteGraphics.dstSet = descriptorSetGraphicsSubpass1;
+    previousFrameImageWriteGraphics.dstBinding = RS1_PREVIOUS_FRAME_IMAGE_BINDING_LOCATION;
+    previousFrameImageWriteGraphics.dstArrayElement = 0;
+    previousFrameImageWriteGraphics.descriptorCount = 1;
+    previousFrameImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    previousFrameImageWriteGraphics.pImageInfo = &descriptorPreviousFrameImageInfoGraphics;
+    previousFrameImageWriteGraphics.pBufferInfo = NULL;
+    previousFrameImageWriteGraphics.pTexelBufferView = NULL;
+    // Position image
+    VkDescriptorImageInfo descriptorPositionImageInfoGraphics = {};
+    descriptorPositionImageInfoGraphics.sampler = nearestSampler;
+    descriptorPositionImageInfoGraphics.imageView = rayTracingPositionImageView;
+    descriptorPositionImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkWriteDescriptorSet& positionImageWriteGraphics = descriptorSetGraphicsWritesSubpass1[RS1_POSITION_IMAGE_BINDING_LOCATION];
+    positionImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    positionImageWriteGraphics.pNext = NULL;
+    positionImageWriteGraphics.dstSet = descriptorSetGraphicsSubpass1;
+    positionImageWriteGraphics.dstBinding = RS1_POSITION_IMAGE_BINDING_LOCATION;
+    positionImageWriteGraphics.dstArrayElement = 0;
+    positionImageWriteGraphics.descriptorCount = 1;
+    positionImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    positionImageWriteGraphics.pImageInfo = &descriptorPositionImageInfoGraphics;
+    positionImageWriteGraphics.pBufferInfo = NULL;
+    positionImageWriteGraphics.pTexelBufferView = NULL;
+    // Current frame image
+    VkDescriptorImageInfo descriptorCurrentFrameImageInfoGraphics = {};
+    descriptorCurrentFrameImageInfoGraphics.sampler = VK_NULL_HANDLE;
+    descriptorCurrentFrameImageInfoGraphics.imageView = currentFrameImageView;
+    descriptorCurrentFrameImageInfoGraphics.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkWriteDescriptorSet& currentFrameImageWriteGraphics = descriptorSetGraphicsWritesSubpass1[RS1_CURRENT_FRAME_IMAGE_BINDING_LOCATION];
+    currentFrameImageWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    currentFrameImageWriteGraphics.pNext = NULL;
+    currentFrameImageWriteGraphics.dstSet = descriptorSetGraphicsSubpass1;
+    currentFrameImageWriteGraphics.dstBinding = RS1_CURRENT_FRAME_IMAGE_BINDING_LOCATION;
+    currentFrameImageWriteGraphics.dstArrayElement = 0;
+    currentFrameImageWriteGraphics.descriptorCount = 1;
+    currentFrameImageWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    currentFrameImageWriteGraphics.pImageInfo = &descriptorCurrentFrameImageInfoGraphics;
+    currentFrameImageWriteGraphics.pBufferInfo = NULL;
+    currentFrameImageWriteGraphics.pTexelBufferView = NULL;
+    // Camera buffer
+    VkDescriptorBufferInfo cameraBufferInfoGraphics = {};
+    cameraBufferInfoGraphics.buffer = cameraBuffer;
+    cameraBufferInfoGraphics.offset = 0;
+    cameraBufferInfoGraphics.range = VK_WHOLE_SIZE;
+    VkWriteDescriptorSet& cameraBufferWriteGraphics = descriptorSetGraphicsWritesSubpass1[RS1_CAMERA_BUFFER_BINDING_LOCATION];
+    cameraBufferWriteGraphics.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    cameraBufferWriteGraphics.pNext = NULL;
+    cameraBufferWriteGraphics.dstSet = descriptorSetGraphicsSubpass1;
+    cameraBufferWriteGraphics.dstBinding = RS1_CAMERA_BUFFER_BINDING_LOCATION;
+    cameraBufferWriteGraphics.dstArrayElement = 0;
+    cameraBufferWriteGraphics.descriptorCount = 1;
+    cameraBufferWriteGraphics.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    cameraBufferWriteGraphics.pImageInfo = NULL;
+    cameraBufferWriteGraphics.pBufferInfo = &cameraBufferInfoGraphics;
+    cameraBufferWriteGraphics.pTexelBufferView = NULL;
+    // Update
+    vkUpdateDescriptorSets(vkApp.vkDevice, descriptorSetGraphicsWritesSubpass1.size(), descriptorSetGraphicsWritesSubpass1.data(), 0, NULL);
 
-	std::vector<VkAttachmentDescription> attachments(1);
+	std::vector<VkAttachmentDescription> attachments(2);
 	attachments[0].flags = 0;
 	attachments[0].format = vkApp.GetDefaultFramebufferFormat();
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachments[0].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+	attachments[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+	attachments[1].flags = 0;
+	attachments[1].format = vkApp.GetDefaultFramebufferFormat();
+	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[1].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
-	std::vector<VkAttachmentReference> colorAttachmentRefs(1);
-	colorAttachmentRefs[0].attachment = 0;
-	colorAttachmentRefs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	VkAttachmentReference colorAttachmentRefsSubpass0;
+	colorAttachmentRefsSubpass0.attachment = 0;
+	colorAttachmentRefsSubpass0.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	
+	VkAttachmentReference inputAttachmentRefsSubpass1;
+	inputAttachmentRefsSubpass1.attachment = 0;
+	inputAttachmentRefsSubpass1.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	
+	VkAttachmentReference colorAttachmentRefsSubpass1;
+	colorAttachmentRefsSubpass1.attachment = 1;
+	colorAttachmentRefsSubpass1.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass;
-	subpass.flags = 0;
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.inputAttachmentCount = 0;
-	subpass.pInputAttachments = NULL;
-	subpass.colorAttachmentCount = colorAttachmentRefs.size();
-	subpass.pColorAttachments = colorAttachmentRefs.data();
-	subpass.pResolveAttachments = NULL;
-	subpass.pDepthStencilAttachment = NULL;
-	subpass.preserveAttachmentCount = 0;
-	subpass.pPreserveAttachments = NULL;
+	std::vector<VkSubpassDescription> subpasses(2);
+	subpasses[0].flags = 0;
+	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpasses[0].inputAttachmentCount = 0;
+	subpasses[0].pInputAttachments = NULL;
+	subpasses[0].colorAttachmentCount = 1;
+	subpasses[0].pColorAttachments = &colorAttachmentRefsSubpass0;
+	subpasses[0].pResolveAttachments = NULL;
+	subpasses[0].pDepthStencilAttachment = NULL;
+	subpasses[0].preserveAttachmentCount = 0;
+	subpasses[0].pPreserveAttachments = NULL;
+	subpasses[1].flags = 0;
+	subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpasses[1].inputAttachmentCount = 1;
+	subpasses[1].pInputAttachments = &inputAttachmentRefsSubpass1;
+	subpasses[1].colorAttachmentCount = 1;
+	subpasses[1].pColorAttachments = &colorAttachmentRefsSubpass1;
+	subpasses[1].pResolveAttachments = NULL;
+	subpasses[1].pDepthStencilAttachment = NULL;
+	subpasses[1].preserveAttachmentCount = 0;
+	subpasses[1].pPreserveAttachments = NULL;
 
-	std::vector<VkSubpassDependency> subpassDependencies(1);
+	std::vector<VkSubpassDependency> subpassDependencies(2);
 	subpassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
 	subpassDependencies[0].dstSubpass = 0;
 	subpassDependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1469,26 +1679,35 @@ void Raytrace(const char* brhanFile)
 	subpassDependencies[0].srcAccessMask = 0;
 	subpassDependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	subpassDependencies[0].dependencyFlags = 0;
+	subpassDependencies[1].srcSubpass = 0;
+	subpassDependencies[1].dstSubpass = 1;
+	subpassDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subpassDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpassDependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	subpassDependencies[1].dependencyFlags = 0;
+
 
 	VkRenderPassCreateInfo renderpassInfo = {};
 	renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderpassInfo.pNext = NULL;
 	renderpassInfo.flags = 0;
-	renderpassInfo.attachmentCount = 1;
-	renderpassInfo.pAttachments = &attachments[0];
-	renderpassInfo.subpassCount = 1;
-	renderpassInfo.pSubpasses = &subpass;
+	renderpassInfo.attachmentCount = attachments.size();
+	renderpassInfo.pAttachments = attachments.data();
+	renderpassInfo.subpassCount = subpasses.size();
+	renderpassInfo.pSubpasses = subpasses.data();
 	renderpassInfo.dependencyCount = subpassDependencies.size();
 	renderpassInfo.pDependencies = subpassDependencies.data();
 	VkRenderPass renderPass;
 	CHECK_VK_RESULT(vkCreateRenderPass(vkApp.vkDevice, &renderpassInfo, NULL, &renderPass))
 
+	// Create pipeline for subpass 0
 	VkGraphicsPipelineCreateInfo graphicsPipelineInfo;
 	graphicsPipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	graphicsPipelineInfo.pNext = NULL;
 	graphicsPipelineInfo.flags = 0;
-	graphicsPipelineInfo.stageCount = shaderStageInfosRenderPass0.size();
-	graphicsPipelineInfo.pStages = shaderStageInfosRenderPass0.data();
+	graphicsPipelineInfo.stageCount = shaderStageInfosSubpass0.size();
+	graphicsPipelineInfo.pStages = shaderStageInfosSubpass0.data();
 	graphicsPipelineInfo.pVertexInputState = &vertexInputInfo;
 	graphicsPipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
 	graphicsPipelineInfo.pTessellationState = NULL;
@@ -1498,16 +1717,33 @@ void Raytrace(const char* brhanFile)
 	graphicsPipelineInfo.pDepthStencilState = NULL;
 	graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
 	graphicsPipelineInfo.pDynamicState = NULL;
-	graphicsPipelineInfo.layout = pipelineLayoutGraphicsRenderPass;
+	graphicsPipelineInfo.layout = pipelineLayoutGraphicsSubpass0;
 	graphicsPipelineInfo.renderPass = renderPass;
 	graphicsPipelineInfo.subpass = 0;
 	graphicsPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-	VkPipeline graphicsPipeline;
-	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, NULL, &graphicsPipeline))
+	VkPipeline graphicsPipelineSubpass0;
+	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, NULL, &graphicsPipelineSubpass0))
+	// Create pipeline for subpass 1
+	graphicsPipelineInfo.stageCount = shaderStageInfosSubpass1.size();
+	graphicsPipelineInfo.pStages = shaderStageInfosSubpass1.data();
+	graphicsPipelineInfo.layout = pipelineLayoutGraphicsSubpass1;
+	graphicsPipelineInfo.subpass = 1;
+	graphicsPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	VkPipeline graphicsPipelineSubpass1;
+	CHECK_VK_RESULT(vkCreateGraphicsPipelines(vkApp.vkDevice, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, NULL, &graphicsPipelineSubpass1))
     
     // FRAMEBUFFERS
 	std::vector<VkFramebuffer> framebuffersRenderPass;
-	vkApp.CreateDefaultFramebuffers(framebuffersRenderPass, renderPass);
+	//vkApp.CreateDefaultFramebuffers(framebuffersRenderPass, renderPass);
+	std::vector<std::vector<VkImageView>> framebufferImageViews(vkApp.vkSwapchainImageViews.size());
+	for (size_t i = 0; i < vkApp.vkSwapchainImageViews.size(); i++)
+	{
+		framebufferImageViews[i] = {
+			currentFrameImageView,
+			vkApp.vkSwapchainImageViews[i]
+		};
+	}
+	vkApp.CreateRenderPassFramebuffers(framebufferImageViews, vkApp.vkSurfaceExtent.width, vkApp.vkSurfaceExtent.height, framebuffersRenderPass, renderPass);
     
 	////////////////////////////
 	///////////RECORD///////////
@@ -1559,14 +1795,12 @@ void Raytrace(const char* brhanFile)
 			 VK_NULL_HANDLE, 0, 0, aoImageExtent.width, aoImageExtent.height, 1);
 			 
 		// Barrier - wait for ray tracing to finish and transition images
-		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
-		vkApp.TransitionImageLayoutInProgress(rayTracingNormalImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
 		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
 		
 		// Blur ambient occlusion result and combine with light result
 		VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
 		VkClearValue clearValues[] = { clearColorValue };
-		// Render pass 0
+		// Begin render pass
 		VkRenderPassBeginInfo renderpassInfo = {};
 		renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderpassInfo.pNext = NULL;
@@ -1577,16 +1811,44 @@ void Raytrace(const char* brhanFile)
 		renderpassInfo.clearValueCount = 1;
 		renderpassInfo.pClearValues = clearValues;
 		vkCmdBeginRenderPass(graphicsQueueCommandBuffers[i], &renderpassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		// Subpass 0
+		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineSubpass0);
 		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
 		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsRenderPass, 0, 1, &descriptorSetGraphicsRenderPass0, 0, NULL);
+		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsSubpass0, 0, 1, &descriptorSetGraphicsSubpass0, 0, NULL);
 		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
+		// Subpass 1
+		vkCmdNextSubpass(graphicsQueueCommandBuffers[i], VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineSubpass1);
+		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
+		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsSubpass1, 0, 1, &descriptorSetGraphicsSubpass1, 0, NULL);
+		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
+		// End render pass
 		vkCmdEndRenderPass(graphicsQueueCommandBuffers[i]);
 		
-		//Barrier - wait for blurring to finish and transition images
-		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
-		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, graphicsQueueCommandBuffers[i]);
+		// Barrier - wait for blurring and TAA to finish and transition image
+		vkApp.TransitionImageLayoutInProgress(previousFrameImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, graphicsQueueCommandBuffers[i]);
+		
+		// Blit swap chain image to previous image
+		VkImageBlit blitRegion = {};
+		blitRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+		VkOffset3D offsetStart = { 0, 0, 0 };
+		VkOffset3D offsetEnd = { int32_t(vkApp.vkSurfaceExtent.width), int32_t(vkApp.vkSurfaceExtent.height), 1 };
+		blitRegion.srcOffsets[0] = offsetStart;
+		blitRegion.srcOffsets[1] = offsetEnd;
+		blitRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+		blitRegion.dstOffsets[0] = offsetStart;
+		blitRegion.dstOffsets[1] = offsetEnd;
+		vkCmdBlitImage(graphicsQueueCommandBuffers[i], vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blitRegion, VK_FILTER_LINEAR);
+		
+		//Barrier - wait for blit to finish and transition images
+		vkApp.TransitionImageLayoutInProgress(vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingNormalImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
+		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
 		
 		CHECK_VK_RESULT(vkEndCommandBuffer(graphicsQueueCommandBuffers[i]))
 	}
@@ -1607,16 +1869,23 @@ void Raytrace(const char* brhanFile)
 			vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
 			vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f,
 		
-			previousViewProjection[0][0], previousViewProjection[0][1], previousViewProjection[0][2], previousViewProjection[0][3],
+			/*previousViewProjection[0][0], previousViewProjection[0][1], previousViewProjection[0][2], previousViewProjection[0][3],
 			previousViewProjection[1][0], previousViewProjection[1][1], previousViewProjection[1][2], previousViewProjection[1][3],
 			previousViewProjection[2][0], previousViewProjection[2][1], previousViewProjection[2][2], previousViewProjection[2][3],
-			previousViewProjection[3][0], previousViewProjection[3][1], previousViewProjection[3][2], previousViewProjection[3][3]
+			previousViewProjection[3][0], previousViewProjection[3][1], previousViewProjection[3][2], previousViewProjection[3][3]*/
 		};
+		memcpy(cameraData.data() + 16, &previousViewProjection[0][0], 16 * sizeof(float));
 		// Update
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(currentFrameBufferSize, &vkApp.currentFrame, currentFrameBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
+		glm::mat4x4 diff = vkApp.camera.GetViewProjectionMatrix() - vkApp.previousFrameCamera.GetViewProjectionMatrix();
 		vkApp.previousFrameCamera = vkApp.camera;
+		
+		/*printf("\n%f %f %f %f\n%f %f %f %f\n%f %f %f %f\n %f %f %f %f\n\n", diff[0][0], diff[0][1], diff[0][2], diff[0][3],
+			diff[1][0], diff[1][1], diff[1][2], diff[1][3],
+			diff[2][0], diff[2][1], diff[2][2], diff[2][3],
+			diff[3][0], diff[3][1], diff[3][2], diff[3][3]);*/
 		
 		// Update the transformation for each mesh
 		for (glm::mat4x4& transformation : transformationData)
