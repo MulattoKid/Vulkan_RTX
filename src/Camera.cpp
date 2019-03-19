@@ -9,16 +9,15 @@ Camera::Camera(const unsigned int filmWidth, const unsigned int filmHeight, cons
 {
 	this->filmWidth = filmWidth;
 	this->filmHeight = filmHeight;
-	this->verticalFOV = verticalFOV;
+	this->verticalFOV = glm::radians(verticalFOV);
 	this->aspectRatio = filmWidth / float(filmHeight);
 	this->origin = origin;
 	this->viewDir = viewDir;
 	
-	float theta = (verticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
-	float lensHeight = glm::tan(theta);
-	float lensWidth = lensHeight * this->aspectRatio;
-	float lensHalfWidth = lensWidth / 2.0f;
-	float lensHalfHeight = lensHeight / 2.0f;
+	float lensHalfHeight = glm::tan(this->verticalFOV / 2.0f);
+	float lensHalfWidth = lensHalfHeight * this->aspectRatio;
+	float lensWidth = lensHalfWidth * 2.0f;
+	float lensHeight = lensHalfHeight * 2.0f;
 	
 	//Calculate the three vectors that define the camera	
 	static const glm::vec3 baseUp(0.0f, 1.0f, 0.0f);
@@ -46,11 +45,10 @@ glm::mat4x4 Camera::GetViewProjectionMatrix()
 
 void Camera::Update()
 {
-	float theta = (verticalFOV * glm::pi<float>()) / 180.0f; //Convert to radians
-	float lensHeight = glm::tan(theta);
-	float lensWidth = lensHeight * this->aspectRatio;
-	float lensHalfWidth = lensWidth / 2.0f;
-	float lensHalfHeight = lensHeight / 2.0f;
+	float lensHalfHeight = glm::tan(this->verticalFOV / 2.0f);
+	float lensHalfWidth = lensHalfHeight * this->aspectRatio;
+	float lensWidth = lensHalfWidth * 2.0f;
+	float lensHeight = lensHalfHeight * 2.0f;
 	
 	//Calculate the three vectors that define the camera	
 	static const glm::vec3 baseUp(0.0f, 1.0f, 0.0f);

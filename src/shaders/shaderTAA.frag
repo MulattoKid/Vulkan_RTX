@@ -40,10 +40,8 @@ void main()
 	vec3 previousFrameColor = texture(previousFrameImage, previousFrameUV).rgb;
 	
 	// Combine current and previous frame's colors
-	outColor = vec4(mix(currentFrameColor, previousFrameColor, 0.5f), 1.0f);
+	outColor = vec4(mix(previousFrameColor, currentFrameColor, 0.5f), 1.0f);
 	
 	//outColor = vec4(currentFrameColor, 1.0f);
-	//outColor = vec4(currentFramePosition, 1.0f);
-	//outColor = vec4(fUV, 0.0f, 1.0f);
-	//outColor = vec4(previousFrameUV, 0.0f, 1.0f);
+	//outColor = vec4(previousFrameColor, 1.0f);
 }

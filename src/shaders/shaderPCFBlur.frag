@@ -21,9 +21,6 @@ layout(location=0) out vec4 outColor;
 // https://developer.nvidia.com/gpugems/GPUGems/gpugems_ch11.html
 void main()
 {
-	//outColor = vec4(texture(aoImage, fUV).rgb, 1.0f);
-	//return;
-
 	vec3 originalColor = texture(rayTracingImage, fUV).rgb;
 	float occlusion = 0.0f;
 	

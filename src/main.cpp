@@ -1627,6 +1627,7 @@ void Raytrace(const char* brhanFile)
 	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+	//attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 	attachments[1].flags = 0;
 	attachments[1].format = vkApp.GetDefaultFramebufferFormat();
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1636,6 +1637,7 @@ void Raytrace(const char* brhanFile)
 	attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[1].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	//attachments[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	VkAttachmentReference colorAttachmentRefsSubpass0;
 	colorAttachmentRefsSubpass0.attachment = 0;
@@ -1841,9 +1843,11 @@ void Raytrace(const char* brhanFile)
 		blitRegion.dstOffsets[0] = offsetStart;
 		blitRegion.dstOffsets[1] = offsetEnd;
 		vkCmdBlitImage(graphicsQueueCommandBuffers[i], vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blitRegion, VK_FILTER_LINEAR);
+		/*vkCmdBlitImage(graphicsQueueCommandBuffers[i], currentFrameImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blitRegion, VK_FILTER_LINEAR);*/
 		
 		//Barrier - wait for blit to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
+		/*vkApp.TransitionImageLayoutInProgress(currentFrameImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);*/
 		vkApp.TransitionImageLayoutInProgress(previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
 		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
 		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
@@ -1868,24 +1872,13 @@ void Raytrace(const char* brhanFile)
 			vkApp.camera.topLeftCorner.x, vkApp.camera.topLeftCorner.y, vkApp.camera.topLeftCorner.z, 0.0f,
 			vkApp.camera.horizontalEnd.x, vkApp.camera.horizontalEnd.y, vkApp.camera.horizontalEnd.z, 0.0f,
 			vkApp.camera.verticalEnd.x, vkApp.camera.verticalEnd.y, vkApp.camera.verticalEnd.z, 0.0f,
-		
-			/*previousViewProjection[0][0], previousViewProjection[0][1], previousViewProjection[0][2], previousViewProjection[0][3],
-			previousViewProjection[1][0], previousViewProjection[1][1], previousViewProjection[1][2], previousViewProjection[1][3],
-			previousViewProjection[2][0], previousViewProjection[2][1], previousViewProjection[2][2], previousViewProjection[2][3],
-			previousViewProjection[3][0], previousViewProjection[3][1], previousViewProjection[3][2], previousViewProjection[3][3]*/
 		};
 		memcpy(cameraData.data() + 16, &previousViewProjection[0][0], 16 * sizeof(float));
-		// Update
+		// Update buffers
 		vkApp.UpdateHostVisibleBuffer(cameraBufferSize, cameraData.data(), cameraBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(currentFrameBufferSize, &vkApp.currentFrame, currentFrameBufferMemory);
 		vkApp.UpdateHostVisibleBuffer(blurBufferSize, &blurVariable, blurBufferMemory);
-		glm::mat4x4 diff = vkApp.camera.GetViewProjectionMatrix() - vkApp.previousFrameCamera.GetViewProjectionMatrix();
 		vkApp.previousFrameCamera = vkApp.camera;
-		
-		/*printf("\n%f %f %f %f\n%f %f %f %f\n%f %f %f %f\n %f %f %f %f\n\n", diff[0][0], diff[0][1], diff[0][2], diff[0][3],
-			diff[1][0], diff[1][1], diff[1][2], diff[1][3],
-			diff[2][0], diff[2][1], diff[2][2], diff[2][3],
-			diff[3][0], diff[3][1], diff[3][2], diff[3][3]);*/
 		
 		// Update the transformation for each mesh
 		for (glm::mat4x4& transformation : transformationData)

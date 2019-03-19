@@ -135,7 +135,7 @@ void main()
 	vec3 isectNormal = texture(normalImage, vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy)).xyz;
 	// Early exit:
 	// 	Either if position is vec3(0.0f), indicating a special case
-	// 	Or if one of the lights are visible from the point
+	// 	Or if at least one of the lights are visible from the point
 	if (isectPoint == vec3(0.0f) || positionFractionVisible.w > 0.0f)
 	{
 		imageStore(aoImage, ivec2(gl_LaunchIDNV.xy), vec4(0.0f));
