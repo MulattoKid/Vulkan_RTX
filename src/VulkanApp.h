@@ -6,6 +6,13 @@ LICENSE: See end of file for license information.
 #ifndef VULKAN_APP_H
 #define VULKAN_APP_H
 
+/*
+This file has a simple Vulkan framework that allows for a lot more compact
+Vulkan code. I've given this quite a bit of attention, but issues/sub-optimal
+solutions may be present. Also, some combination of layout transitions etc.
+are not supported as I've only added when I've needed a specific combination.
+*/
+
 #define VK_NO_PROTOTYPES
 #define VK_DEBUG 1
 
@@ -16,7 +23,7 @@ LICENSE: See end of file for license information.
 #include "BrhanFile.h"
 #include <stdio.h>
 
-#ifdef VK_DEBUG
+#if VK_DEBUG
 #define CHECK_VK_RESULT(res) if (res != VK_SUCCESS) { printf("Vulkan call %s:%i failed with error %i\n", __FILE__, __LINE__, res); exit(EXIT_FAILURE); }
 #else
 #define CHECK_VK_RESULT(res)

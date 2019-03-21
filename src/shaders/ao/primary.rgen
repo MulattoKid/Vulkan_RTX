@@ -6,12 +6,52 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #extension GL_NV_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 
+/*
+Overall description:
+	This shader is responsible for calculating ambient occlusion for any given point
+	that has been determined to need AO calculations. This check happens in the 
+	"Early exit" check using the sampled vec4 from the position image. If this test
+	passes, AO will be calculated.
+	
+SUB_SAMPLE_ISECT_POINT (default=OFF):
+	If defined as 1, the samples that are taken on the hemisphere about the normal
+	are offset slightly in plane created by the normal and the point. This should
+	be used with care as there is no guarantee that following a direction in the plane
+	won't result in the new ray origin being behind some other geometry, resulting in
+	an incorrect result. This is where minOffset and maxOffset are important.
+
+REGULAR_SAMPLES (default=OFF):
+	If defined as 1, the samples that are taken on the hemisphere are constant and
+	evenly spread. This is a safe option, but results in strong borders.
+	
+BLUE_NOISE (default=ON):
+	If defined as 1, the samples that are taken on the hemisphere are sampled using
+	pre-computed blue noise values. Additionally, a blue noise texture will be used
+	to rotate the blue noise values every frame. This is the best option, as the
+	strong borders from the regular samples are less visible and are to a large
+	degree replaced by noise.
+	
+SAMPLE_UNIFORM (default=OFF):
+	If defined as 1, the hemisphere is sampled uniformly. This works fine, but is not
+	the best option.
+	
+SAMPLE_COSINE (default=ON):
+	If defined as 1, the hemisphere is sampled with a cosine weighting. This is the best option.
+	
+Requirements:
+	Either REGULAR_SAMPLES or BLUE_NOISE must be defined as 1.
+	Either SAMPLE_UNIFORM or SAMPLE_COSINE must be defined as 1.
+*/
+
 #include "Defines.glsl"
 #include "Camera.glsl"
 #include "DataLayouts.glsl"
 #include "Geometric.glsl"
 #include "Sample.glsl"
 #include "Sphere.glsl"
+
+// Other
+#define SUB_SAMPLE_ISECT_POINT 0
 
 // Sample points to use
 #define REGULAR_SAMPLES 0
@@ -21,17 +61,15 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #define SAMPLE_UNIFORM 0
 #define SAMPLE_COSINE 1
 
-// Other
-#define SUB_SAMPLE_ISECT_POINT 0
-#define BLUE_NOISE_IMAGE_SIZE 64
-
 #if BLUE_NOISE
+#define BLUE_NOISE_SAMPLE_POINTS 64
+#define BLUE_NOISE_IMAGE_SIZE 64
 struct SamplePoint
 {
 	float u0;
 	float u1;
 };
-SamplePoint samplePoints[64] =
+SamplePoint samplePoints[BLUE_NOISE_SAMPLE_POINTS] =
 {
     {0.869141, 0.657227},
     {0.379883, 0.838867},

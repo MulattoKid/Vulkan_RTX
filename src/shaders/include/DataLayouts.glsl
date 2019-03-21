@@ -5,6 +5,11 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #ifndef DATA_LAYOUTS_GLSL
 #define DATA_LAYOUTS_GLSL
 
+/*
+This file contains structures that are used as the input "format"
+for uniform buffers. Note that std140 has been used.
+*/
+
 //////////////////////////////////
 /////////Input structures/////////
 //////////////////////////////////

@@ -3,6 +3,10 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 LICENSE: See end of file for license information.
 */
 
+/*
+This is the implementation of the Vulkan framework.
+*/
+
 #include <algorithm>
 #include <fstream>
 #include "glm/geometric.hpp"

@@ -5,6 +5,15 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #ifndef DEFINES_H
 #define DEFINES_H
 
+/*
+This file has all the defines that are shared across many shaders,
+but also more importantly the locations of various shader resoruces.
+These are used heavily in 'main.cpp', and makes adding/removing/changing
+the descriptor set contents easier and less prone to mistakes.
+
+WARNINIG: do not change these values unless you REALLY know what you're doing!
+*/
+
 // Ray generation payload locations
 #define PRIMARY_PAYLOAD_LOCATION 0
 #define SECONDARY_PAYLOAD_LOCATION 1

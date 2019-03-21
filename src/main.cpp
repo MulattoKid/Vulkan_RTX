@@ -3,6 +3,12 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 LICENSE: See end of file for license information.
 */
 
+/*
+This is the main file used for the project. The 'main' function is located at the
+bottom of the file. The setup can appear a bit messy, but has been written like
+this for the sake of simplicity and easy modification.
+*/
+
 #include "BrhanFile.h"
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/gtc/constants.hpp"

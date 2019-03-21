@@ -6,12 +6,19 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #extension GL_NV_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 
+/*
+Overall description:
+	This shader is responsible for calculating basic lighting for each pixel, and also storing
+	the intersection point and normal in separate images for later use. Note that the w-component
+	is assigned a special purpose here as it's not actually used. Another thing to note is that
+	there are various scenarios that result in specific values being written out to the various
+	images. See the comments below for more information about this.
+*/
+
 #include "Defines.glsl"
 #include "Camera.glsl"
 #include "DataLayouts.glsl"
 #include "Sphere.glsl"
-
-#define SHADOW 0
 
 layout(set = 0, binding = RT0_ACCELERATION_STRUCTURE_NV_BINDING_LOCATION) uniform accelerationStructureNV scene;
 layout(set = 0, binding = RT0_COLOR_IMAGE_BINDING_LOCATION, rgba8) uniform image2D colorImage;
@@ -102,21 +109,12 @@ void main()
 		// Check for intersection with geometry before an intersection with the light:
 		//    Either didn't hit some geometry or
 		//    the distance to the geometry isect is further than the distance to the isect on the light
-#if SHADOW
-		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
-		{
-			// https://en.wikipedia.org/wiki/Inverse-square_law
-			color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
-			numVisible++;
-		}
-#else
 		if ((secondaryPayload.hitDist.x < 0.0f || secondaryPayload.hitDist.x >= isectPointToLightCenterClosestDist))
 		{
 			numVisible++;
 		}
 		// https://en.wikipedia.org/wiki/Inverse-square_law
 		color += lightEmittance * (1.0f / isectPointToLightCenterClosestDist) * dot(isectNormal, isectPointToLightCenterDir);
-#endif
 	}
 	float fractionOfVisibleLights = float(numVisible) / float(otherData.numSphericalLightSources);
 	color *= primaryPayload.materialColor.rgb;

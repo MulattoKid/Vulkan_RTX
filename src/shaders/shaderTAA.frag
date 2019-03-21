@@ -6,6 +6,14 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : require
 
+/*
+Overall description:
+	This shader is responsible for performing the linear interpolation between the current
+	and the previous frame (temporal anti-aliasing). It utilizes the view-projection matrix
+	from the previous frame to project the world-position to UV-space and sample the
+	previous frame. See the YouTube link below for more information about this.
+*/
+
 #include "Defines.glsl"
 #include "DataLayouts.glsl"
 
@@ -46,6 +54,7 @@ void main()
 	// Combine current and previous frame's colors
 	outColor = vec4(mix(previousFrameColor, currentFrameColor, 0.5f), 1.0f);
 	
+	// Only for verifying correct content
 	//outColor = vec4(currentFrameColor, 1.0f);
 	//outColor = vec4(previousFrameColor, 1.0f);
 }
