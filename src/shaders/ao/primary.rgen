@@ -16,8 +16,6 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 // Sample points to use
 #define REGULAR_SAMPLES 0
 #define BLUE_NOISE 1
-#define GOLDEN_RATIO_SAMPLE 0
-#define FIBONACCI_SPIRAL_SAMPLE 0
 
 // Sample method
 #define SAMPLE_UNIFORM 0
@@ -27,8 +25,7 @@ Copyright (c) 2018-2019 Daniel Fedai Larsen
 #define SUB_SAMPLE_ISECT_POINT 0
 #define BLUE_NOISE_IMAGE_SIZE 64
 
-#if REGULAR_SAMPLES
-#else // BLUE_NOISE
+#if BLUE_NOISE
 struct SamplePoint
 {
 	float u0;
