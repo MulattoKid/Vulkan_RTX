@@ -1,3 +1,7 @@
+/*
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+*/
+
 #ifndef SHADER_SPHERE_H
 #define SHADER_SPHERE_H
 

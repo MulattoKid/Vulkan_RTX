@@ -1,3 +1,7 @@
+/*
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+*/
+
 #ifndef SHADER_GEOMETRIC_H
 #define SHADER_GEOMETRIC_H
 

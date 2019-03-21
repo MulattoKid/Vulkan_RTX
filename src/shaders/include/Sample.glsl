@@ -1,3 +1,7 @@
+/*
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+*/
+
 #ifndef SHADER_SAMPLE_H
 #define SHADER_SAMPLE_H
 

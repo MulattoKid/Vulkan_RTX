@@ -1,3 +1,7 @@
+/*
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+*/
+
 #ifndef SHADER_RAY_H
 #define SHADER_RAY_H
 

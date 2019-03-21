@@ -1,3 +1,7 @@
+/*
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+*/
+
 #ifndef DATA_LAYOUTS_GLSL
 #define DATA_LAYOUTS_GLSL
 

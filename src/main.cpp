@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+LICENSE: See end of file for license information.
+*/
+
 #include "BrhanFile.h"
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/gtc/constants.hpp"
@@ -17,6 +22,8 @@ uint32_t blurVariable;
 uint32_t renderOnscreen = 1;
 uint32_t firstOffscreenFrame = 0;
 
+// Has some issue, but I'm not going to spend time on it
+// It was done just to have some basic and quick camera rotation
 void MouseCallback(GLFWwindow * window, double xpos, double ypos)
 {
 	const double horizontalRotationSpeed = glm::two_pi<double>() / 2.0;
@@ -43,6 +50,7 @@ void MouseCallback(GLFWwindow * window, double xpos, double ypos)
 	vulkanApp->lastMouseY = ypos;
 }
 
+// It works, but is FAR from smooth...good enough though
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	glm::vec3 cameraRight = glm::normalize(glm::cross(vulkanApp->camera.viewDir, vulkanApp->camera.up));
@@ -1627,7 +1635,6 @@ void Raytrace(const char* brhanFile)
 	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
-	//attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 	attachments[1].flags = 0;
 	attachments[1].format = vkApp.GetDefaultFramebufferFormat();
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1637,7 +1644,6 @@ void Raytrace(const char* brhanFile)
 	attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[1].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	//attachments[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	VkAttachmentReference colorAttachmentRefsSubpass0;
 	colorAttachmentRefsSubpass0.attachment = 0;
@@ -1843,11 +1849,9 @@ void Raytrace(const char* brhanFile)
 		blitRegion.dstOffsets[0] = offsetStart;
 		blitRegion.dstOffsets[1] = offsetEnd;
 		vkCmdBlitImage(graphicsQueueCommandBuffers[i], vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blitRegion, VK_FILTER_LINEAR);
-		/*vkCmdBlitImage(graphicsQueueCommandBuffers[i], currentFrameImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blitRegion, VK_FILTER_LINEAR);*/
 		
 		//Barrier - wait for blit to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(vkApp.vkSwapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
-		/*vkApp.TransitionImageLayoutInProgress(currentFrameImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);*/
 		vkApp.TransitionImageLayoutInProgress(previousFrameImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
 		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
 		vkApp.TransitionImageLayoutInProgress(rayTracingPositionImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, graphicsQueueCommandBuffers[i]);
@@ -1916,3 +1920,27 @@ int main(int argc, char** argv)
 	Raytrace(argv[1]);
 	return EXIT_SUCCESS;
 }
+
+/*
+MIT License
+
+Copyright (c) 2018-2019 Daniel Fedai Larsen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
