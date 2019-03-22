@@ -17,6 +17,7 @@ are not supported as I've only added when I've needed a specific combination.
 #define VK_DEBUG 1
 
 #include "volk/volk.h"
+#define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 #include "Camera.h"
 #include <chrono>

@@ -1,0 +1,7 @@
+#Camera position[0 0 0.5] view_direction[0 0.0 -1.0] vertical_fov[60] width[1920] height[1080]
+Camera position[0.003058 0.016529 0.295019] view_direction[0.007949 -0.236273 -0.971654] vertical_fov[60] width[1920] height[1080]
+
+Model file[data/head/head.obj] translate[0 0 0] rotate[0 0 0] scale[1 1 1] material[matte] diffuse[1 1 1]
+Model file[data/head/plane.obj] material[matte] diffuse[1 1 1]
+
+SphericalLight center[0 5 0] radius[0.2] emittance[10 10 10]

@@ -25,8 +25,8 @@ blurVariable (default=OFF):
 
 #include "Defines.glsl"
 
-#define AO 0
-#define AO_COLOR 1
+#define AO 1
+#define AO_COLOR 0
 
 layout(location=0) in vec2 fUV;
 

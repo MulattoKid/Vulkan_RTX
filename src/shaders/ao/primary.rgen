@@ -54,8 +54,8 @@ Requirements:
 #define SUB_SAMPLE_ISECT_POINT 0
 
 // Sample points to use
-#define REGULAR_SAMPLES 0
-#define BLUE_NOISE 1
+#define REGULAR_SAMPLES 1
+#define BLUE_NOISE 0
 
 // Sample method
 #define SAMPLE_UNIFORM 0
@@ -243,8 +243,8 @@ void main()
 		for (int x = 0; x < numOcclusionSamples; x++)
 		{
 #if SUB_SAMPLE_ISECT_POINT			
-			float xFrac = float(x) / float(maxOcclusionStepIndex);
-			float yFrac = float(y) / float(maxOcclusionStepIndex);
+			float xFrac = float(x) / float(maxOcclusionSampleIndex);
+			float yFrac = float(y) / float(maxOcclusionSampleIndex);
 			vec3 occlusionRayOrigin = isectPoint + (isectNormal * 0.001f) +
 									  	(dirOne * mix(minOffset, maxOffset, xFrac)) +
 									   	(dirTwo * mix(minOffset, maxOffset, yFrac));
@@ -296,13 +296,13 @@ void main()
 #if BLUE_NOISE
 			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
 #else // REGULAR_SAMPLES
-			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(maxOcclusionStepIndex), idx / float(totalOcclusionSamples)));
+			vec3 occlusionRayDir = SampleHemisphereCosine(isectNormal, vec2(idx / float(maxOcclusionSampleIndex), idx / float(totalOcclusionSamples)));
 #endif
 #else //SAMPLE_UNIFORM
 #if BLUE_NOISE
 			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(samplePoints[idxI].u0, samplePoints[idxI].u1));
 #else // REGULAR_SAMPLES
-			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(maxOcclusionStepIndex), idx / float(totalOcclusionSamples)));
+			vec3 occlusionRayDir = SampleHemisphere(isectNormal, vec2(idx / float(maxOcclusionSampleIndex), idx / float(totalOcclusionSamples)));
 #endif
 #endif
 

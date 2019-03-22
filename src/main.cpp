@@ -1876,6 +1876,8 @@ void Raytrace(const char* brhanFile)
 		glfwPollEvents();
 		// Camera
 		vkApp.camera.Update();
+		//printf("Origin: %f %f %f\n", vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z);
+		//printf("Dir: %f %f %f\n", vkApp.camera.viewDir.x, vkApp.camera.viewDir.y, vkApp.camera.viewDir.z);
 		previousViewProjection = vkApp.previousFrameCamera.GetViewProjectionMatrix();
 		cameraData = {
 			vkApp.camera.origin.x, vkApp.camera.origin.y, vkApp.camera.origin.z, 0.0f,
