@@ -54,8 +54,8 @@ Requirements:
 #define SUB_SAMPLE_ISECT_POINT 0
 
 // Sample points to use
-#define REGULAR_SAMPLES 1
-#define BLUE_NOISE 0
+#define REGULAR_SAMPLES 0
+#define BLUE_NOISE 1
 
 // Sample method
 #define SAMPLE_UNIFORM 0
