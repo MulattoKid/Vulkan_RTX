@@ -1187,8 +1187,8 @@ void Raytrace(const char* brhanFile)
 	////////////////////////////
 	VkShaderModule vertexShaderModule, fragmentShaderModuleSubpass0, fragmentShaderModuleSubpass1;
 	vkApp.CreateShaderModule("src/shaders/out/vert.spv", &vertexShaderModule);
-	vkApp.CreateShaderModule("src/shaders/out/fragPCFBlur.spv", &fragmentShaderModuleSubpass0);
-	vkApp.CreateShaderModule("src/shaders/out/fragTAA.spv", &fragmentShaderModuleSubpass1);
+	vkApp.CreateShaderModule("src/shaders/out/fragBlur.spv", &fragmentShaderModuleSubpass0);
+	vkApp.CreateShaderModule("src/shaders/out/fragTemporalIntegration.spv", &fragmentShaderModuleSubpass1);
 
 	// Vertex buffer
 	// UV coordinates are a bit weird as the image has to be flipped to
@@ -1898,7 +1898,7 @@ void Raytrace(const char* brhanFile)
 			glm::mat4 translateM = glm::translate(glm::mat4x4(1.0f), glm::vec3(0.01f, 0.0f, 0.0f));
 			//transformation *= translateM;
 		}
-		// Rebuild acceleration structure
+		// Update acceleration structure
 		vkApp.UpdateAccelerationStructureTransforms(accStruct, transformationData);
 		
 		if (renderOnscreen)

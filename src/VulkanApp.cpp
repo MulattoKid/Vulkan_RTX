@@ -1405,7 +1405,7 @@ void VulkanApp::BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std:
 }
 
 //Basic transform
-float basicTransform[12] = { 
+const float basicTransform[12] = { 
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 1.0f, 0.0f

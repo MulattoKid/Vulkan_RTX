@@ -12,13 +12,6 @@ Overall description:
 	that has been determined to need AO calculations. This check happens in the 
 	"Early exit" check using the sampled vec4 from the position image. If this test
 	passes, AO will be calculated.
-	
-SUB_SAMPLE_ISECT_POINT (default=OFF):
-	If defined as 1, the samples that are taken on the hemisphere about the normal
-	are offset slightly in plane created by the normal and the point. This should
-	be used with care as there is no guarantee that following a direction in the plane
-	won't result in the new ray origin being behind some other geometry, resulting in
-	an incorrect result. This is where minOffset and maxOffset are important.
 
 REGULAR_SAMPLES (default=OFF):
 	If defined as 1, the samples that are taken on the hemisphere are constant and
@@ -49,9 +42,6 @@ Requirements:
 #include "Geometric.glsl"
 #include "Sample.glsl"
 #include "Sphere.glsl"
-
-// Other
-#define SUB_SAMPLE_ISECT_POINT 0
 
 // Sample points to use
 #define REGULAR_SAMPLES 0
@@ -242,16 +232,8 @@ void main()
 	{
 		for (int x = 0; x < numOcclusionSamples; x++)
 		{
-#if SUB_SAMPLE_ISECT_POINT			
-			float xFrac = float(x) / float(maxOcclusionSampleIndex);
-			float yFrac = float(y) / float(maxOcclusionSampleIndex);
-			vec3 occlusionRayOrigin = isectPoint + (isectNormal * 0.001f) +
-									  	(dirOne * mix(minOffset, maxOffset, xFrac)) +
-									   	(dirTwo * mix(minOffset, maxOffset, yFrac));
-#else
 			vec3 occlusionRayOrigin = isectPoint + (isectNormal * 0.001f);
-#endif
-			
+
 #if BLUE_NOISE
 			// Find relative sample coordinates with center in the middle of the sample domain
 			vec4 sampleRelative = vec4(x - sampleCenterX, 0.0f, y - sampleCenterY, 1.0f);
@@ -260,11 +242,11 @@ void main()
 			mat4 xzPlaneRotation = Rotate(blueNoiseRotationAngle, vec3(0.0f, -1.0f, 0.0f));
 			vec4 rotatedSampleRelative = xzPlaneRotation * sampleRelative;
 			int rotatedSampleRelativeX = int(round(rotatedSampleRelative.x));
-			int rotatedSampleRelativeY = int(round(rotatedSampleRelative.z));
+			int rotatedSampleRelativeZ = int(round(rotatedSampleRelative.z));
 			
 			// Move back to original coordinate system
 			int rotatedSampleX = rotatedSampleRelativeX + sampleCenterX;
-			int rotatedSampleY = rotatedSampleRelativeY + sampleCenterY;
+			int rotatedSampleZ = rotatedSampleRelativeZ + sampleCenterY;
 			
 			// Wrap each coordinate
 			int wrapRotatedSampleX = rotatedSampleX;
@@ -276,17 +258,17 @@ void main()
 			{
 				wrapRotatedSampleX = numOcclusionSamples - (numOcclusionSamples - wrapRotatedSampleX) - 1;
 			}
-			int wrapRotatedSampleY = rotatedSampleY;
-			if (wrapRotatedSampleY < 0)
+			int wrapRotatedSampleZ = rotatedSampleZ;
+			if (wrapRotatedSampleZ < 0)
 			{
-				wrapRotatedSampleY = numOcclusionSamples + wrapRotatedSampleY;
+				wrapRotatedSampleZ = numOcclusionSamples + wrapRotatedSampleZ;
 			}
-			else if (wrapRotatedSampleY >= numOcclusionSamples)
+			else if (wrapRotatedSampleZ >= numOcclusionSamples)
 			{
-				wrapRotatedSampleY = numOcclusionSamples - (numOcclusionSamples - wrapRotatedSampleY) - 1;
+				wrapRotatedSampleZ = numOcclusionSamples - (numOcclusionSamples - wrapRotatedSampleZ) - 1;
 			}
 			
-			int idxI = wrapRotatedSampleY * numOcclusionSamples + wrapRotatedSampleX;
+			int idxI = wrapRotatedSampleZ * numOcclusionSamples + wrapRotatedSampleX;
 #else
 			int idxI = y * numOcclusionSamples + x;
 #endif
@@ -321,7 +303,8 @@ void main()
 		}
 	}
 	
-	occlusion /= float(totalOcclusionSamples) * ONE_OVER_PI;
+	occlusion /= float(totalOcclusionSamples);
+	//occlusion *= ONE_OVER_TWO_PI;
 	// For safety due to rounding-error: occlusion cannot be more than 1.0f
 	occlusion = min(occlusion, 1.0f);
 	

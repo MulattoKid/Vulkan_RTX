@@ -45,3 +45,6 @@ $(OBJ_DIR)/volk.o : $(VOLK_DIR)/volk.c
 .PHONY : clean
 clean :
 	rm build/*
+	rm src/shaders/out/*.spv
+	rm src/shaders/out/color_position/*.spv
+	rm src/shaders/out/ao/*.spv

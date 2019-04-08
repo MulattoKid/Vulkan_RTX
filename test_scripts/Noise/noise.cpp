@@ -14,8 +14,8 @@ LICENSE: See end of file for license information.
 
 typedef unsigned char uchar_t;
 
-constexpr int32_t IMAGE_WIDTH = 64;
-constexpr int32_t IMAGE_HEIGHT = 64;
+constexpr int32_t IMAGE_WIDTH = 256;
+constexpr int32_t IMAGE_HEIGHT = 256;
 
 constexpr int32_t NUM_DIMENSIONS = 2;
 constexpr int32_t NUM_SAMPLES = 2048;
@@ -30,6 +30,40 @@ struct SamplePoint
 	int32_t x;
 	int32_t y;
 };
+
+void EvenlySpaced(uchar_t* data)
+{
+	printf("Evenly spaced...\n");
+  	int32_t numSamplesXAndY = std::sqrt(NUM_SAMPLES);
+  	int32_t numSamples = numSamplesXAndY * numSamplesXAndY;
+	SamplePoint* samplePoints = new SamplePoint[numSamples];
+  	
+  	for (int32_t y = 0; y < numSamplesXAndY; y++)
+  	{
+  		for (int32_t x = 0; x < numSamplesXAndY; x++)
+  		{
+  			int32_t idx = y * numSamplesXAndY + x;
+	  		samplePoints[idx].x = int32_t(IMAGE_WIDTH * (x / float(numSamplesXAndY)));
+	  		samplePoints[idx].y = int32_t(IMAGE_HEIGHT * (y / float(numSamplesXAndY)));
+  		}
+  	}
+  	
+  	// Just for outlining the picture border
+  	for (int y = 0; y < IMAGE_HEIGHT; y++)
+  	{
+  		for (int x = 0; x < IMAGE_WIDTH; x++)
+  		{
+  			data[y * IMAGE_WIDTH + x] = 64;
+  		}
+  	}
+  	// Color samples
+  	for (int32_t i = 0; i < numSamples; i++)
+  	{
+  		int32_t dataIdx = samplePoints[i].y * IMAGE_WIDTH + samplePoints[i].x;
+  		data[dataIdx] = 255;
+  	}
+  	delete[] samplePoints;
+}
 
 void WhiteNoise(uchar_t* data)
 {
@@ -410,8 +444,12 @@ int main(int argc, char** argv)
 	// used by BlueNoiseAnimate
 	uchar_t* data = new uchar_t[IMAGE_WIDTH * IMAGE_HEIGHT * NUM_FRAMES];
 	
+	EvenlySpaced(data);
+	int res =  stbi_write_bmp("evenly_spaced.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
+	assert(res != 0);
+	
 	WhiteNoise(data);
-	int res =  stbi_write_bmp("white_noise.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
+	res =  stbi_write_bmp("white_noise.bmp", IMAGE_WIDTH, IMAGE_HEIGHT, 1, data);
 	assert(res != 0);
 	
 	BlueNoise(data);

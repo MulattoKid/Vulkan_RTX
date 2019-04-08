@@ -12,5 +12,5 @@
 
 # Rasterization shaders
 ~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shader.vert -Isrc/shaders/include -o src/shaders/out/vert.spv
-~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderPCFBlur.frag -Isrc/shaders/include -o src/shaders/out/fragPCFBlur.spv
-~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderTAA.frag -Isrc/shaders/include -o src/shaders/out/fragTAA.spv
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderBlur.frag -Isrc/shaders/include -o src/shaders/out/fragBlur.spv
+~/VulkanSDK/1.1.92.1/x86_64/bin/glslangValidator -V src/shaders/shaderTemporalIntegration.frag -Isrc/shaders/include -o src/shaders/out/fragTemporalIntegration.spv
