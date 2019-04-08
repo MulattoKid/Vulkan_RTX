@@ -146,7 +146,7 @@ float VisibilityFunction(float dist)
 #if SAMPLE_UNIFORM
 	return pow(2.0f, -dist);
 #elif SAMPLE_COSINE
-	return pow(32.0f, -dist);
+	return pow(8.0f, -dist);
 #endif
 }
 
