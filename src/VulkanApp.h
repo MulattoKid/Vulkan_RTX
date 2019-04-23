@@ -205,8 +205,8 @@ public:
 	VkFormat GetDefaultFramebufferFormat();
 	void CreateRenderPassFramebuffers(std::vector<std::vector<VkImageView>>& imageViews, uint32_t framebufferWidth, uint32_t framebufferHeight, std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass);
 	void AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers);
-	void Render(VkCommandBuffer* commandBuffers, float rebuildTime);
-	void RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime);
+	float Render(VkCommandBuffer* commandBuffers, float rebuildTime);
+	float RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime);
 	void LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes);
 	void BuildColorAndAttributeData(const std::vector<Mesh>& meshes, std::vector<float>* perMeshAttributeData, std::vector<float>* perVertexAttributeData, std::vector<uint32_t>* customIDToAttributeArrayIndex);
 	void CreateVulkanAccelerationStructure(const std::vector<std::vector<float>>& geometryData, VulkanAccelerationStructure* accStruct);

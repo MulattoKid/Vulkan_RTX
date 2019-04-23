@@ -1133,7 +1133,7 @@ void VulkanApp::AllocateDefaultGraphicsQueueCommandBuffers(std::vector<VkCommand
 	CHECK_VK_RESULT(vkAllocateCommandBuffers(vkDevice, &alloccationInfo, commandBuffers.data()))
 }
 
-void VulkanApp::Render(VkCommandBuffer* commandBuffers, float rebuildTime)
+float VulkanApp::Render(VkCommandBuffer* commandBuffers, float rebuildTime)
 {
 	auto start_time = GetTime();
 
@@ -1176,9 +1176,10 @@ void VulkanApp::Render(VkCommandBuffer* commandBuffers, float rebuildTime)
 	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
 	float ms = ns / 1000000.0f;
 	printf("\rFrame time (ms): %.2f", ms);
+	return ms;
 }
 
-void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime)
+float VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTime)
 {
 	auto start_time = GetTime();
 
@@ -1206,6 +1207,7 @@ void VulkanApp::RenderOffscreen(VkCommandBuffer* commandBuffers, float rebuildTi
 	unsigned int ns = (unsigned int)(std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count());
 	float ms = ns / 1000000.0f;
 	printf("\rFrame time (ms): %.2f", ms);
+	return ms;
 }
 
 void VulkanApp::LoadMesh(const ModelFromFile& model, std::vector<Mesh>* meshes)

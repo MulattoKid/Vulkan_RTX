@@ -9,6 +9,12 @@ bottom of the file. The setup can appear a bit messy, but has been written like
 this for the sake of simplicity and easy modification.
 */
 
+#define REBUILD_ACC_STRUCT 0
+#define DEFERRED_PASS 1
+#define AO_PASS 1
+#define BLUR_PASS 1
+#define TEMPORAL_INTEGRATION_PASS 1
+
 #include "BrhanFile.h"
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/gtc/constants.hpp"
@@ -1774,18 +1780,20 @@ void Raytrace(const char* brhanFile)
 		beginInfo.pInheritanceInfo = NULL;
 		CHECK_VK_RESULT(vkBeginCommandBuffer(graphicsQueueCommandBuffers[i], &beginInfo))
 		
+#if REBUILD_ACC_STRUCT
 		// Rebuild acceleration structure
+		vkCmdBuildAccelerationStructureNV(graphicsQueueCommandBuffers[i], &accStruct.topAccStruct.accelerationStructureInfo, accStruct.geometryInstancesBuffer, 0, VK_FALSE, accStruct.topAccStruct.accelerationStructure, VK_NULL_HANDLE, accStruct.scratchBuffer, 0);
+		//Barrier before tracing can begin
 		VkMemoryBarrier memoryBarrier = {};
 		memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 		memoryBarrier.pNext = NULL;
 		memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
 		memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
-		vkCmdBuildAccelerationStructureNV(graphicsQueueCommandBuffers[i], &accStruct.topAccStruct.accelerationStructureInfo, accStruct.geometryInstancesBuffer, 0, VK_FALSE, accStruct.topAccStruct.accelerationStructure, VK_NULL_HANDLE, accStruct.scratchBuffer, 0);
-		
-		//Barrier before tracing can begin
 		vkCmdPipelineBarrier(graphicsQueueCommandBuffers[i], VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
+#endif
 		
 		// Ray trace color, position and normal
+#if DEFERRED_PASS
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdColorPosition.rayTracingPipeline);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdColorPosition.rayTracingPipelineLayout, 0, rtpdColorPosition.descriptorSets.size(), rtpdColorPosition.descriptorSets.data(), 0, NULL);
 		vkCmdTraceRaysNV(graphicsQueueCommandBuffers[i], 
@@ -1793,6 +1801,7 @@ void Raytrace(const char* brhanFile)
 			rtpdColorPosition.shaderBindingTableBuffer, 3 * rtpdColorPosition.shaderGroupHandleSize, rtpdColorPosition.shaderGroupHandleSize,
 			rtpdColorPosition.shaderBindingTableBuffer, 1 * rtpdColorPosition.shaderGroupHandleSize, rtpdColorPosition.shaderGroupHandleSize,
 			 VK_NULL_HANDLE, 0, 0, vkApp.vkSurfaceExtent.width, vkApp.vkSurfaceExtent.height, 1);
+#endif
 		
 		// Barrier - wait for ray tracing to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(rayTracingColorImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
@@ -1800,6 +1809,7 @@ void Raytrace(const char* brhanFile)
 		vkApp.TransitionImageLayoutInProgress(rayTracingNormalImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
 		
 		// Ray trace AO
+#if AO_PASS
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdAO.rayTracingPipeline);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, rtpdAO.rayTracingPipelineLayout, 0, rtpdAO.descriptorSets.size(), rtpdAO.descriptorSets.data(), 0, NULL);
 		vkCmdTraceRaysNV(graphicsQueueCommandBuffers[i], 
@@ -1807,6 +1817,7 @@ void Raytrace(const char* brhanFile)
 			rtpdAO.shaderBindingTableBuffer, 2 * rtpdAO.shaderGroupHandleSize, rtpdAO.shaderGroupHandleSize,
 			rtpdAO.shaderBindingTableBuffer, 1 * rtpdAO.shaderGroupHandleSize, rtpdAO.shaderGroupHandleSize,
 			 VK_NULL_HANDLE, 0, 0, aoImageExtent.width, aoImageExtent.height, 1);
+#endif
 			 
 		// Barrier - wait for ray tracing to finish and transition images
 		vkApp.TransitionImageLayoutInProgress(rayTracingAOImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT, graphicsQueueCommandBuffers[i]);
@@ -1826,18 +1837,22 @@ void Raytrace(const char* brhanFile)
 		renderpassInfo.pClearValues = clearValues;
 		vkCmdBeginRenderPass(graphicsQueueCommandBuffers[i], &renderpassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		// Subpass 0
+#if BLUR_PASS
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineSubpass0);
 		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
 		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsSubpass0, 0, 1, &descriptorSetGraphicsSubpass0, 0, NULL);
 		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
+#endif
 		// Subpass 1
 		vkCmdNextSubpass(graphicsQueueCommandBuffers[i], VK_SUBPASS_CONTENTS_INLINE);
+#if TEMPORAL_INTEGRATION_PASS
 		vkCmdBindPipeline(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineSubpass1);
 		vkCmdBindVertexBuffers(graphicsQueueCommandBuffers[i], 0, 1, &vertexBuffer, &offset);
 		vkCmdBindIndexBuffer(graphicsQueueCommandBuffers[i], indexBuffer, offset, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(graphicsQueueCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutGraphicsSubpass1, 0, 1, &descriptorSetGraphicsSubpass1, 0, NULL);
 		vkCmdDrawIndexed(graphicsQueueCommandBuffers[i], uint32_t(indexData.size()), 1, 0, 0, 0);
+#endif
 		// End render pass
 		vkCmdEndRenderPass(graphicsQueueCommandBuffers[i]);
 		
@@ -1871,6 +1886,10 @@ void Raytrace(const char* brhanFile)
 	glfwSetCursorPosCallback(vkApp.window, MouseCallback);
 	glfwSetInputMode(vkApp.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetKeyCallback(vkApp.window, KeyCallback);
+	float totalRenderTimeOnscreen = 0.0f;
+	float totalRenderTimeOffscreen = 0.0f;
+	uint32_t frameCountOnscreen = 0;
+	uint32_t frameCountOffscreen = 0;
 	while (!glfwWindowShouldClose(vkApp.window))
 	{
 		glfwPollEvents();
@@ -1903,7 +1922,8 @@ void Raytrace(const char* brhanFile)
 		
 		if (renderOnscreen)
 		{
-			vkApp.Render(graphicsQueueCommandBuffers.data(), 0.0f);
+			totalRenderTimeOnscreen += vkApp.Render(graphicsQueueCommandBuffers.data(), 0.0f);
+			frameCountOnscreen++;
 		}
 		else
 		{
@@ -1917,10 +1937,14 @@ void Raytrace(const char* brhanFile)
 				vkWaitForFences(vkApp.vkDevice, 1, &vkApp.vkInFlightFences[previousFrame], VK_TRUE, std::numeric_limits<uint32_t>::max());
 				firstOffscreenFrame = 0;
 			}
-			vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data(), 0.0f);
+			totalRenderTimeOffscreen += vkApp.RenderOffscreen(graphicsQueueCommandBuffers.data(), 0.0f);
+			frameCountOffscreen++;
 		}
 	}
 	vkDeviceWaitIdle(vkApp.vkDevice);
+	
+	printf("\nAverage frame time onscreen: %f\n", totalRenderTimeOnscreen / float(frameCountOnscreen));
+	printf("Average frame time offscreen: %f\n", totalRenderTimeOffscreen / float(frameCountOffscreen));
 }
 
 int main(int argc, char** argv)
