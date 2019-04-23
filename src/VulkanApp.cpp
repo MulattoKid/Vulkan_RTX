@@ -354,7 +354,7 @@ void VulkanApp::ChoosePresentMode()
 	{
 		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
 		{
-			vkPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+			bestMode = VK_PRESENT_MODE_MAILBOX_KHR;
 			break;
 		}
 		if (presentMode == VK_PRESENT_MODE_FIFO_KHR)
