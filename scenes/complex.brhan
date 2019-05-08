@@ -1,0 +1,10 @@
+Camera position[0 5 15] view_direction[0 -0.3 -1.0] vertical_fov[45] width[1920] height[1080]
+
+Model file[data/mercedes/Mercedes_AMG_GT-R_OBJ_no_road.obj] translate[-5 -2.5 0] rotate[0 0 0] scale[0.02 0.02 0.02] material[matte] diffuse[0.9 0.4 0.25]
+Model file[data/mercedes/Mercedes_AMG_GT-R_OBJ_no_road.obj] translate[0 -2.5 -7] rotate[0 0 0] scale[0.02 0.02 0.02] material[matte] diffuse[0.9 0.4 0.25]
+Model file[data/dragon/dragon.obj] translate[5 -1.5 0] rotate[-140 15 -100] scale[0.03 0.03 0.03] material[matte] diffuse[0.9 0.5 0.5]
+Model file[data/dragon/dragon.obj] translate[0 -1.5 7] rotate[-140 15 -100] scale[0.03 0.03 0.03] material[matte] diffuse[0.9 0.5 0.5]
+Model file[data/dragon/plane.obj]
+SphericalLight center[0 5 0] radius[0.2] emittance[10 10 10]
+#SphericalLight center[-5 5 0] radius[0.2] emittance[10 10 10]
+#SphericalLight center[5 5 0] radius[0.2] emittance[0 10 10]

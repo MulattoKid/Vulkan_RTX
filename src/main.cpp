@@ -10,6 +10,8 @@ this for the sake of simplicity and easy modification.
 */
 
 #define REBUILD_ACC_STRUCT 0
+#define MOVE_LIGHTS_HORIZONTALLY 0
+#define MOVE_LIGHTS_VERTICALLY 1
 #define DEFERRED_PASS 1
 #define AO_PASS 1
 #define BLUR_PASS 1
@@ -986,6 +988,14 @@ void Raytrace(const char* brhanFile)
 	{
 		vkApp.LoadMesh(mff, &meshes);
 	}
+	uint32_t sceneTriangleCount = 0;
+	for (const Mesh& mesh : meshes)
+	{
+		// divide by 3 because there are 3 floats per vertex
+		// divide by 3 because there are 3 vertices per triangle
+		sceneTriangleCount += mesh.vertices.size() / 3 / 3;
+	}
+	printf("Scene triangle count: %u\n", sceneTriangleCount);
 	std::vector<std::vector<float>> geometryData;
 	std::vector<glm::mat4x4> transformationData;
 	for (Mesh& mesh : meshes)
@@ -1919,6 +1929,22 @@ void Raytrace(const char* brhanFile)
 		}
 		// Update acceleration structure
 		vkApp.UpdateAccelerationStructureTransforms(accStruct, transformationData);
+		// Lights
+#if MOVE_LIGHTS_HORIZONTALLY
+		assert(lights.size() == 8); // Only one light is allowed
+		for (int i = 0; i < lights.size() / numFloatsPerLight; i++)
+		{
+			lights[i * numFloatsPerLight] = 4.0 * std::sin(totalRenderTimeOnscreen / 500.0f);
+		}
+		vkApp.UpdateHostVisibleBuffer(lightsBufferSize, lights.data(), lightsBufferMemory);
+#elif MOVE_LIGHTS_VERTICALLY
+		assert(lights.size() == 8); // Only one light is allowed
+		for (int i = 0; i < lights.size() / numFloatsPerLight; i++)
+		{
+			lights[i * numFloatsPerLight + 1] = 3.0f + (2.0 * std::sin(totalRenderTimeOnscreen / 500.0f));
+		}
+		vkApp.UpdateHostVisibleBuffer(lightsBufferSize, lights.data(), lightsBufferMemory);
+#endif
 		
 		if (renderOnscreen)
 		{

@@ -304,7 +304,6 @@ void main()
 	}
 	
 	occlusion /= float(totalOcclusionSamples);
-	//occlusion *= ONE_OVER_TWO_PI;
 	// For safety due to rounding-error: occlusion cannot be more than 1.0f
 	occlusion = min(occlusion, 1.0f);
 	
