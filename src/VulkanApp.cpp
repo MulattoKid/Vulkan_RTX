@@ -1763,7 +1763,8 @@ void VulkanApp::UpdateAccelerationStructureTransforms(VulkanAccelerationStructur
 	const uint32_t copySize = sizeof(float) * 12;
 	void* data;
 	CHECK_VK_RESULT(vkMapMemory(vkDevice, accStruct.geometryInstancesBufferMemory, 0, accStruct.geometryInstancesBufferSize, 0, &data))
-	for (glm::mat4x4 transformation : transformationData)
+	char* pData = (char*)(data);
+	for (const glm::mat4x4& transformation : transformationData)
 	{
 		transform[0]  = transformation[0][0];
 		transform[1]  = transformation[1][0];
@@ -1777,7 +1778,9 @@ void VulkanApp::UpdateAccelerationStructureTransforms(VulkanAccelerationStructur
 		transform[9]  = transformation[1][2];
 		transform[10] = transformation[2][2];
 		transform[11] = transformation[3][2];
-		memcpy(data, transform, copySize);
+		memcpy(pData, transform, copySize);
+		// VkGeometryInstanceNV is 64 bytes
+		pData += 64;
 	}
 	vkUnmapMemory(vkDevice, accStruct.geometryInstancesBufferMemory);
 }

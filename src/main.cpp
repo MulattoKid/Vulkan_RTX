@@ -11,7 +11,7 @@ this for the sake of simplicity and easy modification.
 
 #define REBUILD_ACC_STRUCT 0
 #define MOVE_LIGHTS_HORIZONTALLY 0
-#define MOVE_LIGHTS_VERTICALLY 1
+#define MOVE_LIGHTS_VERTICALLY 0
 #define DEFERRED_PASS 1
 #define AO_PASS 1
 #define BLUR_PASS 1
@@ -1797,9 +1797,9 @@ void Raytrace(const char* brhanFile)
 		VkMemoryBarrier memoryBarrier = {};
 		memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 		memoryBarrier.pNext = NULL;
-		memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
+		memoryBarrier.srcAccessMask = 0;
 		memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV;
-		vkCmdPipelineBarrier(graphicsQueueCommandBuffers[i], VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
+		vkCmdPipelineBarrier(graphicsQueueCommandBuffers[i], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, NULL, 0, NULL);
 #endif
 		
 		// Ray trace color, position and normal
@@ -1925,7 +1925,7 @@ void Raytrace(const char* brhanFile)
 		for (glm::mat4x4& transformation : transformationData)
 		{
 			glm::mat4 translateM = glm::translate(glm::mat4x4(1.0f), glm::vec3(0.01f, 0.0f, 0.0f));
-			//transformation *= translateM;
+			transformation *= translateM;
 		}
 		// Update acceleration structure
 		vkApp.UpdateAccelerationStructureTransforms(accStruct, transformationData);
