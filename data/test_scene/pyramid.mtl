@@ -1,8 +1,0 @@
-newmtl pyramid_mtl
-  Ns 10.0000
-  Ni 1.0000
-  illum 2
-  Ka 0.85 0.84 0.6
-  Kd 0 0 0
-  Ks 0.85 0.84 0.6
-  Ke 0 0 0
